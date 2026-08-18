@@ -84,7 +84,7 @@ jobs:
           build/TC1@MK3031@moc/binary/TC1@MK3031@moc.all.bin
         prerelease: false
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Prerelease (dev)
       if: github.ref == 'refs/heads/dev'
@@ -107,4 +107,4 @@ jobs:
           build/TC1@MK3031@moc/binary/TC1@MK3031@moc.all.bin
         prerelease: true
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
