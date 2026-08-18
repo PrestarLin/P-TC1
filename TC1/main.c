@@ -12,6 +12,7 @@
 #include "user_power.h"
 #include "http_server/app_httpd.h"
 #include "timed_task/timed_task.h"
+#include "mqtt_server/user_mqtt_client.h"
 
 char rtc_init = 0; //sntp校时成功标志位
 uint32_t total_time = 0;

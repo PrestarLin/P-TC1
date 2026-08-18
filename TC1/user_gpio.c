@@ -4,6 +4,7 @@
 #include "user_gpio.h"
 #include "user_wifi.h"
 #include "mqtt_server/user_mqtt_client.h"
+#include "http_server/app_httpd.h"
 
 mico_gpio_t relay[Relay_NUM] = {Relay_0, Relay_1, Relay_2, Relay_3, Relay_4, Relay_5};
 char socket_status[32] = {0};
