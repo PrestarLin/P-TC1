@@ -67,12 +67,17 @@ char* wifi_ret = NULL;
 void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
 {
     int count = (int)scan_ret->ApNum;
-    wifi_log("wifi_scan_callback ApNum[%d] ApList[0](%s)", count, scan_ret->ApList[0].ssid);
+    if (count > 0)
+        wifi_log("wifi_scan_callback ApNum[%d] ApList[0](%s)", count, scan_ret->ApList[0].ssid);
 
     int i = 0;
-    wifi_ret = malloc(sizeof(char)*count * (32 + 2) + 50);
-    char* ssids = malloc(sizeof(char)*count * 32);
+    wifi_ret = malloc(sizeof(char)*count * 40 + 64);
+    char* ssids = malloc(sizeof(char)*count * 36 + 1);
     char* secs = malloc(sizeof(char)*count * 2 + 1);
+    if (!ssids) ssids[0] = 0;
+    if (!secs) secs[0] = 0;
+    ssids[0] = '\0';
+    secs[0] = '\0';
     char* tmp1 = ssids;
     char* tmp2 = secs;
     for (; i < count; i++)
@@ -144,15 +149,15 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
     memset(&wNetConfig, 0, sizeof(network_InitTypeDef_st));
     wNetConfig.wifi_mode = Station;
-    snprintf(wNetConfig.wifi_ssid, 32, "%s", wifi_ssid);
-    strcpy((char*)wNetConfig.wifi_key, wifi_key);
+    snprintf(wNetConfig.wifi_ssid, sizeof(wNetConfig.wifi_ssid), "%s", wifi_ssid);
+    snprintf((char*)wNetConfig.wifi_key, sizeof(wNetConfig.wifi_key), "%s", wifi_key);
     wNetConfig.dhcpMode = DHCP_Client;
     wNetConfig.wifi_retry_interval = 6000;
     micoWlanStart(&wNetConfig);
 
     //保存wifi及密码到Flash
-    strcpy(sys_config->micoSystemConfig.ssid, wifi_ssid);
-    strcpy(sys_config->micoSystemConfig.user_key, wifi_key);
+    snprintf(sys_config->micoSystemConfig.ssid, sizeof(sys_config->micoSystemConfig.ssid), "%s", wifi_ssid);
+    snprintf(sys_config->micoSystemConfig.user_key, sizeof(sys_config->micoSystemConfig.user_key), "%s", wifi_key);
     sys_config->micoSystemConfig.user_keyLength = strlen(wifi_key);
     mico_system_context_update(sys_config);
     wifi_status = WIFI_STATE_NOCONNECT;
@@ -176,8 +181,10 @@ void WifiInit(void)
 
 void ApConfig(char* name, char* key)
 {
-    strncpy(user_config->ap_name, name, 32);
-    strncpy(user_config->ap_key, key, 32);
+    strncpy(user_config->ap_name, name, sizeof(user_config->ap_name) - 1);
+    user_config->ap_name[sizeof(user_config->ap_name) - 1] = '\0';
+    strncpy(user_config->ap_key, key, sizeof(user_config->ap_key) - 1);
+    user_config->ap_key[sizeof(user_config->ap_key) - 1] = '\0';
     wifi_log("ApConfig ap_name[%s] ap_key[******]", user_config->ap_name);
     micoWlanSuspendStation();
     ApInit(false);

@@ -484,17 +484,16 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
   char *wifi_key = malloc(128);
   int mode = -1;
 
-
+  if (!buf || !ssid_enc || !key_enc || !wifi_ssid || !wifi_key) {
+      free(buf); free(ssid_enc); free(key_enc); free(wifi_ssid); free(wifi_key);
+      return kNoMemoryErr;
+  }
 
     err = httpd_get_data(req, buf, 256);
     require_noerr(err, exit);
-  // 假设 httpd_get_data(req, buf, 256);
-//  tc1_log("wifi config %s",buf);
   sscanf(buf, "%d %127s %127s", &mode, ssid_enc, key_enc);
-//  tc1_log("wifi config %s %s",ssid_enc,key_enc);
-  url_decode(ssid_enc, wifi_ssid,128);
-  url_decode(key_enc, wifi_key,128);
-//  tc1_log("wifi config decode %s %s",wifi_ssid,wifi_key);
+  url_decode(ssid_enc, wifi_ssid, 128);
+  url_decode(key_enc, wifi_key, 128);
     if (mode == 1) {
         WifiConnect(wifi_ssid, wifi_key);
     } else {
@@ -505,6 +504,8 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
 
     exit:
     if (buf) free(buf);
+    if (ssid_enc) free(ssid_enc);
+    if (key_enc) free(key_enc);
     if (wifi_ssid) free(wifi_ssid);
     if (wifi_key) free(wifi_key);
     return err;

@@ -393,10 +393,14 @@ static void MessageArrived(MessageData *md) {
     require_action(p_recv_msg, exit, err = kNoMemoryErr);
 
     p_recv_msg->datalen = message->payloadlen;
+    if (p_recv_msg->datalen > MAX_MQTT_DATA_SIZE - 1)
+        p_recv_msg->datalen = MAX_MQTT_DATA_SIZE - 1;
     p_recv_msg->qos = (char) (message->qos);
     p_recv_msg->retained = message->retained;
     strncpy(p_recv_msg->topic, md->topicName->lenstring.data, md->topicName->lenstring.len);
-    memcpy(p_recv_msg->data, message->payload, message->payloadlen);
+    p_recv_msg->topic[sizeof(p_recv_msg->topic) - 1] = '\0';
+    memcpy(p_recv_msg->data, message->payload, p_recv_msg->datalen);
+    p_recv_msg->data[p_recv_msg->datalen] = '\0';
 
     mqtt_log("MessageArrived topic[%s] data[%s]", p_recv_msg->topic, p_recv_msg->data);
     err = mico_rtos_send_asynchronous_event(&mqtt_client_worker_thread, UserRecvHandler,
@@ -503,6 +507,7 @@ OSStatus UserMqttSendTopic(char *topic, char *arg, char retained) {
     p_send_msg->datalen = strlen(arg);
     memcpy(p_send_msg->data, arg, p_send_msg->datalen);
     strncpy(p_send_msg->topic, topic, MAX_MQTT_TOPIC_SIZE);
+    p_send_msg->topic[MAX_MQTT_TOPIC_SIZE - 1] = '\0';
 
     err = mico_rtos_push_to_queue(&mqtt_msg_send_queue, &p_send_msg, 0);
     require_noerr(err, exit);
