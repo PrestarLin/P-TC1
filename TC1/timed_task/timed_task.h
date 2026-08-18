@@ -19,3 +19,7 @@ bool DelTask(int time);
 bool DelFirstTask();
 void ProcessTask();
 char* GetTaskStr();
+void TaskLock(void);
+void TaskUnlock(void);
+void TaskModuleInit(void);
+void RebuildTaskList(void);

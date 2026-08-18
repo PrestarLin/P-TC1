@@ -12,6 +12,36 @@
 #include "user_wifi.h"
 
 int day_sec = 86400;
+mico_mutex_t task_mutex;
+
+void TaskModuleInit(void)
+{
+    mico_rtos_init_mutex(&task_mutex);
+}
+
+void TaskLock(void)
+{
+    mico_rtos_lock_mutex(&task_mutex);
+}
+
+void TaskUnlock(void)
+{
+    mico_rtos_unlock_mutex(&task_mutex);
+}
+
+void RebuildTaskList(void)
+{
+    user_config->task_top = NULL;
+    user_config->task_count = 0;
+    for (int i = 0; i < MAX_TASK_NUM; i++)
+    {
+        if (user_config->timed_tasks[i].on_use)
+        {
+            user_config->timed_tasks[i].next = NULL;
+            AddTask(&user_config->timed_tasks[i]);
+        }
+    }
+}
 
 pTimedTask NewTask()
 {
@@ -64,7 +94,7 @@ bool AddTaskSingle(pTimedTask task)
 bool AddTaskWeek(pTimedTask task)
 {
     time_t now = time(NULL);
-    int today_weekday = (now / day_sec + 3) % 7 + 1; //1970-01-01 星期五
+    int today_weekday = (now / day_sec + 3) % 7 + 1;
     int next_day = task->weekday - today_weekday;
     bool next_day_is_today = next_day == 0 && task->prs_time % day_sec > now % day_sec;
     next_day = next_day > 0 || next_day_is_today ? next_day : next_day + 7;
@@ -91,7 +121,7 @@ bool DelFirstTask()
         {
             tmp->on_use = false;
         }
-        else if (tmp->weekday == 8) //8代表每日任务
+        else if (tmp->weekday == 8)
         {
             tmp->prs_time += day_sec;
             AddTask(tmp);
@@ -101,6 +131,7 @@ bool DelFirstTask()
             tmp->prs_time += 7 * day_sec;
             AddTask(tmp);
         }
+        mico_system_context_update(sys_config);
         return true;
     }
     return false;
@@ -119,6 +150,7 @@ bool DelTask(int time)
         user_config->task_top = user_config->task_top->next;
         tmp->on_use = false;
         user_config->task_count--;
+        mico_system_context_update(sys_config);
         return true;
     }
     else if (user_config->task_top->next == NULL)
@@ -135,6 +167,7 @@ bool DelTask(int time)
             pre_tsk->next = tmp_tsk->next;
             tmp_tsk->on_use = false;
             user_config->task_count--;
+            mico_system_context_update(sys_config);
             return true;
         }
         tmp_tsk = tmp_tsk->next;
@@ -205,10 +238,16 @@ void ProcessTask()
 char* GetTaskStr()
 {
     char* str = (char*)malloc(sizeof(char)*(user_config->task_count*89+2));
+    if (!str) return NULL;
     pTimedTask tmp_tsk = user_config->task_top;
     char* tmp_str = str;
     tmp_str[0] = '[';
-    tmp_str[2] = 0;
+    if (user_config->task_count == 0) {
+        tmp_str[1] = ']';
+        tmp_str[2] = '\0';
+        return str;
+    }
+    tmp_str[1] = '\0';
     tmp_str++;
     while (tmp_tsk)
     {

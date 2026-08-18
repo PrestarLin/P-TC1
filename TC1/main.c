@@ -159,6 +159,8 @@ int application_start(void) {
     MicoSysLed(0);
 
     childLockEnabled = (int) user_config->user[0];
+    TaskModuleInit();
+    RebuildTaskList();
     if (user_config->version != USER_CONFIG_VERSION) { tc1_log("WARNGIN: user params restored!");
         err = mico_system_context_restore(sys_config);
         require_noerr(err, exit);
@@ -206,9 +208,11 @@ int application_start(void) {
 
     while (1) {
         time_t now = time(NULL);
+        TaskLock();
         if (user_config->task_top && now >= user_config->task_top->prs_time) {
             ProcessTask();
         }
+        TaskUnlock();
         mico_thread_msleep(1000);
     }
 

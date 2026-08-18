@@ -611,7 +611,9 @@ static int HttpGetLog(httpd_request_t *req) {
 
 static int HttpGetTasks(httpd_request_t *req) {
     OSStatus err = kNoErr;
+    TaskLock();
     char *tasks_str = GetTaskStr();
+    TaskUnlock();
     send_http(tasks_str, strlen(tasks_str), exit, &err);
 
     exit:
@@ -636,8 +638,11 @@ static int HttpAddTask(httpd_request_t *req) {
     err = httpd_get_data(req, buf, 20);
     require_noerr(err, exit);
 
+    TaskLock();
     pTimedTask task = NewTask();
-    if (task == NULL) { http_log("NewTask() error, max task num = %d!", MAX_TASK_NUM);
+    if (task == NULL) {
+        TaskUnlock();
+        http_log("NewTask() error, max task num = %d!", MAX_TASK_NUM);
         char *mess = "NO SPACE";
         send_http(mess, strlen(mess), exit, &err);
         return err;
@@ -651,7 +656,12 @@ static int HttpAddTask(httpd_request_t *req) {
         re = 0;
     }
 
-    char *mess = (re == 4 && AddTask(task)) ? "OK" : "NO";
+    char *mess = "OK";
+    if (re != 4 || !AddTask(task)) {
+        task->on_use = false;
+        mess = "NO";
+    }
+    TaskUnlock();
 
     send_http(mess, strlen(mess), exit, &err);
 
@@ -667,10 +677,12 @@ static int HttpDelTask(httpd_request_t *req) {
         return err;
     }http_log("HttpDelTask url[%s] time_str[%s][%s]", req->filename, time_str, time_str + 6);
 
-    int time1;
-    sscanf(time_str + 6, "%d", &time1);
+    int time1 = 0;
+    int ret = sscanf(time_str + 6, "%d", &time1);
 
-    char *mess = DelTask(time1) ? "OK" : "NO";
+    TaskLock();
+    char *mess = (ret == 1 && DelTask(time1)) ? "OK" : "NO";
+    TaskUnlock();
 
     send_http(mess, strlen(mess), exit, &err);
     exit:
