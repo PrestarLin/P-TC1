@@ -1,0 +1,110 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [dev, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make python3 python3-pip
+        # Install ARM GCC 5.4-2016q2 (MiCO SDK requires this specific version)
+        wget -q https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q2/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
+        tar -xjf gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
+        sudo mv gcc-arm-none-eabi-5_4-2016q2 /opt/
+        echo "/opt/gcc-arm-none-eabi-5_4-2016q2/bin" >> $GITHUB_PATH
+
+    - name: Install mico-cube
+      run: |
+        python3 -m pip install mico-cube-1.0.0.tar.gz 2>/dev/null || true
+        # If mico-cube install fails, we'll use make directly
+
+    - name: Get version and auto-increment
+      id: version
+      run: |
+        version_file=".version"
+        if [ ! -f $version_file ]; then echo "v1.0.0" > $version_file; fi
+        ver=$(cat $version_file)
+        major=$(echo $ver | cut -d. -f1 | sed 's/v//')
+        minor=$(echo $ver | cut -d. -f2)
+        patch=$(echo $ver | cut -d. -f3)
+        patch=$((patch + 1))
+        new_ver="v${major}.${minor}.${patch}"
+        echo $new_ver > $version_file
+        echo "version=$new_ver" >> $GITHUB_OUTPUT
+
+    - name: Generate web assets
+      run: |
+        cd TC1/http_server
+        python3 test.py > web_data.c
+        cd ../..
+
+    - name: Build firmware
+      run: |
+        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/
+
+    - name: Copy OTA binary
+      run: |
+        cp ./build/TC1@MK3031@moc/binary/TC1@MK3031@moc.ota.bin ./build/TC1@MK3031@moc/binary/ota.bin
+
+    - name: Upload firmware artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: P-TC1-${{ steps.version.outputs.version }}
+        path: |
+          build/TC1@MK3031@moc/binary/*.bin
+          .version
+
+    - name: Create Release (master)
+      if: github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        body: |
+          ## P-TC1 Firmware ${{ steps.version.outputs.version }}
+
+          ### 固件文件
+          - `ota.bin` - OTA 升级固件（通过Web后台OTA上传）
+          - `TC1@MK3031@moc.ota.bin` - OTA 升级固件（完整包）
+          - `TC1@MK3031@moc.all.bin` - 全量固件（含Bootloader，需烧录器写入）
+
+          ### 更新说明
+          自动构建版本，请查看 commits 了解具体变更。
+        files: |
+          build/TC1@MK3031@moc/binary/ota.bin
+          build/TC1@MK3031@moc/binary/TC1@MK3031@moc.ota.bin
+          build/TC1@MK3031@moc/binary/TC1@MK3031@moc.all.bin
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    - name: Create Prerelease (dev)
+      if: github.ref == 'refs/heads/dev'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}-dev
+        name: Dev Build ${{ steps.version.outputs.version }}
+        body: |
+          ## P-TC1 Development Build ${{ steps.version.outputs.version }}
+
+          > ⚠️ 这是开发版本，可能包含未稳定功能，请谨慎使用。
+
+          ### 固件文件
+          - `ota.bin` - OTA 升级固件
+          - `TC1@MK3031@moc.ota.bin` - OTA 升级固件（完整包）
+          - `TC1@MK3031@moc.all.bin` - 全量固件
+        files: |
+          build/TC1@MK3031@moc/binary/ota.bin
+          build/TC1@MK3031@moc/binary/TC1@MK3031@moc.ota.bin
+          build/TC1@MK3031@moc/binary/TC1@MK3031@moc.all.bin
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

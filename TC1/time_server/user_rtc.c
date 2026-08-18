@@ -80,12 +80,11 @@ void RtcThread(mico_thread_arg_t arg)
 {
     OSStatus err = kUnknownErr;
     LinkStatusTypeDef LinkStatus;
-//    mico_rtc_time_t rtc_time;
 
     mico_utc_time_t utc_time;
     mico_utc_time_t utc_time_last = 0;
     while (1)
-    {   //涓婄數鍚庤繛鎺ヤ簡wifi鎵嶅紑濮嬭蛋鏃跺惁鍒欑瓑寰呰繛鎺�
+    {
         micoWlanGetLinkStatus(&LinkStatus);
         if (LinkStatus.is_connected == 1)
         {
@@ -96,6 +95,8 @@ void RtcThread(mico_thread_arg_t arg)
                 rtc_init = 1;
                 break;
             }
+            rtc_init = 2;
+            break;
         }
         mico_rtos_thread_sleep(3);
     }
@@ -112,19 +113,8 @@ void RtcThread(mico_thread_arg_t arg)
         }
 
         struct tm * currentTime = localtime((const time_t *) &utc_time);
-//        rtc_time.sec = currentTime->tm_sec;
-//        rtc_time.min = currentTime->tm_min;
-//        rtc_time.hr = currentTime->tm_hour;
-//
-//        rtc_time.date = currentTime->tm_mday;
-//        rtc_time.weekday = currentTime->tm_wday;
-//        rtc_time.month = currentTime->tm_mon + 1;
-//        rtc_time.year = (currentTime->tm_year + 1900) % 100;
 
-        // MicoRtcSetTime(&rtc_time);      //MicoRtc涓嶈嚜鍔ㄨ蛋鏃�!
-
-        //SNTP鏈嶅姟 寮�鏈哄強姣忓皬鏃舵牎鍑嗕竴娆�
-        if (rtc_init != 1 || (currentTime->tm_sec == 0 && currentTime->tm_min == 0))
+        if (currentTime->tm_sec == 0 && currentTime->tm_min == 0)
         {
             micoWlanGetLinkStatus(&LinkStatus);
             if (LinkStatus.is_connected == 1)
@@ -137,10 +127,9 @@ void RtcThread(mico_thread_arg_t arg)
             }
         }
 
-        mico_rtos_thread_msleep(900);
+        mico_rtos_thread_msleep(5000);
     }
 
-//  exit:
     rtc_log("EXIT: rtc exit with err = %d.", err);
     mico_rtos_delete_thread(NULL);
 }

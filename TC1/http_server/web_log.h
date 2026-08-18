@@ -3,8 +3,8 @@
 #ifndef WEB_LOG_H
 #define WEB_LOG_H
 
-#define LOG_NUM 100
-#define LOG_LEN 128
+#define LOG_NUM 50
+#define LOG_LEN 96
 #define TIME_LEN 22
 
 typedef struct

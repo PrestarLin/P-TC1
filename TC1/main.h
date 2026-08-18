@@ -45,7 +45,7 @@
 #define Relay_5   MICO_GPIO_18
 #define Relay_NUM SOCKET_NUM
 
-#define MAX_TASK_NUM 128
+#define MAX_TASK_NUM 64
 
 //用户保存参数结构体
 typedef struct

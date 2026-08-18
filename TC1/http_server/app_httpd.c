@@ -57,7 +57,7 @@
 static bool is_http_init;
 static bool is_handlers_registered;
 const struct httpd_wsgi_call g_app_handlers[];
-char power_info_json[2560] = {0};
+char power_info_json[1024] = {0};
 char up_time[16] = "00:00:00";
 #define CHUNK_SIZE 512  // 每次发送 512 字节，避免 buffer 太大
 #define OTA_BUFFER_SIZE 512
