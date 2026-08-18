@@ -23,7 +23,9 @@ jobs:
         wget -q -L https://launchpadlibrarian.net/268330503/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         tar -xjf gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         mkdir -p mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64
-        mv gcc-arm-none-eabi-5_4-2016q2 mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin
+        # The tarball extracts to gcc-arm-none-eabi-5_4-2016q2/{bin,lib,libexec,...};
+        # move its contents so that .../Linux64/bin/arm-none-eabi-gcc exists (TOOLCHAIN_PATH)
+        mv gcc-arm-none-eabi-5_4-2016q2/* mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/
         # Provide the MiCoder host tools the makefiles expect under $(TOOLS_ROOT)/cmd/Linux64/
         # (SHELL=dash, CAT, ECHO_BLANK_LINE, MKDIR, RMDIR, CPDIR, CLEAN_COMMAND, RM, CP, MV, MAKE)
         mkdir -p mico-os/MiCoder/cmd/Linux64
