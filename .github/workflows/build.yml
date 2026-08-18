@@ -14,13 +14,21 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y make python3
+        sudo apt-get install -y make python3 dash perl
+        # MiCO makefiles call /usr/bin/python (see micoder_host_cmd.mk Linux64 branch)
+        sudo ln -sf /usr/bin/python3 /usr/bin/python
         # Install ARM GCC 5.4-2016q2 into the MiCO SDK's expected path
         # The makefile looks for: $(SOURCE_ROOT)mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin/
         wget -q -L https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q2/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         tar -xjf gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         mkdir -p mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64
         mv gcc-arm-none-eabi-5_4-2016q2 mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin
+        # Provide the MiCoder host tools the makefiles expect under $(TOOLS_ROOT)/cmd/Linux64/
+        # (SHELL=dash, CAT, ECHO_BLANK_LINE, MKDIR, RMDIR, CPDIR, CLEAN_COMMAND, RM, CP, MV, MAKE)
+        mkdir -p mico-os/MiCoder/cmd/Linux64
+        for t in dash cat echo rm mkdir cp mv make; do
+          ln -sf /usr/bin/$t mico-os/MiCoder/cmd/Linux64/$t
+        done
 
     - name: Get version and auto-increment
       id: version
@@ -44,7 +52,7 @@ jobs:
 
     - name: Build firmware
       run: |
-        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/
+        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/ HOST_OS=Linux64
 
     - name: Copy OTA binary
       run: |

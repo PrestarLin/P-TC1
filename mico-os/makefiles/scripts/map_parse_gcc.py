@@ -2,6 +2,7 @@
 
 import sys
 import re
+from functools import reduce
 
 map_file = sys.argv[1]
 
@@ -40,39 +41,38 @@ with open(map_file, 'r') as f:
 		module = module.replace('+', '\+')
 		# get module's sections's address and size
 		if(module == '*fill*'):
-			sections = map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall('\*fill\*[ \t]+(0x\w+)[ \t]+(0x\w+)[ \t]+\n', mem_map))
+			sections = list(map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall('\*fill\*[ \t]+(0x\w+)[ \t]+(0x\w+)[ \t]+\n', mem_map)))
 		else:
-			sections = map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall('(0x\w+)[ \t]+(0x\w+)[ \t]+.+[/\\\]'+module+'(\(.+\.o\))?\n', mem_map))
+			sections = list(map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall('(0x\w+)[ \t]+(0x\w+)[ \t]+.+[/\\\]'+module+'(\(.+\.o\))?\n', mem_map)))
 		if(not sections):
 			continue
 
-		def ram_size(arg):
+		def ram_size_fn(arg):
 			for ram_info in ram_config:
 				if(ram_info['start'] < arg['address'] < ram_info['end']):
 					return arg['size']
 			return 0
 
-		def rom_size(arg):
+		def rom_size_fn(arg):
 			for rom_info in rom_config:
 				if(rom_info['start'] < arg['address'] < rom_info['end']):
 					return arg['size']
 			return 0
 
-		ram_size = reduce(lambda x,y:x+y, map(ram_size, sections))
-		rom_size = reduce(lambda x,y:x+y, map(rom_size, sections))
+		ram_size = reduce(lambda x,y:x+y, map(ram_size_fn, sections))
+		rom_size = reduce(lambda x,y:x+y, map(rom_size_fn, sections))
 
 		total_ram += ram_size
 		total_rom += rom_size
 
 		map_lines.append('| %-40s | %-8d  | %-8d |'%(re.sub('\.[ao]','',module)[:40],rom_size,ram_size))
 
-print '\n                        MICO MEMORY MAP                            '	
-print '|=================================================================|'	
-print '| %-40s | %-8s  | %-8s |'%('MODULE','ROM','RAM')
-print '|=================================================================|'	
+print('\n                        MICO MEMORY MAP                            ')
+print('|=================================================================|')
+print('| %-40s | %-8s  | %-8s |'%('MODULE','ROM','RAM'))
+print('|=================================================================|')
 for line in map_lines:
-	print line
-print '|=================================================================|'		
-print '| %-40s | %-8d  | %-8d |'%('TOTAL (bytes)', total_rom, total_ram)
-print '|=================================================================|'
-
+	print(line)
+print('|=================================================================|')
+print('| %-40s | %-8d  | %-8d |'%('TOTAL (bytes)', total_rom, total_ram))
+print('|=================================================================|')
