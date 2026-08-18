@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -59,7 +59,7 @@ jobs:
         cp ./build/TC1@MK3031@moc/binary/TC1@MK3031@moc.ota.bin ./build/TC1@MK3031@moc/binary/ota.bin
 
     - name: Upload firmware artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: P-TC1-${{ steps.version.outputs.version }}
         path: |
@@ -68,7 +68,7 @@ jobs:
 
     - name: Create Release (master)
       if: github.ref == 'refs/heads/master'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
@@ -92,7 +92,7 @@ jobs:
 
     - name: Create Prerelease (dev)
       if: github.ref == 'refs/heads/dev'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.version.outputs.version }}-dev
         name: Dev Build ${{ steps.version.outputs.version }}
