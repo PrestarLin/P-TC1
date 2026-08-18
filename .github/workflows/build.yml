@@ -19,7 +19,8 @@ jobs:
         sudo ln -sf /usr/bin/python3 /usr/bin/python
         # Install ARM GCC 5.4-2016q2 into the MiCO SDK's expected path
         # The makefile looks for: $(SOURCE_ROOT)mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin/
-        wget -q -L https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q2/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
+        # developer.arm.com URL is dead (404); use the Launchpad librarian mirror
+        wget -q -L https://launchpadlibrarian.net/268330503/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         tar -xjf gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         mkdir -p mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64
         mv gcc-arm-none-eabi-5_4-2016q2 mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin
