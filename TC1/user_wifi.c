@@ -91,8 +91,8 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
         sprintf(tmp2, "%d,", scan_ret->ApList[i].security%10);
         tmp2 += 2;
     }
-    *(--tmp1) = 0;
-    *(--tmp2) = 0;
+    if (tmp1 > ssids) *(--tmp1) = 0;
+    if (tmp2 > secs) *(--tmp2) = 0;
 
     sprintf(wifi_ret, WIFI_SCAN_RESULT_JSON, 1, ssids, secs);
 
@@ -144,7 +144,7 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
     memset(&wNetConfig, 0, sizeof(network_InitTypeDef_st));
     wNetConfig.wifi_mode = Station;
-    snprintf(wNetConfig.wifi_ssid, 32, wifi_ssid);
+    snprintf(wNetConfig.wifi_ssid, 32, "%s", wifi_ssid);
     strcpy((char*)wNetConfig.wifi_key, wifi_key);
     wNetConfig.dhcpMode = DHCP_Client;
     wNetConfig.wifi_retry_interval = 6000;

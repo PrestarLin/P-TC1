@@ -406,15 +406,23 @@ static OSStatus OtaServerSetUrl(char *url)
         ota_server_context->download_url.HTTP_SECURITY = HTTP_SECURITY_HTTP;
     }
 
-    strcpy(ota_server_context->download_url.host, url_t->host);
-    ota_server_context->download_url.port = atoi(url_t->port);
+    strncpy(ota_server_context->download_url.host, url_t->host, sizeof(ota_server_context->download_url.host) - 1);
+    ota_server_context->download_url.host[sizeof(ota_server_context->download_url.host) - 1] = '\0';
+    ota_server_context->download_url.port = atoi(url_t->port ? url_t->port : "0");
     pos = strstr(url, url_t->path);
     if (pos == NULL)
     {
-        strcpy(ota_server_context->download_url.url, "");
+        if (ota_server_context->download_url.url) {
+            ota_server_context->download_url.url[0] = '\0';
+        }
     } else
     {
-        strcpy(ota_server_context->download_url.url, pos);
+        size_t url_len = strlen(pos) + 1;
+        char *new_url = realloc(ota_server_context->download_url.url, url_len);
+        if (new_url) {
+            ota_server_context->download_url.url = new_url;
+            memcpy(ota_server_context->download_url.url, pos, url_len);
+        }
     }
 
 exit:
@@ -441,9 +449,9 @@ OSStatus OtaServerStart(char *url, char *md5, ota_server_cb_fn call_back)
     require_action(ota_server_context, exit, err = kNoMemoryErr);
     memset(ota_server_context, 0x00, sizeof(ota_server_context_t));
 
-    ota_server_context->download_url.url = malloc(strlen(url));
+    ota_server_context->download_url.url = malloc(strlen(url) + 1);
     require_action(ota_server_context->download_url.url, exit, err = kNoMemoryErr);
-    memset(ota_server_context->download_url.url, 0x00, strlen(url));
+    memset(ota_server_context->download_url.url, 0x00, strlen(url) + 1);
 
     err = OtaServerSetUrl(url);
     require_noerr(err, exit);

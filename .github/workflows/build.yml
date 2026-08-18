@@ -14,17 +14,13 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y make python3 python3-pip
-        # Install ARM GCC 5.4-2016q2 (MiCO SDK requires this specific version)
+        sudo apt-get install -y make python3
+        # Install ARM GCC 5.4-2016q2 into the MiCO SDK's expected path
+        # The makefile looks for: $(SOURCE_ROOT)mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin/
         wget -q https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q2/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
         tar -xjf gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
-        sudo mv gcc-arm-none-eabi-5_4-2016q2 /opt/
-        echo "/opt/gcc-arm-none-eabi-5_4-2016q2/bin" >> $GITHUB_PATH
-
-    - name: Install mico-cube
-      run: |
-        python3 -m pip install mico-cube-1.0.0.tar.gz 2>/dev/null || true
-        # If mico-cube install fails, we'll use make directly
+        mkdir -p mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64
+        mv gcc-arm-none-eabi-5_4-2016q2 mico-os/MiCoder/compiler/arm-none-eabi-5_4-2016q2-20160622/Linux64/bin
 
     - name: Get version and auto-increment
       id: version

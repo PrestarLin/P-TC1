@@ -37,15 +37,14 @@ uint64_t irq_old = 0; //上次中断的时间(纳秒)
 
 static void PowerIrqHandler(void *arg) {
     //警告! 不能在此函数里调用任何有关moloc()的操作
+    past_ns = mico_nanosecond_clock_value(); //系统运行纳秒数
+    uint64_t spend_ns = past_ns - irq_old;
+    if (spend_ns == 0) return;
     if (p_count == 0) {
         p_count = user_config->p_count_1_day_ago;
     }
 
     p_count++;
-
-    //mico_time_get_time(&past_ns); //系统运行毫秒数
-    past_ns = mico_nanosecond_clock_value(); //系统运行纳秒数
-    uint64_t spend_ns = past_ns - irq_old;
 
     if (irq_old % NS + spend_ns <= NS) {
         n_1s += 1;

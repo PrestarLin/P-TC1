@@ -114,13 +114,12 @@ char *GetButtonClickConfig() {
 }
 
 void SetSocketStatus(char *socket_status) {
+    int tmp[6];
     sscanf(socket_status, "%d,%d,%d,%d,%d,%d,",
-           (int *) &user_config->socket_status[0],
-           (int *) &user_config->socket_status[1],
-           (int *) &user_config->socket_status[2],
-           (int *) &user_config->socket_status[3],
-           (int *) &user_config->socket_status[4],
-           (int *) &user_config->socket_status[5]);
+           &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5]);
+    for (int i = 0; i < SOCKET_NUM; i++) {
+        user_config->socket_status[i] = (char)tmp[i];
+    }
     int i = 0;
     for (i = 0; i < SOCKET_NUM; i++) {
         UserRelaySet(i, user_config->socket_status[i]);

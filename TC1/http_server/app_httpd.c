@@ -57,7 +57,7 @@
 static bool is_http_init;
 static bool is_handlers_registered;
 const struct httpd_wsgi_call g_app_handlers[];
-char power_info_json[1024] = {0};
+char power_info_json[2048] = {0};
 char up_time[16] = "00:00:00";
 #define CHUNK_SIZE 512  // 每次发送 512 字节，避免 buffer 太大
 #define OTA_BUFFER_SIZE 512
@@ -170,7 +170,7 @@ exit:
 static int HttpGetTc1Status(httpd_request_t *req) {
     char *sockets = GetSocketStatus();
     char *short_click_config = GetButtonClickConfig();
-    char *tc1_status = malloc(1500);
+    char *tc1_status = malloc(2048);
     char *socket_names = malloc(512);
     sprintf(socket_names, "%s,%s,%s,%s,%s,%s",
             user_config->socket_names[0],
@@ -224,8 +224,10 @@ static int HttpSetSocketName(httpd_request_t *req) {
     require_noerr(err, exit);
     int index;
     char name[64];
-    sscanf(buf, "%d %s", &index, name);
-    strcpy(user_config->socket_names[index], name);
+    sscanf(buf, "%d %63s", &index, name);
+    if (index < 0 || index >= SOCKET_NUM) { free(buf); return kParamErr; }
+    strncpy(user_config->socket_names[index], name, sizeof(user_config->socket_names[index]) - 1);
+    user_config->socket_names[index][sizeof(user_config->socket_names[index]) - 1] = '\0';
     mico_system_context_update(sys_config);
     registerMqttEvents();
     send_http("OK", 2, exit, &err);
@@ -247,6 +249,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     int func;
     int longPress;
     sscanf(buf, "%d %d %d", &index, &func, &longPress);
+    if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
     if (longPress == 1) {
         set_key_map(user_config->user,index, get_short_func(user_config->user[index]), func == -1 ? NO_FUNCTION : func);
     } else {
@@ -355,8 +358,9 @@ static int HttpSetDeviceName(httpd_request_t *req) {
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
     char name[64];
-    sscanf(buf, "%s", name);
-    strcpy(sys_config->micoSystemConfig.name, name);
+    sscanf(buf, "%63s", name);
+    strncpy(sys_config->micoSystemConfig.name, name, sizeof(sys_config->micoSystemConfig.name) - 1);
+    sys_config->micoSystemConfig.name[sizeof(sys_config->micoSystemConfig.name) - 1] = '\0';
     mico_system_context_update(sys_config);
     registerMqttEvents();
     send_http("OK", 2, exit, &err);
@@ -486,7 +490,7 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
     require_noerr(err, exit);
   // 假设 httpd_get_data(req, buf, 256);
 //  tc1_log("wifi config %s",buf);
-  sscanf(buf, "%d %s %s", &mode, ssid_enc, key_enc);
+  sscanf(buf, "%d %127s %127s", &mode, ssid_enc, key_enc);
 //  tc1_log("wifi config %s %s",ssid_enc,key_enc);
   url_decode(ssid_enc, wifi_ssid,128);
   url_decode(key_enc, wifi_key,128);
@@ -508,10 +512,11 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
 
 static int HttpGetWifiScan(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    if (scaned) {
+    if (scaned && wifi_ret) {
         scaned = false;
         send_http(wifi_ret, strlen(wifi_ret), exit, &err);
         free(wifi_ret);
+        wifi_ret = NULL;
     } else {
         send_http("NO", 2, exit, &err);
     }
@@ -548,7 +553,7 @@ static int HttpSetMqttConfig(httpd_request_t *req) {
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
 
-    sscanf(buf, "%s %d %s %s", MQTT_SERVER, &MQTT_SERVER_PORT, MQTT_SERVER_USR, MQTT_SERVER_PWD);
+    sscanf(buf, "%31s %d %31s %31s", MQTT_SERVER, &MQTT_SERVER_PORT, MQTT_SERVER_USR, MQTT_SERVER_PWD);
     mico_system_context_update(sys_config);
     if (!(MQTT_SERVER[0] < 0x20 || MQTT_SERVER[0] > 0x7f || MQTT_SERVER_PORT < 1)){
     err = UserMqttInit();

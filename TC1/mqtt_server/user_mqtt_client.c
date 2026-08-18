@@ -432,7 +432,7 @@ void ProcessHaCmd(char *cmd) {
     mqtt_log("ProcessHaCmd[%s]", cmd);
     char mac[20] = {0};
 
-    if (strcmp(cmd, "set socket") == ' ') {
+    if (strcmp(cmd, "set socket") == 0) {
         int i, on;
         sscanf(cmd, "set socket %s %d %d", mac, &i, &on);
         if (strcmp(mac, str_mac)) return;mqtt_log("set socket[%d] on[%d]", i, on);
@@ -440,7 +440,7 @@ void ProcessHaCmd(char *cmd) {
         UserMqttSendSocketState(i);
         UserMqttSendTotalSocketState();
         mico_system_context_update(sys_config);
-    } else if (strcmp(cmd, "set led") == ' ') {
+    } else if (strcmp(cmd, "set led") == 0) {
         int on;
         sscanf(cmd, "set led %s %d", mac, &on);
         if (strcmp(mac, str_mac)) return;mqtt_log("set led on[%d]", on);
@@ -452,7 +452,7 @@ void ProcessHaCmd(char *cmd) {
         }
         UserMqttSendLedState();
         mico_system_context_update(sys_config);
-    } else if (strcmp(cmd, "set total_socket") == ' ') {
+    } else if (strcmp(cmd, "set total_socket") == 0) {
         int on;
         sscanf(cmd, "set total_socket %s %d", mac, &on);
         if (strcmp(mac, str_mac)) return;mqtt_log("set total_socket on[%d]", on);
@@ -463,7 +463,7 @@ void ProcessHaCmd(char *cmd) {
             UserMqttSendSocketState(i);
         }
         UserMqttSendTotalSocketState();
-    }else if (strcmp(cmd, "set childLock") == ' ') {
+    }else if (strcmp(cmd, "set childLock") == 0) {
         int on;
         sscanf(cmd, "set childLock %s %d", mac, &on);
         if (strcmp(mac, str_mac)) return;mqtt_log("set childLock on[%d]", on);
@@ -471,10 +471,10 @@ void ProcessHaCmd(char *cmd) {
         childLockEnabled = on;
         UserMqttSendChildLockState();
         mico_system_context_update(sys_config);
-    }else if (strcmp(cmd, "reboot") == ' ') {
+    }else if (strcmp(cmd, "reboot") == 0) {
         sscanf(cmd, "reboot %s", mac);
         if (strcmp(mac, str_mac)) return;
-        MicoSystemReboot();  // 立即重启设备
+        MicoSystemReboot();
     }
 }
 
