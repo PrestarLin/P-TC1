@@ -226,7 +226,8 @@ static void ota_server_progress_set( OTA_STATE_E state )
 {
     float progress = 0.00;
 
-    progress =(float) ota_server_context->download_state.download_begin_pos / ota_server_context->download_state.download_len;
+    if( ota_server_context->download_state.download_len > 0 )
+        progress =(float) ota_server_context->download_state.download_begin_pos / ota_server_context->download_state.download_len;
     progress = progress*100;
     if(  ota_server_context->ota_server_cb != NULL )
         ota_server_context->ota_server_cb(state, progress);
@@ -313,9 +314,10 @@ static void ota_server_thread( mico_thread_arg_t arg )
             }
         }
 
-        if ( ota_server_context->download_state.download_len == ota_server_context->download_state.download_begin_pos )
+        if ( ota_server_context->download_state.download_len > 0
+         && ota_server_context->download_state.download_len == ota_server_context->download_state.download_begin_pos )
         {
-            if( httpHeader->statusCode != 200 ){
+            if( httpHeader->statusCode != 200 && httpHeader->statusCode != 206 ){
                 goto DELETE;
             }
             CRC16_Final( &crc_context, &crc16 );
@@ -398,7 +400,7 @@ static OSStatus ota_server_set_url( char *url )
     char *pos = NULL;
 
     url_t = url_parse( url );
-    require_action(url, exit, err = kParamErr);
+    require_action(url_t, exit, err = kParamErr);
 #if OTA_DEBUG
     url_field_print( url_t );
 #endif
@@ -433,12 +435,8 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
     require_action(url, exit, err = kParamErr);
 
     if( ota_server_context != NULL ){
-        if( ota_server_context->download_url.url != NULL ){
-            free(ota_server_context->download_url.url);
-            ota_server_context->download_url.url = NULL;
-        }
-        free(ota_server_context);
-        ota_server_context = NULL;
+        err = kGeneralErr;
+        goto exit;
     }
 
     ota_server_context = malloc(sizeof(ota_server_context_t));
