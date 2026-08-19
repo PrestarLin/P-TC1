@@ -57,7 +57,7 @@ jobs:
 
     - name: Build firmware
       run: |
-        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/ HOST_OS=Linux64
+        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/ HOST_OS=Linux64 GLOBAL_DEFINES="COMMIT_HASH=$(git rev-parse --short HEAD)"
 
     - name: Copy OTA binary
       run: |

@@ -139,6 +139,9 @@ int application_start(void) {
     err = mico_system_init(sys_config);
     require_noerr(err, exit);
 
+    TaskModuleInit();
+    LogMutexInit();
+
     uint8_t mac[8];
     mico_wlan_get_mac_address(mac);
     sprintf(str_mac, "%02X%02X%02X%02X%02X%02X",
@@ -159,14 +162,13 @@ int application_start(void) {
     }
     MicoSysLed(0);
 
-    childLockEnabled = user_config->child_lock;
-    TaskModuleInit();
-    LogMutexInit();
-    RebuildTaskList();
     if (user_config->version != USER_CONFIG_VERSION) { tc1_log("WARNGIN: user params restored!");
         err = mico_system_context_restore(sys_config);
         require_noerr(err, exit);
     }
+
+    childLockEnabled = user_config->child_lock;
+    RebuildTaskList();
 
     if (sys_config->micoSystemConfig.name[0] == 1) {
         sprintf(sys_config->micoSystemConfig.name, ZTC1_NAME, str_mac + 8);
