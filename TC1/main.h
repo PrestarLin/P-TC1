@@ -23,7 +23,7 @@
 
 #define ZTC1_NAME "TC1-%s"
 
-#define USER_CONFIG_VERSION 9
+#define USER_CONFIG_VERSION 10
 #define SETTING_MQTT_STRING_LENGTH_MAX 32 //必须4字节对齐。
 
 #define SOCKET_NAME_LENGTH   64
@@ -59,6 +59,7 @@ typedef struct
     char mqtt_password[SETTING_MQTT_STRING_LENGTH_MAX];
     char socket_status[SOCKET_NUM]; //记录当前开关
     char user[maxNameLen];
+    char child_lock;
     WiFiEvent last_wifi_status;
     char ap_name[32];
     char ap_key[32];

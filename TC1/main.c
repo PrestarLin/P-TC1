@@ -34,6 +34,7 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
 
     user_config_t *userConfigDefault = user_config_data;
     userConfigDefault->user[0] = 0;
+    userConfigDefault->child_lock = 0;
     userConfigDefault->mqtt_ip[0] = 0;
     userConfigDefault->mqtt_port = 0;
     userConfigDefault->mqtt_user[0] = 0;
@@ -158,7 +159,7 @@ int application_start(void) {
     }
     MicoSysLed(0);
 
-    childLockEnabled = (int) user_config->user[0];
+    childLockEnabled = user_config->child_lock;
     TaskModuleInit();
     LogMutexInit();
     RebuildTaskList();

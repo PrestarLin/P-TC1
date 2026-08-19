@@ -472,7 +472,7 @@ void ProcessHaCmd(char *cmd) {
         int on;
         sscanf(cmd, "set childLock %19s %d", mac, &on);
         if (strcmp(mac, str_mac)) return;mqtt_log("set childLock on[%d]", on);
-        user_config->user[0] = on;
+        user_config->child_lock = on;
         childLockEnabled = on;
         UserMqttSendChildLockState();
         mico_system_context_update(sys_config);

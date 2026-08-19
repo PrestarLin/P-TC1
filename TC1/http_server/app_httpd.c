@@ -380,7 +380,7 @@ static int HttpSetChildLock(httpd_request_t *req) {
     require_noerr(err, exit);
     int enableLock;
     sscanf(buf, "%d", &enableLock);
-    user_config->user[0] = enableLock;
+    user_config->child_lock = enableLock;
     childLockEnabled = enableLock;
     mico_system_context_update(sys_config);
     UserMqttSendChildLockState();

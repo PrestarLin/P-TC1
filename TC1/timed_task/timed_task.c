@@ -210,8 +210,8 @@ void ProcessTask()
                 mico_system_context_update(sys_config);
                 break;
             case SWITCH_CHILD_LOCK_ENABLE:
-                user_config->user[0] = user_config->task_top->on;
-                childLockEnabled = user_config->user[0];
+                user_config->child_lock = user_config->task_top->on;
+                childLockEnabled = user_config->child_lock;
                 mico_system_context_update(sys_config);
                 UserMqttSendChildLockState();
                 break;
