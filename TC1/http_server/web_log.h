@@ -16,17 +16,20 @@ typedef struct
 void SetLogRecord(LogRecord* lr, char* log);
 char* GetLogRecord();
 void WebLog(const char *M, ...);
+void LogMutexInit(void);
 
 extern LogRecord log_record;
-extern char* LOG_TMP;
-extern time_t LOG_NOW;
-#define web_log(N, M, ...)                           \
-    LOG_TMP = (char*)malloc(sizeof(char)*LOG_LEN);     \
-    LOG_NOW = time(NULL) + 28800; \
-    strftime(LOG_TMP, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime(&LOG_NOW)); \
-    LOG_TMP[TIME_LEN - 1] = ' '; \
-    snprintf(LOG_TMP + TIME_LEN, LOG_LEN - TIME_LEN, "["N" %s:%d] "M, SHORT_FILE, __LINE__, ##__VA_ARGS__); \
-    SetLogRecord(&log_record, LOG_TMP);                \
+#define web_log(N, M, ...) \
+    do { \
+        char *_log_buf = (char*)malloc(sizeof(char)*LOG_LEN); \
+        if (_log_buf) { \
+            time_t _log_now = time(NULL) + 28800; \
+            strftime(_log_buf, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime(&_log_now)); \
+            _log_buf[TIME_LEN - 1] = ' '; \
+            snprintf(_log_buf + TIME_LEN, LOG_LEN - TIME_LEN, "["N" %s:%d] "M, SHORT_FILE, __LINE__, ##__VA_ARGS__); \
+            SetLogRecord(&log_record, _log_buf); \
+        } \
+    } while(0)
 
 #define web_log0(N, M, ...) WebLog("["N" %s:%d] "M, SHORT_FILE, __LINE__, ##__VA_ARGS__)
 

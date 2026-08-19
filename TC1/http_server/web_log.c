@@ -7,14 +7,19 @@
 
 #include"http_server/web_log.h"
 
-char* LOG_TMP;
-time_t LOG_NOW;
+static mico_mutex_t log_mutex;
 
 LogRecord log_record = { 1,{ 0 } };
 char log_record_str[LOG_NUM * (LOG_LEN + 4) + 64] = { 0 };
 
+void LogMutexInit(void)
+{
+    mico_rtos_init_mutex(&log_mutex);
+}
+
 void SetLogRecord(LogRecord* lr, char* log)
 {
+    mico_rtos_lock_mutex(&log_mutex);
     if (strlen(log) > LOG_LEN)
     {
         log[LOG_LEN-1] = 0;
@@ -25,10 +30,12 @@ void SetLogRecord(LogRecord* lr, char* log)
         free(*p_log);
     }
     *p_log = log;
+    mico_rtos_unlock_mutex(&log_mutex);
 }
 
 char* GetLogRecord()
 {
+    mico_rtos_lock_mutex(&log_mutex);
     int i = log_record.idx - LOG_NUM + 1;
     i = i < 0 ? 0 : i;
     size_t remaining = sizeof(log_record_str);
@@ -45,6 +52,7 @@ char* GetLogRecord()
             if (written > 0) { tmp += written; remaining -= (written < (int)remaining ? written : (int)remaining); }
         }
     }
+    mico_rtos_unlock_mutex(&log_mutex);
     return log_record_str;
 }
 
@@ -52,7 +60,7 @@ void WebLog(const char *M, ...)
 {
     char* buff = (char*)malloc(sizeof(char)*LOG_LEN);
 
-    time_t now = time(NULL) + 28800; //东8区
+    time_t now = time(NULL) + 28800;
     strftime(buff, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime(&now));
     buff[TIME_LEN - 1] = ' ';
 

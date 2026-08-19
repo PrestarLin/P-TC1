@@ -160,6 +160,7 @@ int application_start(void) {
 
     childLockEnabled = (int) user_config->user[0];
     TaskModuleInit();
+    LogMutexInit();
     RebuildTaskList();
     if (user_config->version != USER_CONFIG_VERSION) { tc1_log("WARNGIN: user params restored!");
         err = mico_system_context_restore(sys_config);
