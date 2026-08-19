@@ -53,6 +53,7 @@ static void PowerIrqHandler(void *arg) {
     }
 
     int n = (spend_ns - past_ns % NS) / NS;
+    if (n > 100) n = 100;
     n_1s += (float) (NS - irq_old % NS) / spend_ns;
     real_time_power = 17.1 * n_1s;
     SetPowerRecord(&power_record, (int) real_time_power);

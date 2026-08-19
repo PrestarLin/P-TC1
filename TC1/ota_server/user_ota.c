@@ -5,7 +5,7 @@
 #include "main.h"
 #include "mqtt_server/user_mqtt_client.h"
 
-float ota_progress = -2;
+volatile int ota_progress = -2;
 
 static void OtaServerStatusHandler(OTA_STATE_E state, float progress)
 {
@@ -13,7 +13,7 @@ static void OtaServerStatusHandler(OTA_STATE_E state, float progress)
     switch (state)
     {
         case OTA_LOADING:
-            ota_progress = progress;
+            ota_progress = (int) progress;
             ota_log("ota server is loading, progress %.2f%%", progress);
             if (((int) progress)%10 == 1)
                 sprintf(str, "{\"mac\":\"%s\",\"ota_progress\":%d}", str_mac,((int) progress));

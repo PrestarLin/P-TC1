@@ -754,7 +754,7 @@ static int TotalSocketSetEnabled(httpd_request_t *req) {
 static int Otastatus(httpd_request_t *req) {
     OSStatus err = kNoErr;
     char buf[16] = {0};
-    sprintf(buf, "%.2f", ota_progress);
+    sprintf(buf, "%d", ota_progress);
     send_http(buf, strlen(buf), exit, &err);
     exit:
     return err;
