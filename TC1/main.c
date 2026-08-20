@@ -126,9 +126,7 @@ void reportMqttPowerInfoThread() {
 }
 
 int application_start(void) {
-    int i;tc1_log("start version[%s]", VERSION);
-
-    //char main_num=0;
+    int i;
     OSStatus err = kNoErr;
 
     // Create mico system context and read application's config data from flash
@@ -141,6 +139,7 @@ int application_start(void) {
 
     TaskModuleInit();
     LogMutexInit();
+    tc1_log("start version[%s]", VERSION);
 
     uint8_t mac[8];
     mico_wlan_get_mac_address(mac);
