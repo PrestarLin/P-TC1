@@ -237,7 +237,7 @@ void ProcessTask()
 
 char* GetTaskStr()
 {
-    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*89+2));
+    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*128+2));
     if (!str) return NULL;
     pTimedTask tmp_tsk = user_config->task_top;
     char* tmp_str = str;

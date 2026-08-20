@@ -107,3 +107,12 @@
 | 6 | 童锁独立字段：M3 | `main.h`、`app_httpd.c`、`user_gpio.c`、`timed_task.c`、`main.c` |
 | 7 | OTA 含 SDK：M7-M9、m8 | `mico-os/.../ota_server.c` |
 | 8 | 中断与杂项：M10、m1、m5、m9-m11 | `user_power.c`、`ota_server/ota_server.h`、`main.h`、`map_parse_gcc.py` |
+| 9 | 失联回归 + 版本号 + 存量修复 | `main.c`（初始化顺序）、`main.h`（VERSION/COMMIT_HASH 字符串化）、`timed_task.c`（GetTaskStr 堆溢出 89→128）、`app_httpd.c`（HttpAddTask 持久化）、`build.yml`（dev tag 加 run_number） |
+
+## 批9 说明
+
+- **失联回归根因**：`LogMutexInit()` 晚于首个 `tc1_log`（`SetLogRecord` 在未初始化互斥锁上 `mico_rtos_lock_mutex`）→ 挂死。已把 `TaskModuleInit/LogMutexInit` 移到 `mico_system_init` 之后、首个日志之前；`RebuildTaskList/childLockEnabled` 移到版本检查/恢复之后。
+- **COMMIT_HASH 字符串化**：`-DCOMMIT_HASH=<hex>` 是裸 token，直接拼接 `"v3.0.0-" COMMIT_HASH` 会编译错误；改双字符串化 `STR(COMMIT_HASH)` + 回退裸 token `local`。
+- **GetTaskStr 堆溢出**（存量）：每条任务 sprintf 最长 ~113 字节，按 89/条分配会越界写；改 128/条。
+- **HttpAddTask 不持久化**（存量）：新增任务从不写 flash，重启即丢失（RebuildTaskList 暴露）；成功路径补 `mico_system_context_update`。
+- **CI dev tag 重复**：每 push 生成相同 `v3.0.1-dev` → 第二次 release 422 失败；dev tag 追加 `github.run_number`。

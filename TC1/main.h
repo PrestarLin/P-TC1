@@ -17,9 +17,11 @@
 #define power_log(M, ...) custom_log("POWER", M, ##__VA_ARGS__); web_log("POWER", M, ##__VA_ARGS__);
 
 #ifndef COMMIT_HASH
-#define COMMIT_HASH "local"
+#define COMMIT_HASH local
 #endif
-#define VERSION "v3.0.0-" COMMIT_HASH
+#define STR_(x) #x
+#define STR(x) STR_(x)
+#define VERSION "v3.0.0-" STR(COMMIT_HASH)
 
 #define TYPE 1
 #define TYPE_NAME "TC1"

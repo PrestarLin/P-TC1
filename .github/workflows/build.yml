@@ -99,8 +99,8 @@ jobs:
       if: github.ref == 'refs/heads/dev'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.version.outputs.version }}-dev
-        name: Dev Build ${{ steps.version.outputs.version }}
+        tag_name: ${{ steps.version.outputs.version }}-dev-${{ github.run_number }}
+        name: Dev Build ${{ steps.version.outputs.version }}-${{ github.run_number }}
         body: |
           ## P-TC1 Development Build ${{ steps.version.outputs.version }}
 

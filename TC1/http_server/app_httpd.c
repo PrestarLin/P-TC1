@@ -660,6 +660,8 @@ static int HttpAddTask(httpd_request_t *req) {
     if (re != 4 || !AddTask(task)) {
         task->on_use = false;
         mess = "NO";
+    } else {
+        mico_system_context_update(sys_config);
     }
     TaskUnlock();
 
