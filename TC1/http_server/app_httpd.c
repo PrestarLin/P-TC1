@@ -58,7 +58,7 @@ static bool is_http_init;
 static bool is_handlers_registered;
 const struct httpd_wsgi_call g_app_handlers[];
 char power_info_json[2048] = {0};
-char up_time[16] = "00:00:00";
+char up_time[32] = "00:00:00";
 #define CHUNK_SIZE 512  // 每次发送 512 字节，避免 buffer 太大
 #define OTA_BUFFER_SIZE 512
 #define MAX_OTA_SIZE 1024*1024
@@ -408,7 +408,7 @@ static int HttpGetPowerInfo(httpd_request_t *req) {
     int h = past / 3600 % 24;
     int m = past / 60 % 60;
     int s = past % 60;
-    sprintf(up_time, "%d - %02d:%02d:%02d", d, h, m, s);
+    sprintf(up_time, "%dd %02d:%02d:%02d", d, h, m, s);
 
     char *powers = GetPowerRecord(idx);
     char *sockets = GetSocketStatus();

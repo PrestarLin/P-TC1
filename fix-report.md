@@ -79,6 +79,16 @@
 | m9 | 🟡 Minor | `OTA_USE_HTTPS=1` 与应用实际不匹配 | 改为 0 与 SDK 一致 |
 | m11 | 🟡 Minor | `map_parse_gcc.py` 正则 Py3 SyntaxWarning | 改用 raw string |
 
+### 批9 — 失联回归 + 版本号 + 存量修复
+| Bug | 严重性 | 问题 | 修复 |
+|-----|--------|------|------|
+| 回归 | 🔴 Critical | `LogMutexInit()` 晚于首个 `tc1_log` → `SetLogRecord` 在未初始化互斥锁上 `mico_rtos_lock_mutex` → 开机挂死、设备失联 | `TaskModuleInit/LogMutexInit` 移到 `mico_system_init` 之后、首个日志之前 |
+| 回归 | 🔴 Critical | `RebuildTaskList()`/`childLockEnabled` 在版本检查/恢复**之前**执行 → 旧 v9 配置（新结构体插入了 `child_lock`）字段错位，在垃圾数据上重建链表（可能触发 REBOOT_SYSTEM 无限重启） | 移到版本恢复之后 |
+| 版本 | 🟠 Major | `-DCOMMIT_HASH=<hex>` 是裸 token，`"v3.0.0-" COMMIT_HASH` 直接拼接 → **CI 编译错误** | 双字符串化 `STR(COMMIT_HASH)`，本地回退裸 token `local` |
+| 存量 | 🟠 Major | `GetTaskStr` 按 `task_count*89+2` 分配，每条 sprintf 最长 ~113 字节 → **堆溢出** | 改 `128/条`（含余量） |
+| 存量 | 🟠 Major | `HttpAddTask` 新增任务从不写 flash → 重启即丢失（批3 的 RebuildTaskList 使其暴露） | 成功路径补 `mico_system_context_update` |
+| CI | 🟡 Minor | 每 push dev 生成相同 `v3.0.1-dev` tag → 连续推送时 release 步骤 422 失败 | dev tag 追加 `github.run_number` |
+
 ---
 
 ## 三、版本号
@@ -91,6 +101,9 @@
 ## 四、提交历史（dev 分支，自原始 fork 起）
 
 ```
+9f345d4 批9: COMMIT_HASH字符串化 + GetTaskStr堆溢出 + 任务持久化 + CI tag唯一
+cc7a65a 版本号改用 EXTERNAL_MiCO_GLOBAL_DEFINES 传入
+7e3b658 修复初始化顺序导致OTA后失联 + 版本号加commit缩写
 708adca 批8: 余项修复 + 版本号 v3.0.0
 41fa767 批7: OTA SDK 修复
 3f04017 批6: 童锁独立字段
@@ -115,4 +128,4 @@ fa17876 CI 转 Python3 + Linux64 工具
 
 ## 五、CI 验证
 
-每次推送 dev 分支自动触发 CI 构建，生成 `v3.0.0-dev` 预发布（含 `ota.bin` / `all.bin` / `ota` 完整包）。验证通过后合入 master 即可发布正式版。
+每次推送 dev 分支自动触发 CI 构建，生成 `v3.0.1-dev-<run_number>` 预发布（含 `ota.bin` / `all.bin` / `ota` 完整包）。批9 提交 `9f345d4` 的 CI 构建已通过，固件内嵌版本号实测为 `v3.0.0-9f345d4`（已从 `ota.bin` 二进制中验证）。验证通过后合入 master 即可发布正式版。

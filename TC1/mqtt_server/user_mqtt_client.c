@@ -841,7 +841,7 @@ extern void UserMqttHassPower(void) {
     UserMqttSendTopic(topic_buf, send_buf, 0);
 
     //计算系统运行时间
-    char up_time[16] = "00:00:00";
+    char up_time[32] = "00:00:00";
     mico_time_t past_ms = 0;
     mico_time_get_time(&past_ms);
     int past = past_ms / 1000;
@@ -849,7 +849,7 @@ extern void UserMqttHassPower(void) {
     int h = past / 3600 % 24;
     int m = past / 60 % 60;
     int s = past % 60;
-    sprintf(up_time, "%d - %02d:%02d:%02d", d, h, m, s);
+    sprintf(up_time, "%dd %02d:%02d:%02d", d, h, m, s);
 
     sprintf(topic_buf, "homeassistant/sensor/%s/startupTime/state", str_mac);
     sprintf(send_buf, "{\"startupTime\":\"%s\"}", up_time);
