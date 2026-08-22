@@ -33,6 +33,7 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     mico_system_context_get()->micoSystemConfig.name[1] = 0;
 
     user_config_t *userConfigDefault = user_config_data;
+    memset(userConfigDefault, 0, sizeof(user_config_t)); // 确保 reserved 尾部字节确定，CRC 可复现
     userConfigDefault->user[0] = 0;
     userConfigDefault->child_lock = 0;
     userConfigDefault->mqtt_ip[0] = 0;
@@ -125,6 +126,51 @@ void reportMqttPowerInfoThread() {
     }
 }
 
+/* 配置布局迁移：将 flash 中旧版本布局逐字段投影到当前活动布局。
+ * 返回 true 表示已迁移（或本就是最新）；返回 false 表示版本未知/不支持，
+ * 由调用方回退到恢复出厂默认。仅在布局版本号变化时才会真正拷贝。
+ */
+bool user_config_migrate(void) {
+    char old_version = user_config->version; // 首字节恒为版本号（定长驻块 offset 0 稳定）
+    if (old_version == USER_CONFIG_VERSION) {
+        return true; // 已是当前布局
+    }
+
+    tc1_log("WARNGIN: migrate user config from v%d to v%d", old_version, USER_CONFIG_VERSION);
+
+    if (old_version >= 1 && old_version <= 10) {
+        /* 从冻结的 v10 布局投影到当前布局. */
+        user_config_v10_t *v10 = (user_config_v10_t *) user_config;
+        /* v10 与当前布局目前字段一致，先复制全部字段，避免同名字段错位。 */
+        snprintf(user_config->mqtt_ip, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_ip);
+        user_config->mqtt_port = v10->mqtt_port;
+        user_config->mqtt_report_freq = v10->mqtt_report_freq;
+        snprintf(user_config->mqtt_user, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_user);
+        snprintf(user_config->mqtt_password, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_password);
+        memcpy(user_config->socket_status, v10->socket_status, sizeof(user_config->socket_status));
+        memcpy(user_config->socket_names, v10->socket_names, sizeof(user_config->socket_names));
+        memcpy(user_config->user, v10->user, maxNameLen);
+        user_config->child_lock = v10->child_lock;
+        user_config->last_wifi_status = v10->last_wifi_status;
+        memcpy(user_config->ap_name, v10->ap_name, sizeof(user_config->ap_name));
+        memcpy(user_config->ap_key, v10->ap_key, sizeof(user_config->ap_key));
+        user_config->task_count = v10->task_count;
+        user_config->task_top = v10->task_top;
+        user_config->p_count_2_days_ago = v10->p_count_2_days_ago;
+        user_config->p_count_1_day_ago = v10->p_count_1_day_ago;
+        user_config->power_led_enabled = v10->power_led_enabled;
+        memcpy(user_config->timed_tasks, v10->timed_tasks, sizeof(user_config->timed_tasks));
+        user_config->version = USER_CONFIG_VERSION;
+
+        /* 迁移后写回 flash（含固定 CRC），此后布局即为最新。 */
+        mico_system_context_update(sys_config);
+        return true;
+    }
+
+    tc1_log("WARNGIN: unsupported config version %d, restore to default!", old_version);
+    return false;
+}
+
 int application_start(void) {
     int i;
     OSStatus err = kNoErr;
@@ -161,7 +207,7 @@ int application_start(void) {
     }
     MicoSysLed(0);
 
-    if (user_config->version != USER_CONFIG_VERSION) { tc1_log("WARNGIN: user params restored!");
+    if (!user_config_migrate()) { tc1_log("WARNGIN: user params restored!");
         err = mico_system_context_restore(sys_config);
         require_noerr(err, exit);
     }

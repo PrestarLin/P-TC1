@@ -435,20 +435,20 @@ OSStatus UserRecvHandler(void *arg) {
 void ProcessHaCmd(char *cmd) {
     mqtt_log("ProcessHaCmd[%s]", cmd);
     char mac[20] = {0};
+    int i, on;
 
     if (strncmp(cmd, "set socket", 10) == 0) {
-        int i, on;
-        sscanf(cmd, "set socket %19s %d %d", mac, &i, &on);
+        if (sscanf(cmd, "set socket %19s %d %d", mac, &i, &on) != 3) return;
         if (strcmp(mac, str_mac)) return;mqtt_log("set socket[%d] on[%d]", i, on);
-        if (i < 0 || i >= SOCKET_NUM) return;
+        if (i < 0 || i >= SOCKET_NUM || (on != 0 && on != 1)) return;
         UserRelaySet(i, on);
         UserMqttSendSocketState(i);
         UserMqttSendTotalSocketState();
         mico_system_context_update(sys_config);
     } else if (strncmp(cmd, "set led", 7) == 0) {
-        int on;
-        sscanf(cmd, "set led %19s %d", mac, &on);
+        if (sscanf(cmd, "set led %19s %d", mac, &on) != 2) return;
         if (strcmp(mac, str_mac)) return;mqtt_log("set led on[%d]", on);
+        if (on != 0 && on != 1) return;
         user_config->power_led_enabled = on;
         if (RelayOut() && user_config->power_led_enabled) {
             UserLedSet(1);
@@ -458,26 +458,26 @@ void ProcessHaCmd(char *cmd) {
         UserMqttSendLedState();
         mico_system_context_update(sys_config);
     } else if (strncmp(cmd, "set total_socket", 16) == 0) {
-        int on;
-        sscanf(cmd, "set total_socket %19s %d", mac, &on);
+        if (sscanf(cmd, "set total_socket %19s %d", mac, &on) != 2) return;
         if (strcmp(mac, str_mac)) return;mqtt_log("set total_socket on[%d]", on);
+        if (on != 0 && on != 1) return;
         UserRelaySetAll(on);
-        int i = 0;
-        for (i = 0; i < SOCKET_NUM; i++) {
-            UserRelaySet(i, user_config->socket_status[i]);
-            UserMqttSendSocketState(i);
+        int j = 0;
+        for (j = 0; j < SOCKET_NUM; j++) {
+            UserRelaySet(j, user_config->socket_status[j]);
+            UserMqttSendSocketState(j);
         }
         UserMqttSendTotalSocketState();
     }else if (strncmp(cmd, "set childLock", 13) == 0) {
-        int on;
-        sscanf(cmd, "set childLock %19s %d", mac, &on);
+        if (sscanf(cmd, "set childLock %19s %d", mac, &on) != 2) return;
         if (strcmp(mac, str_mac)) return;mqtt_log("set childLock on[%d]", on);
+        if (on != 0 && on != 1) return;
         user_config->child_lock = on;
         childLockEnabled = on;
         UserMqttSendChildLockState();
         mico_system_context_update(sys_config);
-    }else if (strncmp(cmd, "reboot", 6) == 0) {
-        sscanf(cmd, "reboot %19s", mac);
+    }else if (strncmp(cmd, "reboot ", 7) == 0) {
+        if (sscanf(cmd, "reboot %19s", mac) != 1) return;
         if (strcmp(mac, str_mac)) return;
         MicoSystemReboot();
     }

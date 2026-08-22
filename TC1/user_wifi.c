@@ -71,11 +71,17 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
         wifi_log("wifi_scan_callback ApNum[%d] ApList[0](%s)", count, scan_ret->ApList[0].ssid);
 
     int i = 0;
-    wifi_ret = malloc(sizeof(char)*count * 40 + 64);
-    char* ssids = malloc(sizeof(char)*count * 36 + 1);
-    char* secs = malloc(sizeof(char)*count * 2 + 1);
-    if (!ssids) ssids[0] = 0;
-    if (!secs) secs[0] = 0;
+    size_t buf_size = (size_t)count * 40 + 64;
+    wifi_ret = malloc(buf_size);
+    char* ssids = malloc((size_t)count * 36 + 1);
+    char* secs = malloc((size_t)count * 2 + 1);
+    if (!wifi_ret || !ssids || !secs)
+    {
+        free(wifi_ret); wifi_ret = NULL;
+        free(ssids);
+        free(secs);
+        return;
+    }
     ssids[0] = '\0';
     secs[0] = '\0';
     char* tmp1 = ssids;

@@ -1,0 +1,343 @@
+diff --git a/TC1/TC1.mk b/TC1/TC1.mk
+index 5cb0513..6fa046e 100644
+--- a/TC1/TC1.mk
++++ b/TC1/TC1.mk
+@@ -25,7 +25,6 @@
+ NAME := App_TC1
+ 
+ $(NAME)_SOURCES := main.c\
+-				   ota_server/ota_server.c\
+ 				   user_wifi.c\
+ 				   user_gpio.c\
+ 				   time_server/user_rtc.c\
+diff --git a/TC1/http_server/app_httpd.c b/TC1/http_server/app_httpd.c
+index 90d06f3..9fcdb9e 100644
+--- a/TC1/http_server/app_httpd.c
++++ b/TC1/http_server/app_httpd.c
+@@ -491,7 +491,12 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
+ 
+     err = httpd_get_data(req, buf, 256);
+     require_noerr(err, exit);
+-  sscanf(buf, "%d %127s %127s", &mode, ssid_enc, key_enc);
++  if (sscanf(buf, "%d %127s %127s", &mode, ssid_enc, key_enc) < 3)
++  {
++      err = kUnknownErr;
++      send_http("ERR", 3, exit, &err);
++      goto exit;
++  }
+   url_decode(ssid_enc, wifi_ssid, 128);
+   url_decode(key_enc, wifi_key, 128);
+     if (mode == 1) {
+@@ -768,6 +773,12 @@ static int OtaStart(httpd_request_t *req) {
+     err = httpd_get_data(req, buf, 64);
+     require_noerr(err, exit);
+ 
++    if (ota_progress >= 0 && ota_progress < 100) {
++        http_log("OtaStart skip, ota already in progress[%d]", ota_progress);
++        send_http("BUSY", 4, exit, &err);
++        return err;
++    }
++
+     http_log("OtaStart ota_url[%s]", buf);
+     UserOtaStart(buf, NULL);
+ 
+diff --git a/TC1/main.c b/TC1/main.c
+index 4fb37b7..e332a1f 100644
+--- a/TC1/main.c
++++ b/TC1/main.c
+@@ -33,6 +33,7 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
+     mico_system_context_get()->micoSystemConfig.name[1] = 0;
+ 
+     user_config_t *userConfigDefault = user_config_data;
++    memset(userConfigDefault, 0, sizeof(user_config_t)); // 确保 reserved 尾部字节确定，CRC 可复现
+     userConfigDefault->user[0] = 0;
+     userConfigDefault->child_lock = 0;
+     userConfigDefault->mqtt_ip[0] = 0;
+@@ -125,6 +126,51 @@ void reportMqttPowerInfoThread() {
+     }
+ }
+ 
++/* 配置布局迁移：将 flash 中旧版本布局逐字段投影到当前活动布局。
++ * 返回 true 表示已迁移（或本就是最新）；返回 false 表示版本未知/不支持，
++ * 由调用方回退到恢复出厂默认。仅在布局版本号变化时才会真正拷贝。
++ */
++bool user_config_migrate(void) {
++    char old_version = user_config->version; // 首字节恒为版本号（定长驻块 offset 0 稳定）
++    if (old_version == USER_CONFIG_VERSION) {
++        return true; // 已是当前布局
++    }
++
++    tc1_log("WARNGIN: migrate user config from v%d to v%d", old_version, USER_CONFIG_VERSION);
++
++    if (old_version >= 1 && old_version <= 10) {
++        /* 从冻结的 v10 布局投影到当前布局. */
++        user_config_v10_t *v10 = (user_config_v10_t *) user_config;
++        /* v10 与当前布局目前字段一致，先复制全部字段，避免同名字段错位。 */
++        snprintf(user_config->mqtt_ip, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_ip);
++        user_config->mqtt_port = v10->mqtt_port;
++        user_config->mqtt_report_freq = v10->mqtt_report_freq;
++        snprintf(user_config->mqtt_user, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_user);
++        snprintf(user_config->mqtt_password, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_password);
++        memcpy(user_config->socket_status, v10->socket_status, sizeof(user_config->socket_status));
++        memcpy(user_config->socket_names, v10->socket_names, sizeof(user_config->socket_names));
++        memcpy(user_config->user, v10->user, maxNameLen);
++        user_config->child_lock = v10->child_lock;
++        user_config->last_wifi_status = v10->last_wifi_status;
++        memcpy(user_config->ap_name, v10->ap_name, sizeof(user_config->ap_name));
++        memcpy(user_config->ap_key, v10->ap_key, sizeof(user_config->ap_key));
++        user_config->task_count = v10->task_count;
++        user_config->task_top = v10->task_top;
++        user_config->p_count_2_days_ago = v10->p_count_2_days_ago;
++        user_config->p_count_1_day_ago = v10->p_count_1_day_ago;
++        user_config->power_led_enabled = v10->power_led_enabled;
++        memcpy(user_config->timed_tasks, v10->timed_tasks, sizeof(user_config->timed_tasks));
++        user_config->version = USER_CONFIG_VERSION;
++
++        /* 迁移后写回 flash（含固定 CRC），此后布局即为最新。 */
++        mico_system_context_update(sys_config);
++        return true;
++    }
++
++    tc1_log("WARNGIN: unsupported config version %d, restore to default!", old_version);
++    return false;
++}
++
+ int application_start(void) {
+     int i;
+     OSStatus err = kNoErr;
+@@ -161,7 +207,7 @@ int application_start(void) {
+     }
+     MicoSysLed(0);
+ 
+-    if (user_config->version != USER_CONFIG_VERSION) { tc1_log("WARNGIN: user params restored!");
++    if (!user_config_migrate()) { tc1_log("WARNGIN: user params restored!");
+         err = mico_system_context_restore(sys_config);
+         require_noerr(err, exit);
+     }
+diff --git a/TC1/main.h b/TC1/main.h
+index 15d055b..eb350ea 100644
+--- a/TC1/main.h
++++ b/TC1/main.h
+@@ -31,6 +31,16 @@
+ #define USER_CONFIG_VERSION 10
+ #define SETTING_MQTT_STRING_LENGTH_MAX 32 //必须4字节对齐。
+ 
++/* 用户配置在 flash 上的固定落地大小（字节）。
++ * 目的：让 sizeof(user_config_t) 在所有固件版本间保持不变，从而
++ * MiCO 底层 MICOReadConfiguration/internal_update_config 的 CRC 长度、
++ * 数据与 CRC 的 flash 偏移都恒定。这样将来任何布局调整都不会使旧配置
++ * 因"长度变化"而在 MiCO 底层被误判损坏而清空。
++ * 约束：该值必须满足 sizeof(system_config_t) + USER_CONFIG_STRUCT_CAP + 2(CRC)
++ *       <= PARAMETER1/PARAMETER2 分区大小(当前 16KB)。
++ */
++#define USER_CONFIG_STRUCT_CAP 4096
++
+ #define SOCKET_NAME_LENGTH   64
+ #define SOCKET_NUM           6  //插座数量
+ 
+@@ -52,7 +62,49 @@
+ 
+ #define MAX_TASK_NUM 64
+ 
+-//用户保存参数结构体
++/* ===================== 配置布局迁移机制 =====================
++ * 目的：布局变更不再清空用户配置。
++ *
++ * 规则：
++ *  1. user_config_v10_t 是"版本 10"发布时的落地结构体"冻结快照"，永远不要修改它。
++ *  2. user_config_t 是"当前活动布局"，末尾带 reserved 补齐到固定 USER_CONFIG_STRUCT_CAP，
++ *     因此 sizeof(user_config_t) 在所有版本间恒定（CRC/偏移稳定，MiCO 底层永不误判损坏）。
++ *  3. 每次修改活动布局(user_config_t)时：
++ *       a. 先把"当前"布局整体复制冻结为 user_config_v<N>_t（N=当前 USER_CONFIG_VERSION）；
++ *       b. 再改动 user_config_t 字段（新字段一律加在 reserved 之前；改动时 UPDATE_VERSION+1）；
++ *       c. 在 main.c 的 user_config_migrate() 中新增一段"从 vN 投影到当前"的字段拷贝。
++ *   这样旧版本在 flash 上的字节仍在原偏移，新固件读取后经 user_config_migrate 逐字段
++ *   投影到新布局并写回，全程不触发 MiCO 层 restore（不清空）。
++ *
++ * 注意：本项目首次从"变长"切换到"定长驻块"时，MiCO 底层会因长度变化对存量旧记录
++ * 判定损坏而清空一次（已接受的一次性重置）；此后布局永不再因长度变化而清空。
++ */
++
++/* 冻结：版本 10 发布时的落地布局（请勿修改） */
++typedef struct
++{
++    char version;
++    char mqtt_ip[SETTING_MQTT_STRING_LENGTH_MAX];
++    char socket_names[SOCKET_NUM][SOCKET_NAME_LENGTH];
++    int mqtt_port;
++    int mqtt_report_freq;
++    char mqtt_user[SETTING_MQTT_STRING_LENGTH_MAX];
++    char mqtt_password[SETTING_MQTT_STRING_LENGTH_MAX];
++    char socket_status[SOCKET_NUM]; //记录当前开关
++    char user[maxNameLen];
++    char child_lock;
++    WiFiEvent last_wifi_status;
++    char ap_name[32];
++    char ap_key[32];
++    int task_count;
++    int p_count_2_days_ago;
++    int p_count_1_day_ago;
++    int power_led_enabled;
++    pTimedTask task_top;
++    struct TimedTask timed_tasks[MAX_TASK_NUM];
++} user_config_v10_t;
++
++/* 当前活动布局：字段与 v10 一致（尚无字段新增/重排），末尾补齐到固定 CAP */
+ typedef struct
+ {
+     char version;
+@@ -74,8 +126,14 @@ typedef struct
+     int power_led_enabled;
+     pTimedTask task_top;
+     struct TimedTask timed_tasks[MAX_TASK_NUM];
++    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t)]; // 定长补齐，必须保持为最后一个字段
+ } user_config_t;
+ 
++#if defined(__GNUC__)
++_Static_assert(sizeof(user_config_t) == USER_CONFIG_STRUCT_CAP,
++               "user_config_t must stay exactly USER_CONFIG_STRUCT_CAP bytes (fixed on-disk size)");
++#endif
++
+ extern char rtc_init;
+ extern uint32_t total_time;
+ extern char str_mac[16];
+diff --git a/TC1/mqtt_server/user_mqtt_client.c b/TC1/mqtt_server/user_mqtt_client.c
+index 3c3b1d9..60553f2 100644
+--- a/TC1/mqtt_server/user_mqtt_client.c
++++ b/TC1/mqtt_server/user_mqtt_client.c
+@@ -435,20 +435,20 @@ OSStatus UserRecvHandler(void *arg) {
+ void ProcessHaCmd(char *cmd) {
+     mqtt_log("ProcessHaCmd[%s]", cmd);
+     char mac[20] = {0};
++    int i, on;
+ 
+     if (strncmp(cmd, "set socket", 10) == 0) {
+-        int i, on;
+-        sscanf(cmd, "set socket %19s %d %d", mac, &i, &on);
++        if (sscanf(cmd, "set socket %19s %d %d", mac, &i, &on) != 3) return;
+         if (strcmp(mac, str_mac)) return;mqtt_log("set socket[%d] on[%d]", i, on);
+-        if (i < 0 || i >= SOCKET_NUM) return;
++        if (i < 0 || i >= SOCKET_NUM || (on != 0 && on != 1)) return;
+         UserRelaySet(i, on);
+         UserMqttSendSocketState(i);
+         UserMqttSendTotalSocketState();
+         mico_system_context_update(sys_config);
+     } else if (strncmp(cmd, "set led", 7) == 0) {
+-        int on;
+-        sscanf(cmd, "set led %19s %d", mac, &on);
++        if (sscanf(cmd, "set led %19s %d", mac, &on) != 2) return;
+         if (strcmp(mac, str_mac)) return;mqtt_log("set led on[%d]", on);
++        if (on != 0 && on != 1) return;
+         user_config->power_led_enabled = on;
+         if (RelayOut() && user_config->power_led_enabled) {
+             UserLedSet(1);
+@@ -458,26 +458,26 @@ void ProcessHaCmd(char *cmd) {
+         UserMqttSendLedState();
+         mico_system_context_update(sys_config);
+     } else if (strncmp(cmd, "set total_socket", 16) == 0) {
+-        int on;
+-        sscanf(cmd, "set total_socket %19s %d", mac, &on);
++        if (sscanf(cmd, "set total_socket %19s %d", mac, &on) != 2) return;
+         if (strcmp(mac, str_mac)) return;mqtt_log("set total_socket on[%d]", on);
++        if (on != 0 && on != 1) return;
+         UserRelaySetAll(on);
+-        int i = 0;
+-        for (i = 0; i < SOCKET_NUM; i++) {
+-            UserRelaySet(i, user_config->socket_status[i]);
+-            UserMqttSendSocketState(i);
++        int j = 0;
++        for (j = 0; j < SOCKET_NUM; j++) {
++            UserRelaySet(j, user_config->socket_status[j]);
++            UserMqttSendSocketState(j);
+         }
+         UserMqttSendTotalSocketState();
+     }else if (strncmp(cmd, "set childLock", 13) == 0) {
+-        int on;
+-        sscanf(cmd, "set childLock %19s %d", mac, &on);
++        if (sscanf(cmd, "set childLock %19s %d", mac, &on) != 2) return;
+         if (strcmp(mac, str_mac)) return;mqtt_log("set childLock on[%d]", on);
++        if (on != 0 && on != 1) return;
+         user_config->child_lock = on;
+         childLockEnabled = on;
+         UserMqttSendChildLockState();
+         mico_system_context_update(sys_config);
+-    }else if (strncmp(cmd, "reboot", 6) == 0) {
+-        sscanf(cmd, "reboot %19s", mac);
++    }else if (strncmp(cmd, "reboot ", 7) == 0) {
++        if (sscanf(cmd, "reboot %19s", mac) != 1) return;
+         if (strcmp(mac, str_mac)) return;
+         MicoSystemReboot();
+     }
+diff --git a/TC1/timed_task/timed_task.c b/TC1/timed_task/timed_task.c
+index be29fa6..cfdabb7 100644
+--- a/TC1/timed_task/timed_task.c
++++ b/TC1/timed_task/timed_task.c
+@@ -14,6 +14,8 @@
+ int day_sec = 86400;
+ mico_mutex_t task_mutex;
+ 
++bool AddTaskSingle(pTimedTask task);
++
+ void TaskModuleInit(void)
+ {
+     mico_rtos_init_mutex(&task_mutex);
+@@ -33,12 +35,31 @@ void RebuildTaskList(void)
+ {
+     user_config->task_top = NULL;
+     user_config->task_count = 0;
++    time_t now = time(NULL);
+     for (int i = 0; i < MAX_TASK_NUM; i++)
+     {
+         if (user_config->timed_tasks[i].on_use)
+         {
+             user_config->timed_tasks[i].next = NULL;
+-            AddTask(&user_config->timed_tasks[i]);
++            pTimedTask task = &user_config->timed_tasks[i];
++
++            if (task->weekday != 0 && task->prs_time <= now)
++            {
++                if (task->weekday == 8)
++                {
++                    task->prs_time = (now - now % day_sec) + task->prs_time % day_sec;
++                    if (task->prs_time <= now)
++                        task->prs_time += day_sec;
++                }
++                else
++                {
++                    AddTask(task);
++                }
++            }
++            else
++            {
++                AddTaskSingle(task);
++            }
+         }
+     }
+ }
+diff --git a/TC1/user_wifi.c b/TC1/user_wifi.c
+index 0bfef42..50557fe 100644
+--- a/TC1/user_wifi.c
++++ b/TC1/user_wifi.c
+@@ -71,11 +71,17 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
+         wifi_log("wifi_scan_callback ApNum[%d] ApList[0](%s)", count, scan_ret->ApList[0].ssid);
+ 
+     int i = 0;
+-    wifi_ret = malloc(sizeof(char)*count * 40 + 64);
+-    char* ssids = malloc(sizeof(char)*count * 36 + 1);
+-    char* secs = malloc(sizeof(char)*count * 2 + 1);
+-    if (!ssids) ssids[0] = 0;
+-    if (!secs) secs[0] = 0;
++    size_t buf_size = (size_t)count * 40 + 64;
++    wifi_ret = malloc(buf_size);
++    char* ssids = malloc((size_t)count * 36 + 1);
++    char* secs = malloc((size_t)count * 2 + 1);
++    if (!wifi_ret || !ssids || !secs)
++    {
++        free(wifi_ret); wifi_ret = NULL;
++        free(ssids);
++        free(secs);
++        return;
++    }
+     ssids[0] = '\0';
+     secs[0] = '\0';
+     char* tmp1 = ssids;

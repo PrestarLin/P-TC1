@@ -25,7 +25,6 @@
 NAME := App_TC1
 
 $(NAME)_SOURCES := main.c\
-				   ota_server/ota_server.c\
 				   user_wifi.c\
 				   user_gpio.c\
 				   time_server/user_rtc.c\

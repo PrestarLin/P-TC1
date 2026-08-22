@@ -14,6 +14,8 @@
 int day_sec = 86400;
 mico_mutex_t task_mutex;
 
+bool AddTaskSingle(pTimedTask task);
+
 void TaskModuleInit(void)
 {
     mico_rtos_init_mutex(&task_mutex);
@@ -33,12 +35,31 @@ void RebuildTaskList(void)
 {
     user_config->task_top = NULL;
     user_config->task_count = 0;
+    time_t now = time(NULL);
     for (int i = 0; i < MAX_TASK_NUM; i++)
     {
         if (user_config->timed_tasks[i].on_use)
         {
             user_config->timed_tasks[i].next = NULL;
-            AddTask(&user_config->timed_tasks[i]);
+            pTimedTask task = &user_config->timed_tasks[i];
+
+            if (task->weekday != 0 && task->prs_time <= now)
+            {
+                if (task->weekday == 8)
+                {
+                    task->prs_time = (now - now % day_sec) + task->prs_time % day_sec;
+                    if (task->prs_time <= now)
+                        task->prs_time += day_sec;
+                }
+                else
+                {
+                    AddTask(task);
+                }
+            }
+            else
+            {
+                AddTaskSingle(task);
+            }
         }
     }
 }

@@ -491,7 +491,12 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
 
     err = httpd_get_data(req, buf, 256);
     require_noerr(err, exit);
-  sscanf(buf, "%d %127s %127s", &mode, ssid_enc, key_enc);
+  if (sscanf(buf, "%d %127s %127s", &mode, ssid_enc, key_enc) < 3)
+  {
+      err = kUnknownErr;
+      send_http("ERR", 3, exit, &err);
+      goto exit;
+  }
   url_decode(ssid_enc, wifi_ssid, 128);
   url_decode(key_enc, wifi_key, 128);
     if (mode == 1) {
@@ -767,6 +772,12 @@ static int OtaStart(httpd_request_t *req) {
     char buf[64] = {0};
     err = httpd_get_data(req, buf, 64);
     require_noerr(err, exit);
+
+    if (ota_progress >= 0 && ota_progress < 100) {
+        http_log("OtaStart skip, ota already in progress[%d]", ota_progress);
+        send_http("BUSY", 4, exit, &err);
+        return err;
+    }
 
     http_log("OtaStart ota_url[%s]", buf);
     UserOtaStart(buf, NULL);
