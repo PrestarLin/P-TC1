@@ -441,6 +441,106 @@
                 </table>
             </div>
 
+            <div class="page page3 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp">
+                <div class="mdl-card__title mdl-card--expand">
+                    <h2 class="mdl-card__title-text">倒计时</h2>
+                </div>
+                <div class="mdl-card__supporting-text">
+                    <div id="countdown-container" style="text-align:center; padding:20px 0;">
+                        <div id="countdown-display" style="font-size:36px; font-weight:bold; color:#1976D2; margin-bottom:16px;">
+                            00:00:00
+                        </div>
+                        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:16px;">
+                            <input id="countdown-hours" type="number" min="0" max="23" value="0" class="mdl-textfield__input" style="width:60px; text-align:center; font-size:18px;">
+                            <span style="line-height:40px;">时</span>
+                            <input id="countdown-minutes" type="number" min="0" max="59" value="5" class="mdl-textfield__input" style="width:60px; text-align:center; font-size:18px;">
+                            <span style="line-height:40px;">分</span>
+                            <input id="countdown-seconds" type="number" min="0" max="59" value="0" class="mdl-textfield__input" style="width:60px; text-align:center; font-size:18px;">
+                            <span style="line-height:40px;">秒</span>
+                        </div>
+                        <div class="mdl-textfield mdl-js-textfield getmdl-select" style="width:100%; margin-bottom:16px;">
+                            <input type="text" id="countdown-target" value="" class="mdl-textfield__input" readonly>
+                            <input type="hidden" value="0" id="countdown-target-value">
+                            <i class="mdl-icon-toggle__label material-icons">
+                                <svg>
+                                    <use xlink:href="#icon-keyboard_arrow_down"/>
+                                </svg>
+                            </i>
+                            <label for="countdown-target" class="mdl-textfield__label">执行操作</label>
+                            <ul for="countdown-target" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="countdown_action_list">
+                            </ul>
+                        </div>
+                        <div style="display:flex; justify-content:center; gap:8px;">
+                            <button type="button" onclick="startCountdown();" id="countdown-start-btn" class="mdl-button mdl-button--colored" style="min-width:80px;">
+                                开始
+                            </button>
+                            <button type="button" onclick="stopCountdown();" id="countdown-stop-btn" class="mdl-button" style="min-width:80px; display:none;">
+                                停止
+                            </button>
+                            <button type="button" onclick="resetCountdown();" class="mdl-button" style="min-width:80px;">
+                                重置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="page page3 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp">
+                <div class="mdl-card__title mdl-card--expand">
+                    <h2 class="mdl-card__title-text">循环开关</h2>
+                </div>
+                <div class="mdl-card__supporting-text">
+                    <div id="cycle-container" style="text-align:center; padding:20px 0;">
+                        <div id="cycle-status" style="font-size:16px; color:#757575; margin-bottom:16px; min-height:24px;">
+                            未运行
+                        </div>
+                        <div id="cycle-countdown-display" style="font-size:32px; font-weight:bold; color:#26A69A; margin-bottom:16px; display:none;">
+                            00:00:00
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
+                                <span style="min-width:50px; text-align:right;">开启</span>
+                                <input id="cycle-on-value" type="number" min="1" max="999" value="30" class="mdl-textfield__input" style="width:70px; text-align:center;">
+                                <select id="cycle-on-unit" class="mdl-textfield__input" style="width:70px; padding:8px 4px;">
+                                    <option value="60">分钟</option>
+                                    <option value="3600">小时</option>
+                                    <option value="1">秒</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
+                                <span style="min-width:50px; text-align:right;">关闭</span>
+                                <input id="cycle-off-value" type="number" min="1" max="999" value="30" class="mdl-textfield__input" style="width:70px; text-align:center;">
+                                <select id="cycle-off-unit" class="mdl-textfield__input" style="width:70px; padding:8px 4px;">
+                                    <option value="60">分钟</option>
+                                    <option value="3600">小时</option>
+                                    <option value="1">秒</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mdl-textfield mdl-js-textfield getmdl-select" style="width:100%; margin-bottom:16px;">
+                            <input type="text" id="cycle-target" value="" class="mdl-textfield__input" readonly>
+                            <input type="hidden" value="0" id="cycle-target-value">
+                            <i class="mdl-icon-toggle__label material-icons">
+                                <svg>
+                                    <use xlink:href="#icon-keyboard_arrow_down"/>
+                                </svg>
+                            </i>
+                            <label for="cycle-target" class="mdl-textfield__label">控制插座</label>
+                            <ul for="cycle-target" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="cycle_action_list">
+                            </ul>
+                        </div>
+                        <div style="display:flex; justify-content:center; gap:8px;">
+                            <button type="button" onclick="startCycle();" id="cycle-start-btn" class="mdl-button mdl-button--colored" style="min-width:80px;">
+                                开始
+                            </button>
+                            <button type="button" onclick="stopCycle();" id="cycle-stop-btn" class="mdl-button" style="min-width:80px; display:none;">
+                                停止
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="page page3 over-unset mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
                  style="z-index: unset;">
                 <div class="mdl-card__title mdl-card--expand">
@@ -1485,6 +1585,302 @@ HttpPost("/shortClickEvent", function (re) {
       }, timestamp);
     }
     //定时任务-end
+
+    //倒计时功能-start
+    var countdownTimer = null;
+    var countdownTotalSeconds = 0;
+    var countdownRemaining = 0;
+
+    function initCountdownActions() {
+      var actions = [
+        "切换总开关",
+        "打开总开关",
+        "关闭总开关",
+        "切换插座1",
+        "切换插座2",
+        "切换插座3",
+        "切换插座4",
+        "切换插座5",
+        "切换插座6",
+        "重启系统"
+      ];
+
+      for (var i = 0; i < actions.length; i++) {
+        $('#countdown_action_list').append(
+          $('<li>')
+            .addClass('mdl-menu__item')
+            .attr('data-val', i)
+            .text(actions[i])
+        );
+      }
+      getmdlSelect.init(".getmdl-select");
+    }
+
+    function updateCountdownDisplay() {
+      var hours = Math.floor(countdownRemaining / 3600);
+      var minutes = Math.floor((countdownRemaining % 3600) / 60);
+      var seconds = countdownRemaining % 60;
+
+      var display = String(hours).padStart(2, '0') + ':' +
+                    String(minutes).padStart(2, '0') + ':' +
+                    String(seconds).padStart(2, '0');
+      document.getElementById('countdown-display').textContent = display;
+    }
+
+    function executeCountdownAction(actionIndex) {
+      switch(parseInt(actionIndex)) {
+        case 0: // 切换总开关
+          HttpPost("/socketAll", function(re) {
+            ShowToast("总开关已切换");
+          }, checkboxs[2].checked ? "0" : "1");
+          break;
+        case 1: // 打开总开关
+          HttpPost("/socketAll", function(re) {
+            ShowToast("总开关已打开");
+          }, "1");
+          break;
+        case 2: // 关闭总开关
+          HttpPost("/socketAll", function(re) {
+            ShowToast("总开关已关闭");
+          }, "0");
+          break;
+        case 3: // 切换插座1
+          toggleSocket(0);
+          break;
+        case 4: // 切换插座2
+          toggleSocket(1);
+          break;
+        case 5: // 切换插座3
+          toggleSocket(2);
+          break;
+        case 6: // 切换插座4
+          toggleSocket(3);
+          break;
+        case 7: // 切换插座5
+          toggleSocket(4);
+          break;
+        case 8: // 切换插座6
+          toggleSocket(5);
+          break;
+        case 9: // 重启系统
+          setRebootSystem();
+          ShowToast("系统正在重启");
+          break;
+        default:
+          ShowToast("未设置操作");
+      }
+    }
+
+    function toggleSocket(index) {
+      var sockets_st = "";
+      for (var i = 0; i < checkboxs.length - 3; i++) {
+        if (i === index) {
+          sockets_st += (checkboxs[i + 3].checked ? "0" : "1") + ",";
+        } else {
+          sockets_st += (checkboxs[i + 3].checked ? "1" : "0") + ",";
+        }
+      }
+      HttpPost("/socket", function(re) {}, sockets_st);
+    }
+
+    function startCountdown() {
+      var hours = parseInt(document.getElementById('countdown-hours').value) || 0;
+      var minutes = parseInt(document.getElementById('countdown-minutes').value) || 0;
+      var seconds = parseInt(document.getElementById('countdown-seconds').value) || 0;
+      var actionIndex = document.getElementById('countdown-target-value').value;
+
+      countdownTotalSeconds = hours * 3600 + minutes * 60 + seconds;
+      countdownRemaining = countdownTotalSeconds;
+
+      if (countdownRemaining <= 0) {
+        ShowToast("请设置倒计时时长");
+        return;
+      }
+
+      if (actionIndex === '' || actionIndex === '-1') {
+        ShowToast("请选择要执行的操作");
+        return;
+      }
+
+      document.getElementById('countdown-start-btn').style.display = 'none';
+      document.getElementById('countdown-stop-btn').style.display = 'inline-block';
+      document.getElementById('countdown-hours').disabled = true;
+      document.getElementById('countdown-minutes').disabled = true;
+      document.getElementById('countdown-seconds').disabled = true;
+
+      updateCountdownDisplay();
+
+      countdownTimer = setInterval(function() {
+        countdownRemaining--;
+
+        if (countdownRemaining <= 0) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          var action = document.getElementById('countdown-target-value').value;
+          executeCountdownAction(action);
+          ShowToast("倒计时完成，已执行操作");
+          resetCountdown();
+        } else {
+          updateCountdownDisplay();
+        }
+      }, 1000);
+    }
+
+    function stopCountdown() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      document.getElementById('countdown-start-btn').style.display = 'inline-block';
+      document.getElementById('countdown-stop-btn').style.display = 'none';
+      document.getElementById('countdown-hours').disabled = false;
+      document.getElementById('countdown-minutes').disabled = false;
+      document.getElementById('countdown-seconds').disabled = false;
+    }
+
+    function resetCountdown() {
+      stopCountdown();
+      countdownRemaining = 0;
+      countdownTotalSeconds = 0;
+      document.getElementById('countdown-display').textContent = '00:00:00';
+      document.getElementById('countdown-hours').value = 0;
+      document.getElementById('countdown-minutes').value = 5;
+      document.getElementById('countdown-seconds').value = 0;
+      document.getElementById('countdown-hours').disabled = false;
+      document.getElementById('countdown-minutes').disabled = false;
+      document.getElementById('countdown-seconds').disabled = false;
+    }
+
+    //初始化倒计时功能
+    $(document).ready(function() {
+      initCountdownActions();
+      initCycleActions();
+    });
+    //倒计时功能-end
+
+    //循环开关功能-start
+    var cycleTimer = null;
+    var cyclePhase = 'off'; // 'on' or 'off'
+    var cycleRemaining = 0;
+    var cycleOnSeconds = 0;
+    var cycleOffSeconds = 0;
+    var cycleTargetAction = 0;
+
+    function initCycleActions() {
+      var sockets = ["插座1", "插座2", "插座3", "插座4", "插座5", "插座6"];
+      for (var i = 0; i < sockets.length; i++) {
+        $('#cycle_action_list').append(
+          $('<li>')
+            .addClass('mdl-menu__item')
+            .attr('data-val', i)
+            .text(sockets[i])
+        );
+      }
+      getmdlSelect.init("#cycle-container .getmdl-select");
+    }
+
+    function updateCycleDisplay() {
+      var hours = Math.floor(cycleRemaining / 3600);
+      var minutes = Math.floor((cycleRemaining % 3600) / 60);
+      var seconds = cycleRemaining % 60;
+      var display = String(hours).padStart(2, '0') + ':' +
+                    String(minutes).padStart(2, '0') + ':' +
+                    String(seconds).padStart(2, '0');
+
+      var phaseText = cyclePhase === 'on' ? '开启中' : '关闭中';
+      document.getElementById('cycle-status').textContent = phaseText;
+      document.getElementById('cycle-countdown-display').textContent = display;
+      document.getElementById('cycle-countdown-display').style.color =
+        cyclePhase === 'on' ? '#4caf50' : '#f44336';
+    }
+
+    function toggleCycleSocket(index, turnOn) {
+      var sockets_st = "";
+      for (var i = 0; i < 6; i++) {
+        if (i === index) {
+          sockets_st += (turnOn ? "1" : "0") + ",";
+        } else {
+          sockets_st += (checkboxs[i + 3].checked ? "1" : "0") + ",";
+        }
+      }
+      HttpPost("/socket", function(re) {}, sockets_st);
+    }
+
+    function cycleTick() {
+      if (cycleRemaining > 0) {
+        cycleRemaining--;
+        updateCycleDisplay();
+      } else {
+        // 切换阶段
+        if (cyclePhase === 'on') {
+          cyclePhase = 'off';
+          cycleRemaining = cycleOffSeconds;
+          toggleCycleSocket(cycleTargetAction, false);
+        } else {
+          cyclePhase = 'on';
+          cycleRemaining = cycleOnSeconds;
+          toggleCycleSocket(cycleTargetAction, true);
+        }
+        updateCycleDisplay();
+      }
+    }
+
+    function startCycle() {
+      var onValue = parseInt(document.getElementById('cycle-on-value').value) || 30;
+      var onUnit = parseInt(document.getElementById('cycle-on-unit').value) || 60;
+      var offValue = parseInt(document.getElementById('cycle-off-value').value) || 30;
+      var offUnit = parseInt(document.getElementById('cycle-off-unit').value) || 60;
+      var actionIndex = document.getElementById('cycle-target-value').value;
+
+      if (onValue <= 0 || offValue <= 0) {
+        ShowToast("请设置有效的时长");
+        return;
+      }
+
+      if (actionIndex === '' || actionIndex === '-1') {
+        ShowToast("请选择要控制的插座");
+        return;
+      }
+
+      cycleOnSeconds = onValue * onUnit;
+      cycleOffSeconds = offValue * offUnit;
+      cycleTargetAction = parseInt(actionIndex);
+      cyclePhase = 'on';
+      cycleRemaining = cycleOnSeconds;
+
+      document.getElementById('cycle-start-btn').style.display = 'none';
+      document.getElementById('cycle-stop-btn').style.display = 'inline-block';
+      document.getElementById('cycle-countdown-display').style.display = 'block';
+      document.getElementById('cycle-on-value').disabled = true;
+      document.getElementById('cycle-on-unit').disabled = true;
+      document.getElementById('cycle-off-value').disabled = true;
+      document.getElementById('cycle-off-unit').disabled = true;
+
+      toggleCycleSocket(cycleTargetAction, true);
+      updateCycleDisplay();
+
+      cycleTimer = setInterval(cycleTick, 1000);
+    }
+
+    function stopCycle() {
+      if (cycleTimer) {
+        clearInterval(cycleTimer);
+        cycleTimer = null;
+      }
+
+      // 停止时关闭插座
+      toggleCycleSocket(cycleTargetAction, false);
+
+      document.getElementById('cycle-start-btn').style.display = 'inline-block';
+      document.getElementById('cycle-stop-btn').style.display = 'none';
+      document.getElementById('cycle-countdown-display').style.display = 'none';
+      document.getElementById('cycle-status').textContent = '已停止';
+      document.getElementById('cycle-on-value').disabled = false;
+      document.getElementById('cycle-on-unit').disabled = false;
+      document.getElementById('cycle-off-value').disabled = false;
+      document.getElementById('cycle-off-unit').disabled = false;
+    }
+    //循环开关功能-end
 
     //OTA-start
     function OtaStart() {
