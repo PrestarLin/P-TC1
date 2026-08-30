@@ -151,10 +151,13 @@
             <div class="kpi-label" data-i18n="today_wh">Today (Wh)</div>
           </div>
           <div class="kpi">
-            <div class="kpi-value yellow" id="pMonth">--</div>
+            <div class="kpi-value yellow" id="pYest">--</div>
+            <div class="kpi-label" data-i18n="yest_wh">Yesterday (Wh)</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-value" id="pMonth">--</div>
             <div class="kpi-label" data-i18n="total_wh">Total (Wh)</div>
           </div>
-
         </div>
       </div>
     </div>
@@ -171,11 +174,24 @@
             <input class="form-input" id="taskTime" type="time" value="08:00">
           </div>
           <div class="form-group">
+            <label class="form-label" data-i18n="task_socket">Socket</label>
+            <select class="form-select" id="taskSocket">
+              <option value="0">All Sockets</option>
+              <option value="1">Socket 1</option>
+              <option value="2">Socket 2</option>
+              <option value="3">Socket 3</option>
+              <option value="4">Socket 4</option>
+              <option value="5">Socket 5</option>
+              <option value="6">Socket 6</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label class="form-label" data-i18n="task_action">Action</label>
             <select class="form-select" id="taskAction">
               <option value="1">Power On</option>
               <option value="0">Power Off</option>
-              <option value="2">Toggle</option>
             </select>
           </div>
         </div>
@@ -468,6 +484,7 @@ function fetchPower(){
     var sockArr=(j.sockets||'').split(',').filter(function(s){return s!=='';}).map(Number);
     S.sockets=sockArr;
     S.socketNames=(j.socketNames||'').split(',');
+    updateTaskSocketOptions();
     S.deviceName=j.deviceName||'';
     document.title=S.deviceName;
 
@@ -483,6 +500,7 @@ function fetchPower(){
       if(w_today<0)w_today=0;if(w_yest<0)w_yest=0;
       document.getElementById('pRecord').textContent=latest.toFixed(2);
       document.getElementById('pToday').textContent=w_today.toFixed(3);
+      document.getElementById('pYest').textContent=w_yest.toFixed(3);
       document.getElementById('pMonth').textContent=w_total.toFixed(3);
     }
     if(S.page==='settings')document.getElementById('setName').value=S.deviceName;
@@ -550,6 +568,14 @@ function renderSockets(){
 
 /* ── Tasks ── */
 var taskRepeatDays=0;
+function updateTaskSocketOptions(){
+  var sel=document.getElementById('taskSocket');
+  if(!sel)return;
+  for(var i=1;i<=6;i++){
+    var opt=sel.querySelector('option[value="'+i+'"]');
+    if(opt)opt.textContent='Socket '+i+(S.socketNames[i-1]?' ('+S.socketNames[i-1]+')':'');
+  }
+}
 document.getElementById('taskRepeat').addEventListener('click',function(e){
   var btn=e.target.closest('[data-day]');if(!btn)return;
   var d=parseInt(btn.dataset.day);
@@ -567,9 +593,9 @@ function addTask(){
   var target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);
   if(target<=now)target.setDate(target.getDate()+1);
   var ts=Math.floor(target.getTime()/1000);
-  var action=parseInt(document.getElementById('taskAction').value);
-  var on=(action===1)?1:0;
-  var body=ts+' '+action+' '+on+' '+taskRepeatDays;
+  var socket=parseInt(document.getElementById('taskSocket').value);
+  var on=parseInt(document.getElementById('taskAction').value);
+  var body=ts+' '+socket+' '+on+' '+taskRepeatDays;
   post('/task',body,function(e,r){
     if(e||r!=='OK'){toast('Add failed: '+(r||'error'));return;}
     toast('Task added');fetchTasks();
@@ -584,7 +610,7 @@ function fetchTasks(){
 function renderTasks(){
   var el=document.getElementById('taskList');
   if(!S.tasks.length){el.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No scheduled tasks</div>';return;}
-  var h='<table class="tbl"><thead><tr><th>Time</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
+  var h='<table class="tbl"><thead><tr><th>Time</th><th>Socket</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
   var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   S.tasks.forEach(function(t,i){
     var wk=t.weekday||0;
@@ -592,9 +618,11 @@ function renderTasks(){
     if(wk===127)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
-    var act=t.operation<=1?(t.on?'On':'Off'):'Op'+t.operation;
+    var sockStr='All';
+    if(t.operation>=1&&t.operation<=6)sockStr='Socket '+t.operation;
+    var act=t.on?'On':'Off';
     var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
-    h+='<tr><td>'+ts+'</td><td>'+act+'</td><td>'+rStr+'</td>';
+    h+='<tr><td>'+ts+'</td><td>'+sockStr+'</td><td>'+act+'</td><td>'+rStr+'</td>';
     h+='<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   });
   h+='</tbody></table>';el.innerHTML=h;
@@ -782,8 +810,8 @@ var i18nData={
     kpi_power:'Power (W)',kpi_voltage:'Voltage (V)',kpi_current:'Current (mA)',kpi_uptime:'Uptime',
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
-    power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',total_wh:'Total (Wh)',
-    timed_tasks:'Timed Tasks',add_task:'Add Task',task_time:'Time (HH:MM)',task_action:'Action',task_repeat:'Repeat',
+    power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
+    timed_tasks:'Timed Tasks',add_task:'Add Task',task_time:'Time (HH:MM)',task_socket:'Socket',task_action:'Action',task_repeat:'Repeat',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',loading:'Loading...',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
@@ -802,8 +830,8 @@ var i18nData={
     kpi_power:'功率 (W)',kpi_voltage:'电压 (V)',kpi_current:'电流 (mA)',kpi_uptime:'运行时间',
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
-    power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',total_wh:'累计 (Wh)',
-    timed_tasks:'定时任务',add_task:'添加任务',task_time:'时间 (HH:MM)',task_action:'动作',task_repeat:'重复',
+    power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
+    timed_tasks:'定时任务',add_task:'添加任务',task_time:'时间 (HH:MM)',task_socket:'插座',task_action:'动作',task_repeat:'重复',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',loading:'加载中...',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',
