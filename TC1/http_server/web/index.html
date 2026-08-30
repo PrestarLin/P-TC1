@@ -24,50 +24,51 @@
     <span>TC1</span>
   </div>
   <div class="header-status">
+    <button class="btn-ghost" id="langToggle" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:4px" onclick="toggleLang()">中/EN</button>
     <span class="status-dot" id="connDot"></span>
-    <span id="connText">Connecting...</span>
+    <span id="connText" data-i18n="connecting">Connecting...</span>
   </div>
 </header>
 
 <!-- Sidebar -->
 <nav class="sidebar" id="sidebar">
-  <div class="nav-section">Control</div>
+  <div class="nav-section" data-i18n="nav_control">Control</div>
   <div class="nav-item active" data-page="status">
     <svg viewBox="0 0 24 24"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53A6.95 6.95 0 0112 19z"/></svg>
-    Status
+    <span data-i18n="nav_status">Status</span>
   </div>
   <div class="nav-item" data-page="sockets">
     <svg viewBox="0 0 24 24"><path d="M18 7V4H6v3H2v13h20V7h-4zM8 6h8v1H8V6zm12 11H4V9h16v8z"/><rect x="9" y="11" width="6" height="5" rx="1"/></svg>
-    Sockets
+    <span data-i18n="nav_sockets">Sockets</span>
   </div>
   <div class="nav-item" data-page="power">
     <svg viewBox="0 0 24 24"><path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"/></svg>
-    Power
+    <span data-i18n="nav_power">Power</span>
   </div>
-  <div class="nav-section">Management</div>
+  <div class="nav-section" data-i18n="nav_management">Management</div>
   <div class="nav-item" data-page="schedule">
     <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-    Schedule
+    <span data-i18n="nav_schedule">Schedule</span>
   </div>
   <div class="nav-item" data-page="timer" style="display:none">
     <svg viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0012 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-    Countdown
+    <span data-i18n="nav_countdown">Countdown</span>
   </div>
   <div class="nav-item" data-page="network">
     <svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 00-6 0zm-4-4l2 2a7.074 7.074 0 0110 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
-    Network
+    <span data-i18n="nav_network">Network</span>
   </div>
   <div class="nav-item" data-page="ota">
     <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-    OTA
+    <span>OTA</span>
   </div>
   <div class="nav-item" data-page="log">
     <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-    Log
+    <span data-i18n="nav_log">Log</span>
   </div>
   <div class="nav-item" data-page="settings">
     <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.6 3.6 0 0112 15.6z"/></svg>
-    Settings
+    <span data-i18n="nav_settings">Settings</span>
   </div>
 </nav>
 
@@ -79,31 +80,35 @@
     <div class="kpi-row" id="kpiRow">
       <div class="kpi">
         <div class="kpi-value green" id="kPower">--</div>
-        <div class="kpi-label">Power (W)</div>
+        <div class="kpi-label" data-i18n="kpi_power">Power (W)</div>
       </div>
       <div class="kpi">
         <div class="kpi-value blue" id="kVoltage">--</div>
-        <div class="kpi-label">Voltage (V)</div>
+        <div class="kpi-label" data-i18n="kpi_voltage">Voltage (V)</div>
       </div>
       <div class="kpi">
         <div class="kpi-value yellow" id="kCurrent">--</div>
-        <div class="kpi-label">Current (mA)</div>
+        <div class="kpi-label" data-i18n="kpi_current">Current (mA)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value" id="kEnergy">--</div>
+        <div class="kpi-label" data-i18n="kpi_energy">Energy (kWh)</div>
       </div>
       <div class="kpi">
         <div class="kpi-value" id="kUptime">--</div>
-        <div class="kpi-label">Uptime</div>
+        <div class="kpi-label" data-i18n="kpi_uptime">Uptime</div>
       </div>
     </div>
     <div class="chart-wrap">
-      <span class="chart-label">POWER (W)</span>
+      <span class="chart-label" data-i18n="chart_power">POWER (W)</span>
       <span class="chart-value-live" id="chartLive">-- W</span>
       <canvas id="powerCanvas" class="chart-canvas"></canvas>
     </div>
     <div class="card">
-      <div class="card-head">Quick Control</div>
+      <div class="card-head" data-i18n="quick_control">Quick Control</div>
       <div class="card-body">
         <div class="toggle-row">
-          <span class="toggle-label">Master Switch</span>
+          <span class="toggle-label" data-i18n="master_switch">Master Switch</span>
           <div class="toggle-track" id="togMaster" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
         </div>
         <div class="toggle-row">
@@ -111,15 +116,15 @@
           <div class="toggle-track" id="togLed" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
         </div>
         <div class="toggle-row">
-          <span class="toggle-label">Child Lock</span>
+          <span class="toggle-label" data-i18n="child_lock">Child Lock</span>
           <div class="toggle-track" id="togLock" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
         </div>
       </div>
     </div>
     <div class="card">
-      <div class="card-head">Device Info</div>
+      <div class="card-head" data-i18n="device_info">Device Info</div>
       <div class="card-body" style="font-size:var(--text-sm)">
-        <div class="toggle-row"><span class="toggle-label">Firmware</span><span id="infoFw" style="color:var(--fg-muted)">--</span></div>
+        <div class="toggle-row"><span class="toggle-label" data-i18n="firmware">Firmware</span><span id="infoFw" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">SDK</span><span id="infoSdk" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">WiFi</span><span id="infoWifi" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">IP</span><span id="infoIp" style="color:var(--fg-muted)">--</span></div>
@@ -131,12 +136,9 @@
   <!-- Sockets Page -->
   <div class="page" id="page-sockets">
     <div class="card">
-      <div class="card-head">
-        Power Sockets
-        <button class="btn btn-primary btn-sm" onclick="openAddSocket()">+ Add</button>
-      </div>
+      <div class="card-head" data-i18n="power_sockets">Power Sockets</div>
       <div class="card-body" id="socketList">
-        <div class="text-center" style="padding:24px;color:var(--fg-dim)">Loading...</div>
+        <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="loading">Loading...</div>
       </div>
     </div>
   </div>
@@ -144,20 +146,20 @@
   <!-- Power History Page -->
   <div class="page" id="page-power">
     <div class="card mb-4">
-      <div class="card-head">Power Consumption</div>
+      <div class="card-head" data-i18n="power_consumption">Power Consumption</div>
       <div class="card-body">
         <div class="kpi-row">
           <div class="kpi">
             <div class="kpi-value green" id="pRecord">--</div>
-            <div class="kpi-label">Record (W)</div>
+            <div class="kpi-label" data-i18n="record_w">Record (W)</div>
           </div>
           <div class="kpi">
             <div class="kpi-value blue" id="pToday">--</div>
-            <div class="kpi-label">Today (Wh)</div>
+            <div class="kpi-label" data-i18n="today_wh">Today (Wh)</div>
           </div>
           <div class="kpi">
             <div class="kpi-value yellow" id="pMonth">--</div>
-            <div class="kpi-label">Month (Wh)</div>
+            <div class="kpi-label" data-i18n="total_wh">Total (Wh)</div>
           </div>
           <div class="kpi">
             <div class="kpi-value" id="pYear">--</div>
@@ -172,11 +174,11 @@
   <div class="page" id="page-schedule">
     <div class="card">
       <div class="card-head">
-        Timed Tasks
-        <button class="btn btn-primary btn-sm" onclick="openAddTask()">+ Add</button>
+        <span data-i18n="timed_tasks">Timed Tasks</span>
+        <button class="btn btn-primary btn-sm" onclick="openAddTask()" data-i18n="btn_add">+ Add</button>
       </div>
       <div class="card-body" id="taskList">
-        <div class="text-center" style="padding:24px;color:var(--fg-dim)">Loading...</div>
+        <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="loading">Loading...</div>
       </div>
     </div>
   </div>
@@ -219,53 +221,53 @@
   <!-- Network Page -->
   <div class="page" id="page-network">
     <div class="card mb-4">
-      <div class="card-head">WiFi Configuration</div>
+      <div class="card-head" data-i18n="wifi_config">WiFi Configuration</div>
       <div class="card-body">
         <div class="form-group">
           <label class="form-label">SSID</label>
-          <input class="form-input" id="wifiSsid" placeholder="WiFi name">
+          <input class="form-input" id="wifiSsid" data-i18n-placeholder="wifi_name" placeholder="WiFi name">
         </div>
         <div class="form-group">
-          <label class="form-label">Password</label>
-          <input class="form-input" id="wifiPass" type="password" placeholder="WiFi password">
+          <label class="form-label" data-i18n="password">Password</label>
+          <input class="form-input" id="wifiPass" type="password" data-i18n-placeholder="wifi_password" placeholder="WiFi password">
         </div>
         <div class="btn-group">
-          <button class="btn btn-primary" onclick="scanWifi()">Scan</button>
-          <button class="btn btn-primary" onclick="saveWifi()">Save & Reboot</button>
+          <button class="btn btn-primary" onclick="scanWifi()" data-i18n="btn_scan">Scan</button>
+          <button class="btn btn-primary" onclick="saveWifi()" data-i18n="btn_save_reboot">Save & Reboot</button>
         </div>
         <div id="wifiScanResult" class="mt-3" style="font-size:var(--text-sm)"></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-head">MQTT Configuration</div>
+      <div class="card-head" data-i18n="mqtt_config">MQTT Configuration</div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">Broker Host</label>
+          <label class="form-label" data-i18n="broker_host">Broker Host</label>
           <input class="form-input" id="mqttHost" placeholder="mqtt.example.com">
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Port</label>
+            <label class="form-label" data-i18n="port">Port</label>
             <input class="form-input" id="mqttPort" type="number" value="1883">
           </div>
           <div class="form-group">
-            <label class="form-label">Report Freq (s)</label>
+            <label class="form-label" data-i18n="report_freq">Report Freq (s)</label>
             <input class="form-input" id="mqttFreq" type="number" value="2">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Username</label>
+            <label class="form-label" data-i18n="username">Username</label>
             <input class="form-input" id="mqttUser">
           </div>
           <div class="form-group">
-            <label class="form-label">Password</label>
+            <label class="form-label" data-i18n="password">Password</label>
             <input class="form-input" id="mqttPass" type="password">
           </div>
         </div>
         <div class="btn-group">
-          <button class="btn btn-primary" onclick="saveMqtt()">Save MQTT</button>
-          <button class="btn btn-primary" onclick="saveMqttFreq()">Save Freq</button>
+          <button class="btn btn-primary" onclick="saveMqtt()" data-i18n="btn_save_mqtt">Save MQTT</button>
+          <button class="btn btn-primary" onclick="saveMqttFreq()" data-i18n="btn_save_freq">Save Freq</button>
         </div>
       </div>
     </div>
@@ -273,21 +275,31 @@
 
   <!-- OTA Page -->
   <div class="page" id="page-ota">
-    <div class="card">
-      <div class="card-head">Firmware Update</div>
+    <div class="card mb-4">
+      <div class="card-head" data-i18n="firmware_update">Firmware Update</div>
       <div class="card-body">
         <div id="otaInfo" style="font-size:var(--text-sm);margin-bottom:16px;color:var(--fg-muted)">
-          Current: <span id="otaCurVer">--</span>
+          <span data-i18n="current">Current</span>: <span id="otaCurVer">--</span>
         </div>
         <div class="form-group">
-          <label class="form-label">Select Firmware (.ota.bin)</label>
+          <label class="form-label" data-i18n="online_ota_url">Online OTA URL</label>
+          <input class="form-input" id="otaUrl" placeholder="http://server/firmware.bin">
+        </div>
+        <button class="btn btn-primary btn-block" id="otaUrlBtn" onclick="startOnlineOta()" data-i18n="btn_start_online_ota">Start Online OTA</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" data-i18n="local_ota">Local OTA</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label" data-i18n="select_firmware">Select Firmware (.ota.bin)</label>
           <input class="form-input" id="otaFile" type="file" accept=".bin">
         </div>
         <div class="progress mb-3" style="display:none" id="otaProgress">
           <div class="progress-bar" id="otaBar" style="width:0%"></div>
         </div>
         <div id="otaStatus" style="font-size:var(--text-sm);color:var(--fg-muted);margin-bottom:12px"></div>
-        <button class="btn btn-primary btn-block" id="otaBtn" onclick="startOta()" disabled>Start Update</button>
+        <button class="btn btn-primary btn-block" id="otaBtn" onclick="startOta()" disabled data-i18n="btn_start_upload">Start Upload</button>
       </div>
     </div>
   </div>
@@ -296,14 +308,14 @@
   <div class="page" id="page-log">
     <div class="card">
       <div class="card-head">
-        System Log
+        <span data-i18n="system_log">System Log</span>
         <div class="btn-group">
-          <button class="btn btn-ghost btn-sm" onclick="refreshLog()">Refresh</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
+          <button class="btn btn-ghost btn-sm" onclick="fetchLog()" data-i18n="btn_refresh">Refresh</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearLog()" data-i18n="btn_clear">Clear</button>
         </div>
       </div>
       <div class="card-body" style="padding:0">
-        <div class="log-box" id="logBox"><pre>Loading...</pre></div>
+        <div class="log-box" id="logBox"><pre data-i18n="loading">Loading...</pre></div>
       </div>
     </div>
   </div>
@@ -423,6 +435,9 @@ function fetchPower(){
     document.getElementById('kVoltage').textContent='--';
     document.getElementById('kCurrent').textContent='--';
 
+    var energy_kwh=(17.1*j.p_count)/1000/36000;
+    document.getElementById('kEnergy').textContent=energy_kwh.toFixed(3);
+
     setToggle('togMaster',j.total_switch_on===1);
     setToggle('togLed',j.led_enabled===1);
     setToggle('togLock',j.child_lock_enabled===1);
@@ -502,10 +517,8 @@ function renderSockets(){
     var name=S.socketNames[i]||('Socket '+(i+1));
     h+='<div class="socket-row">';
     h+='<div class="socket-icon"><svg viewBox="0 0 24 24"><path d="M18 7V4H6v3H2v13h20V7h-4z"/></svg></div>';
-    h+='<span class="socket-name truncate">'+esc(name)+'</span>';
-    h+='<span class="socket-status '+(s?'on':'off')+'">'+(s?'ON':'OFF')+'</span>';
-    h+='<button class="socket-edit" onclick="toggleSocket('+i+')" aria-label="Toggle">';
-    h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53A6.95 6.95 0 0112 19z"/></svg></button>';
+    h+='<span class="socket-name truncate" id="sockName'+i+'" ondblclick="renameSocket('+i+')">'+esc(name)+'</span>';
+    h+='<div class="toggle-track'+(s?' on':'')+'" id="togSock'+i+'" onclick="toggleSocket('+i+')" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>';
     h+='</div>';
   });
   el.innerHTML=h;
@@ -544,11 +557,49 @@ function fetchLog(){
     var box=document.getElementById('logBox');box.scrollTop=box.scrollHeight;
   });
 }
+function clearLog(){
+  document.getElementById('logBox').innerHTML='<pre>Log cleared</pre>';
+}
 
 /* ── OTA ── */
 function fetchOtaStatus(){
-  api('/ota',function(e,d){if(!e)document.getElementById('otaCurVer').textContent='Progress: '+d+'%';});
+  api('/ota',function(e,d){
+    if(e)return;
+    var val=parseInt(d);
+    if(val>=0&&val<=100){
+      document.getElementById('otaCurVer').textContent='Progress: '+val+'%';
+    }else{
+      document.getElementById('otaCurVer').textContent='Idle';
+    }
+  });
   fetchStatus();
+}
+function startOnlineOta(){
+  var url=document.getElementById('otaUrl').value.trim();
+  if(!url){toast('Enter OTA URL');return;}
+  document.getElementById('otaUrlBtn').disabled=true;
+  document.getElementById('otaStatus').textContent='Starting online OTA...';
+  post('/ota',url,function(e,r){
+    document.getElementById('otaUrlBtn').disabled=false;
+    if(e){document.getElementById('otaStatus').textContent='OTA start failed';return;}
+    document.getElementById('otaStatus').textContent='OTA in progress...';
+    pollOtaProgress();
+  });
+}
+function pollOtaProgress(){
+  api('/ota',function(e,d){
+    if(e)return;
+    var val=parseInt(d);
+    if(val>=0&&val<=100){
+      document.getElementById('otaProgress').style.display='';
+      document.getElementById('otaBar').style.width=val+'%';
+      document.getElementById('otaStatus').textContent='OTA progress: '+val+'%';
+      if(val<100)setTimeout(pollOtaProgress,2000);
+      else document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+    }else{
+      setTimeout(pollOtaProgress,2000);
+    }
+  });
 }
 function startOta(){
   var fileInput=document.getElementById('otaFile');if(!fileInput.files.length)return;
@@ -576,7 +627,19 @@ document.getElementById('otaFile').addEventListener('change',function(){document
 /* ── Actions ── */
 function toggleSocket(i){
   S.sockets[i]=S.sockets[i]?0:1;
+  var el=document.getElementById('togSock'+i);
+  if(el){if(S.sockets[i])el.classList.add('on');else el.classList.remove('on');}
   post('/socket',S.sockets.join(',')+',',function(e){if(!e)fetchPower();});
+}
+function renameSocket(i){
+  var oldName=S.socketNames[i]||('Socket '+(i+1));
+  var newName=prompt('Socket name:',oldName);
+  if(newName===null||newName===oldName)return;
+  S.socketNames[i]=newName;
+  post('/socketNames',i+' '+newName,function(e){
+    if(!e){var el=document.getElementById('sockName'+i);if(el)el.textContent=newName;}
+    else toast('Rename failed');
+  });
 }
 function toggleMaster(on){post('/socketAll',on?'1':'0',function(e){if(!e)fetchPower();});}
 function toggleLed(on){post('/led',on?'1':'0',function(e){if(!e)fetchPower();});}
@@ -636,10 +699,68 @@ function openAddTask(){toast('Use MQTT or API to add tasks');}
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}
 
+/* ── i18n ── */
+var i18nData={
+  en:{
+    connecting:'Connecting...',offline:'Offline',online:'Online',
+    nav_control:'Control',nav_status:'Status',nav_sockets:'Sockets',nav_power:'Power',
+    nav_management:'Management',nav_schedule:'Schedule',nav_countdown:'Countdown',
+    nav_network:'Network',nav_log:'Log',nav_settings:'Settings',
+    kpi_power:'Power (W)',kpi_voltage:'Voltage (V)',kpi_current:'Current (mA)',kpi_uptime:'Uptime',kpi_energy:'Energy (kWh)',
+    chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
+    device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
+    power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',total_wh:'Total (Wh)',
+    timed_tasks:'Timed Tasks',loading:'Loading...',
+    wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
+    broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
+    firmware_update:'Firmware Update',current:'Current',select_firmware:'Select Firmware (.ota.bin)',
+    online_ota_url:'Online OTA URL',local_ota:'Local OTA',
+    btn_scan:'Scan',btn_save_reboot:'Save & Reboot',btn_save_mqtt:'Save MQTT',btn_save_freq:'Save Freq',
+    btn_refresh:'Refresh',btn_clear:'Clear',btn_start_online_ota:'Start Online OTA',btn_start_upload:'Start Upload',
+    system_log:'System Log'
+  },
+  zh:{
+    connecting:'连接中...',offline:'离线',online:'在线',
+    nav_control:'控制',nav_status:'状态',nav_sockets:'插座',nav_power:'功率',
+    nav_management:'管理',nav_schedule:'定时',nav_countdown:'倒计时',
+    nav_network:'网络',nav_log:'日志',nav_settings:'设置',
+    kpi_power:'功率 (W)',kpi_voltage:'电压 (V)',kpi_current:'电流 (mA)',kpi_uptime:'运行时间',kpi_energy:'能耗 (kWh)',
+    chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
+    device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
+    power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',total_wh:'累计 (Wh)',
+    timed_tasks:'定时任务',loading:'加载中...',
+    wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
+    broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',
+    firmware_update:'固件升级',current:'当前版本',select_firmware:'选择固件 (.ota.bin)',
+    online_ota_url:'在线OTA地址',local_ota:'本地升级',
+    btn_scan:'扫描',btn_save_reboot:'保存并重启',btn_save_mqtt:'保存MQTT',btn_save_freq:'保存间隔',
+    btn_refresh:'刷新',btn_clear:'清除',btn_start_online_ota:'开始在线升级',btn_start_upload:'开始上传',
+    system_log:'系统日志'
+  }
+};
+var curLang=localStorage.getItem('lang')||'en';
+function applyLang(){
+  var dict=i18nData[curLang]||i18nData.en;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key=el.getAttribute('data-i18n');
+    if(dict[key])el.textContent=dict[key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
+    var key=el.getAttribute('data-i18n-placeholder');
+    if(dict[key])el.placeholder=dict[key];
+  });
+  document.getElementById('langToggle').textContent=curLang==='en'?'中/EN':'EN/中';
+}
+function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();}
+
 /* ── Init ── */
+applyLang();
 fetchStatus();
 fetchPower();
-setInterval(function(){if(S.page==='status'||S.page==='sockets'||S.page==='power')fetchPower();},3000);
+setInterval(function(){
+  if(S.page==='status'||S.page==='sockets'||S.page==='power')fetchPower();
+  if(S.page==='ota')fetchOtaStatus();
+},3000);
 </script>
 </body>
 </html>
