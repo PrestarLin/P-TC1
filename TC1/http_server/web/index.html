@@ -176,13 +176,21 @@
               <option value="loop">Loop</option>
             </select>
           </div>
-          <div class="form-group" id="loopStartGroup" style="display:none">
-            <label class="form-label" data-i18n="loop_start_time">Start Time</label>
-            <input class="form-input" id="loopStartTime" type="time" value="08:00">
+          <div class="form-group" id="scheduleTimeGroup">
+            <label class="form-label" data-i18n="task_time">Time (HH:MM)</label>
+            <input class="form-input" id="taskTime" type="time" value="08:00">
           </div>
-          <div class="form-group" id="loopEndGroup" style="display:none">
-            <label class="form-label" data-i18n="loop_end_time">End Time</label>
-            <input class="form-input" id="loopEndTime" type="time" value="22:00">
+        </div>
+        <div id="loopTimeRow" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_start_time">Start Time</label>
+              <input class="form-input" id="loopStartTime" type="time" value="08:00">
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_end_time">End Time</label>
+              <input class="form-input" id="loopEndTime" type="time" value="22:00">
+            </div>
           </div>
         </div>
         <div class="form-row">
@@ -209,12 +217,6 @@
         </div>
         <!-- Scheduled task fields -->
         <div id="scheduleFields">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" data-i18n="task_time">Time (HH:MM)</label>
-              <input class="form-input" id="taskTime" type="time" value="08:00">
-            </div>
-          </div>
           <div class="form-group" id="repeatGroup">
             <label class="form-label" data-i18n="task_repeat">Repeat</label>
             <div class="btn-group" id="taskRepeat">
@@ -683,10 +685,10 @@ function setTaskDaily(){taskRepeatDays=127;document.querySelectorAll('#taskRepea
 function setTaskOnce(){taskRepeatDays=0;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.remove('on');});}
 function toggleLoopFields(){
   var isLoop=document.getElementById('taskType').value==='loop';
-  document.getElementById('loopFields').style.display=isLoop?'block':'none';
+  document.getElementById('scheduleTimeGroup').style.display=isLoop?'none':'';
+  document.getElementById('loopTimeRow').style.display=isLoop?'block':'none';
   document.getElementById('scheduleFields').style.display=isLoop?'none':'block';
-  document.getElementById('loopStartGroup').style.display=isLoop?'block':'none';
-  document.getElementById('loopEndGroup').style.display=isLoop?'block':'none';
+  document.getElementById('loopFields').style.display=isLoop?'block':'none';
 }
 function addTask(){
   var socket=parseInt(document.getElementById('taskSocket').value);
