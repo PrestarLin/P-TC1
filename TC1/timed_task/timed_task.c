@@ -246,20 +246,26 @@ void ProcessTask()
     if (IS_LOOP_TASK(user_config->task_top->weekday)) {
         int duration = GET_LOOP_DURATION(user_config->task_top->weekday);
         int interval = GET_LOOP_INTERVAL(user_config->task_top->weekday);
+        int saved_op = user_config->task_top->operation;
+        int saved_on = user_config->task_top->on;
+        int saved_wd = user_config->task_top->weekday;
         time_t next;
-        if (user_config->task_top->on >= 0) {
-            /* 刚执行了 on/off 动作：交替 on/off，用 duration 或 interval */
+        if (saved_on >= 0) {
             next = user_config->task_top->prs_time + (duration > 0 ? duration : 1) * 60;
-            user_config->task_top->on = (user_config->task_top->on == 0) ? 1 : 0;
+            saved_on = (saved_on == 0) ? 1 : 0;
         } else {
-            /* 切换动作：统一用 duration */
             next = user_config->task_top->prs_time + (duration > 0 ? duration : 1) * 60;
         }
-        user_config->task_top->prs_time = next;
-        task_log("loop reschedule: next=%ld on=%d", next, user_config->task_top->on);
-        /* 重新插入排序 */
+        task_log("loop reschedule: next=%ld on=%d", next, saved_on);
         DelFirstTask();
-        AddTask(user_config->task_top);
+        pTimedTask newTask = NewTask();
+        if (newTask) {
+            newTask->prs_time = next;
+            newTask->operation = saved_op;
+            newTask->on = saved_on;
+            newTask->weekday = saved_wd;
+            AddTask(newTask);
+        }
         return;
     }
 
@@ -268,7 +274,7 @@ void ProcessTask()
 
 char* GetTaskStr()
 {
-    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*128+2));
+    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*192+2));
     if (!str) return NULL;
     pTimedTask tmp_tsk = user_config->task_top;
     char* tmp_str = str;
@@ -286,7 +292,11 @@ char* GetTaskStr()
         struct tm* tm_info;
         time_t prs_time = tmp_tsk->prs_time + 28800;
         tm_info = localtime(&prs_time);
-        strftime(buffer, 26, "%m-%d %H:%M", tm_info);
+        if (tm_info) {
+            strftime(buffer, 26, "%m-%d %H:%M", tm_info);
+        } else {
+            strcpy(buffer, "??:??");
+        }
 
         int is_loop = IS_LOOP_TASK(tmp_tsk->weekday);
         int loop_dur = GET_LOOP_DURATION(tmp_tsk->weekday);
