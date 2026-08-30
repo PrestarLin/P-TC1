@@ -158,16 +158,26 @@
                         <h2 class="mdl-card__title-text">功率图</h2>
                     </div>
                     <div class="mdl-card__supporting-text">
-                        <div id="ct-chart-par" style="height:315px;overflow-x:scroll;overflow-y:hidden;">
-                            <table class="pw">
-                                <tr>
-                                    <td>当前功率: <span id="p" class="success">0</span> W</td>
-                                    <td>今日电量: <span id="w_t" class="error">0</span> kW·h</td>
-                                    <td>昨日电量: <span id="w_y" class="error">0</span> kW·h</td>
-                                    <td>总电量: <span id="w" class="error">0</span> kW·h</td>
-                                </tr>
-                            </table>
-                            <div id="ct-chart" class="ct-chart ct-perfect-fourth" style="height:280px;margin-top:40px;"></div>
+                        <div class="pw">
+                            <div class="pw-card pw-primary">
+                                <div class="pw-label">当前功率</div>
+                                <div class="pw-value"><span id="p">0</span><span class="pw-unit">W</span></div>
+                            </div>
+                            <div class="pw-card pw-accent">
+                                <div class="pw-label">今日电量</div>
+                                <div class="pw-value"><span id="w_t">0</span><span class="pw-unit">kWh</span></div>
+                            </div>
+                            <div class="pw-card pw-warning">
+                                <div class="pw-label">昨日电量</div>
+                                <div class="pw-value"><span id="w_y">0</span><span class="pw-unit">kWh</span></div>
+                            </div>
+                            <div class="pw-card">
+                                <div class="pw-label">总电量</div>
+                                <div class="pw-value"><span id="w">0</span><span class="pw-unit">kWh</span></div>
+                            </div>
+                        </div>
+                        <div id="ct-chart-par">
+                            <div id="ct-chart" class="ct-chart ct-perfect-fourth"></div>
                         </div>
                     </div>
                 </div>
@@ -412,9 +422,24 @@
 
             <!-- Page 7: System Log -->
             <div class="page page7 mdl-cell mdl-cell--12-col mdl-card">
-                <div class="mdl-card__title"><h2 class="mdl-card__title-text">系统日志</h2></div>
-                <div class="mdl-card__supporting-text"><div class="sys-log"><pre id="sys_log"></pre></div></div>
-                <div class="mdl-card__actions"><button type="button" onclick="GetSysLog();" class="mdl-button mdl-button--colored">刷新</button></div>
+                <div class="mdl-card__title">
+                    <h2 class="mdl-card__title-text">系统日志</h2>
+                    <div class="mdl-layout-spacer"></div>
+                    <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="auto-scroll-on" style="margin:0;">
+                        <input type="radio" id="auto-scroll-on" class="mdl-radio__button" name="scroll-mode" value="1" checked>
+                        <span class="mdl-radio__label" style="font-size:12px;">自动滚动</span>
+                    </label>
+                    <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="auto-scroll-off" style="margin:0;margin-left:12px;">
+                        <input type="radio" id="auto-scroll-off" class="mdl-radio__button" name="scroll-mode" value="0">
+                        <span class="mdl-radio__label" style="font-size:12px;">锁定位置</span>
+                    </label>
+                </div>
+                <div class="mdl-card__supporting-text"><div class="sys-log" id="sys-log-container"><pre id="sys_log"></pre></div></div>
+                <div class="mdl-card__actions" style="display:flex;align-items:center;">
+                    <button type="button" onclick="GetSysLog();" class="mdl-button mdl-button--colored">刷新</button>
+                    <div class="mdl-layout-spacer"></div>
+                    <span id="log-status" style="font-size:12px;color:#94A3B8;"></span>
+                </div>
             </div>
         </div>
     </main>
@@ -803,8 +828,56 @@
     function OtaStatus() { HttpGet("/ota", function (re) { var percent = parseInt(re); ota_status.MaterialProgress.setProgress(percent); if (percent < 0) { location.reload(); } window.setTimeout(OtaStatus, 1000); }); }
 
     // System Log
-    var sys_log = document.getElementById("sys_log"); var log_div = document.getElementsByClassName("sys-log")[0];
-    function GetSysLog() { HttpGet("/log", function (re) { sys_log.innerHTML = re; log_div.scrollTo(0, log_div.scrollHeight); }); }
+    var sys_log = document.getElementById("sys_log");
+    var log_div = document.getElementById("sys-log-container");
+    var autoScrollEnabled = true;
+    var lastScrollTop = 0;
+
+    // 监听滚动事件，检测用户是否手动滚动
+    log_div.addEventListener('scroll', function() {
+        var st = log_div.scrollTop;
+        // 如果用户向上滚动超过50px，禁用自动滚动
+        if (st < lastScrollTop - 50) {
+            autoScrollEnabled = false;
+            document.getElementById('auto-scroll-off').checked = true;
+        }
+        // 如果滚动到底部附近（50px以内），重新启用自动滚动
+        else if (log_div.scrollHeight - log_div.scrollTop - log_div.clientHeight < 50) {
+            autoScrollEnabled = true;
+            document.getElementById('auto-scroll-on').checked = true;
+        }
+        lastScrollTop = st;
+    });
+
+    // 切换自动滚动模式
+    $('input[name="scroll-mode"]').on('change', function() {
+        autoScrollEnabled = $(this).val() === '1';
+        if (autoScrollEnabled) {
+            log_div.scrollTo(0, log_div.scrollHeight);
+        }
+    });
+
+    function GetSysLog() {
+        var scrollTop = log_div.scrollTop;
+        var scrollHeight = log_div.scrollHeight;
+        var clientHeight = log_div.clientHeight;
+        var wasAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+        HttpGet("/log", function (re) {
+            var now = new Date();
+            var timeStr = now.toLocaleTimeString('zh-CN', {hour12: false});
+            sys_log.innerHTML = re;
+            document.getElementById('log-status').textContent = '更新于 ' + timeStr;
+
+            // 如果之前在底部或者启用了自动滚动，则滚动到底部
+            if (autoScrollEnabled || wasAtBottom) {
+                log_div.scrollTo(0, log_div.scrollHeight);
+            } else {
+                // 否则保持用户当前滚动位置
+                log_div.scrollTop = scrollTop;
+            }
+        });
+    }
     GetSysLog();
 
     // MQTT Report Freq
