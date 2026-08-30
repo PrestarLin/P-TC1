@@ -435,6 +435,12 @@
 
       </div>
     </div>
+    <div class="card mb-4">
+      <div class="card-head" data-i18n="btn_config">Button Configuration</div>
+      <div class="card-body" id="btnConfigBody">
+        <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="loading">Loading...</div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head" style="color:var(--danger)">Danger Zone</div>
       <div class="card-body">
@@ -476,6 +482,7 @@ navItems.forEach(function(el){
     if(target)target.classList.add('active');
     S.page=p;
     if(p==='status'||p==='sockets'||p==='power'||p==='settings')fetchPower();
+    if(p==='settings')fetchButtonConfig();
     if(p==='schedule')fetchTasks();
     if(p==='log')fetchLog();
     if(p==='network')fetchStatus();
@@ -946,6 +953,37 @@ function loadNightMode(){
     document.getElementById('nightEnd').value=String(nm.end_h).padStart(2,'0')+':'+String(nm.end_m).padStart(2,'0');
   }
 }
+var btnFuncMap={'-1':'Unassigned','0':'Unassigned','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'All Sockets','8':'LED','9':'Child Lock','10':'Reboot','11':'Restart HTTP','12':'Enter AP Mode','13':'Factory Reset'};
+function fetchButtonConfig(){
+  api('/buttonEvents',function(e,d){
+    if(e)return;
+    var arr=p(d);if(!arr||!arr.length)return;
+    var el=document.getElementById('btnConfigBody');
+    var h='';
+    var durations=[3,5,10];
+    durations.forEach(function(sec){
+      var cfg=arr[sec-1];
+      if(!cfg)return;
+      var key=Object.keys(cfg)[0];
+      var funcs=cfg[key];
+      var longFunc=funcs[1];
+      h+='<div class="form-row">';
+      h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label" data-i18n="btn_long_sec">Long Press '+sec+'s</label></div>';
+      h+='<div class="form-group" style="flex:1">';
+      h+='<select class="form-select" onchange="saveButtonConfig('+sec+',this.value)">';
+      Object.keys(btnFuncMap).forEach(function(f){
+        var selected=parseInt(f)===longFunc?'selected':'';
+        h+='<option value="'+f+'"'+selected+'>'+btnFuncMap[f]+'</option>';
+      });
+      h+='</select></div></div>';
+    });
+    el.innerHTML=h;
+    applyLang();
+  });
+}
+function saveButtonConfig(sec,func){
+  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');});
+}
 function rebootDevice(){if(confirm('Reboot device?'))post('/reboot','',function(){});}
 function showFactoryReset(){document.getElementById('factoryResetModal').style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
@@ -984,6 +1022,7 @@ var i18nData={
     no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
+    btn_config:'Button Configuration',btn_long_sec:'Long Press',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
     broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
@@ -1007,6 +1046,7 @@ var i18nData={
     no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
+    btn_config:'按键配置',btn_long_sec:'长按',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',
     broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',
