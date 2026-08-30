@@ -416,7 +416,7 @@
       <div class="card-body">
         <div class="form-row">
           <div class="form-group" style="flex:0 0 auto">
-            <div class="toggle-track" id="nightModeTog" onclick="toggleNightMode()" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
+            <div class="toggle-track" id="nightModeTog" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="night_mode_hint">Turn off LED during night</label>
@@ -425,14 +425,14 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" data-i18n="night_start">Start</label>
-            <input class="form-input" id="nightStart" type="time" value="23:00">
+            <input class="form-input" id="nightStart" type="time" value="23:00" onchange="saveNightMode()">
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="night_end">End</label>
-            <input class="form-input" id="nightEnd" type="time" value="07:00">
+            <input class="form-input" id="nightEnd" type="time" value="07:00" onchange="saveNightMode()">
           </div>
         </div>
-        <button class="btn btn-primary" onclick="saveNightMode()" style="margin-top:8px" data-i18n="btn_save_night">Save Night Mode</button>
+
       </div>
     </div>
     <div class="card">
@@ -874,6 +874,7 @@ function toggleLock(on){post('/childLock',on?'1':'0',function(e){if(!e)fetchPowe
 initToggle('togMaster',toggleMaster);
 initToggle('togLed',toggleLed);
 initToggle('togLock',toggleLock);
+initToggle('nightModeTog',function(on){nightModeOn=on;saveNightMode();});
 
 function saveWifi(){
   var ssid=document.getElementById('wifiSsid').value;
@@ -928,7 +929,6 @@ function saveDeviceName(){
   post('/deviceName',document.getElementById('setName').value,function(e){toast(e?'Error':'Saved');});
 }
 var nightModeOn=false;
-function toggleNightMode(){nightModeOn=!nightModeOn;setToggle('nightModeTog',nightModeOn);}
 function saveNightMode(){
   var h=document.getElementById('nightStart').value.split(':');
   var e=document.getElementById('nightEnd').value.split(':');
