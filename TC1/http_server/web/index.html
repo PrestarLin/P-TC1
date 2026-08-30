@@ -170,9 +170,18 @@
       <div class="card-body">
         <div class="form-row">
           <div class="form-group">
+            <label class="form-label" data-i18n="task_type">Type</label>
+            <select class="form-select" id="taskType" onchange="toggleLoopFields()">
+              <option value="schedule">Scheduled</option>
+              <option value="loop">Loop</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label class="form-label" data-i18n="task_time">Time (HH:MM)</label>
             <input class="form-input" id="taskTime" type="time" value="08:00">
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label class="form-label" data-i18n="task_socket">Socket</label>
             <select class="form-select" id="taskSocket">
@@ -185,17 +194,28 @@
               <option value="6">Socket 6</option>
             </select>
           </div>
-        </div>
-        <div class="form-row">
           <div class="form-group">
             <label class="form-label" data-i18n="task_action">Action</label>
             <select class="form-select" id="taskAction">
               <option value="1">Power On</option>
               <option value="0">Power Off</option>
+              <option value="-1">Toggle</option>
             </select>
           </div>
         </div>
-        <div class="form-group">
+        <div id="loopFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_duration">Duration (min)</label>
+              <input class="form-input" id="loopDuration" type="number" value="5" min="1" max="32767">
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_interval">Interval (min)</label>
+              <input class="form-input" id="loopInterval" type="number" value="10" min="1" max="32767">
+            </div>
+          </div>
+        </div>
+        <div class="form-group" id="repeatGroup">
           <label class="form-label" data-i18n="task_repeat">Repeat</label>
           <div class="btn-group" id="taskRepeat">
             <button type="button" class="btn btn-sm" data-day="1">Sun</button>
@@ -584,6 +604,11 @@ document.getElementById('taskRepeat').addEventListener('click',function(e){
 });
 function setTaskDaily(){taskRepeatDays=127;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.add('on');});}
 function setTaskOnce(){taskRepeatDays=0;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.remove('on');});}
+function toggleLoopFields(){
+  var isLoop=document.getElementById('taskType').value==='loop';
+  document.getElementById('loopFields').style.display=isLoop?'block':'none';
+  document.getElementById('repeatGroup').style.display=isLoop?'none':'block';
+}
 function addTask(){
   var timeVal=document.getElementById('taskTime').value;
   if(!timeVal){toast('Set time');return;}
@@ -595,7 +620,15 @@ function addTask(){
   var ts=Math.floor(target.getTime()/1000);
   var socket=parseInt(document.getElementById('taskSocket').value);
   var on=parseInt(document.getElementById('taskAction').value);
-  var body=ts+' '+socket+' '+on+' '+taskRepeatDays;
+  var isLoop=document.getElementById('taskType').value==='loop';
+  var body;
+  if(isLoop){
+    var dur=parseInt(document.getElementById('loopDuration').value)||5;
+    var interval=parseInt(document.getElementById('loopInterval').value)||10;
+    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval;
+  }else{
+    body=ts+' '+socket+' '+on+' '+taskRepeatDays;
+  }
   post('/task',body,function(e,r){
     if(e||r!=='OK'){toast('Add failed: '+(r||'error'));return;}
     toast('Task added');fetchTasks();
@@ -615,12 +648,14 @@ function renderTasks(){
   S.tasks.forEach(function(t,i){
     var wk=t.weekday||0;
     var rStr='';
-    if(wk===127)rStr='Daily';
+    if(t.is_loop){
+      rStr='Loop '+t.loop_duration+'m / '+t.loop_interval+'m';
+    }else if(wk===127)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
     var sockStr='All';
     if(t.operation>=1&&t.operation<=6)sockStr='Socket '+t.operation;
-    var act=t.on?'On':'Off';
+    var act=t.on===-1?'Toggle':(t.on?'On':'Off');
     var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
     h+='<tr><td>'+ts+'</td><td>'+sockStr+'</td><td>'+act+'</td><td>'+rStr+'</td>';
     h+='<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
@@ -811,7 +846,8 @@ var i18nData={
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
-    timed_tasks:'Timed Tasks',add_task:'Add Task',task_time:'Time (HH:MM)',task_socket:'Socket',task_action:'Action',task_repeat:'Repeat',
+    timed_tasks:'Timed Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_socket:'Socket',task_action:'Action',task_repeat:'Repeat',
+    loop_duration:'Duration (min)',loop_interval:'Interval (min)',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',loading:'Loading...',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
@@ -831,7 +867,8 @@ var i18nData={
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
-    timed_tasks:'定时任务',add_task:'添加任务',task_time:'时间 (HH:MM)',task_socket:'插座',task_action:'动作',task_repeat:'重复',
+    timed_tasks:'定时任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_socket:'插座',task_action:'动作',task_repeat:'重复',
+    loop_duration:'持续 (分)',loop_interval:'间隔 (分)',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',loading:'加载中...',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',

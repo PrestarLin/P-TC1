@@ -675,9 +675,8 @@ static int HttpGetButtonEvents(httpd_request_t *req) {
 static int HttpAddTask(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    //1577369623 4 0
-    char buf[20] = {0};
-    err = httpd_get_data(req, buf, 20);
+    char buf[48] = {0};
+    err = httpd_get_data(req, buf, sizeof(buf));
     require_noerr(err, exit);
 
     TaskLock();
@@ -689,17 +688,26 @@ static int HttpAddTask(httpd_request_t *req) {
         send_http(mess, strlen(mess), exit, &err);
         return err;
     }
-    int re = sscanf(buf, "%ld %d %d %d", &task->prs_time, &task->operation, &task->on,
-                    &task->weekday);http_log("AddTask buf[%s] re[%d] (%ld %d %d %d)",
-                                             buf, re, task->prs_time, task->operation, task->on,
-                                             task->weekday);
+
+    int loop_dur = 0, loop_int = 0;
+    int re = sscanf(buf, "%ld %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
+                    &task->weekday, &loop_dur, &loop_int);
+    http_log("AddTask buf[%s] re[%d]", buf, re);
+
+    /* 如果传了循环参数，编码到 weekday */
+    if (re >= 6 && loop_dur > 0) {
+        task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int);
+        http_log("Loop task: dur=%d int=%d weekday=0x%X", loop_dur, loop_int, task->weekday);
+    }
+
     if (task->prs_time < 1577428136 || task->prs_time > 9577428136
-        || task->operation < 0 || task->operation > 11) { http_log("AddTask Error!");
+        || task->operation < 0 || task->operation > 11
+        || task->on < -1 || task->on > 1) { http_log("AddTask Error!");
         re = 0;
     }
 
     char *mess = "OK";
-    if (re != 4 || !AddTask(task)) {
+    if (re < 4 || !AddTask(task)) {
         task->on_use = false;
         mess = "NO";
     } else {

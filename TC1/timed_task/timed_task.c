@@ -200,59 +200,69 @@ void ProcessTask()
 {
     task_log("process task time[%ld] operation[%s] on[%d]",
         user_config->task_top->prs_time, get_func_name(user_config->task_top->operation), user_config->task_top->on);
-    switch (user_config->task_top->operation) {
-            case SWITCH_ALL_SOCKETS:
-                UserRelaySetAll(user_config->task_top->on);
-                mico_system_context_update(sys_config);
-                for (int i = 0; i < SOCKET_NUM; i++) {
-                    UserMqttSendSocketState(i);
-                }
-                UserMqttSendTotalSocketState();
-                break;
-            case SWITCH_SOCKET_1:
-            case SWITCH_SOCKET_2:
-            case SWITCH_SOCKET_3:
-            case SWITCH_SOCKET_4:
-            case SWITCH_SOCKET_5:
-            case SWITCH_SOCKET_6:
-                UserRelaySet(user_config->task_top->operation - 1, user_config->task_top->on);
-                UserMqttSendSocketState(user_config->task_top->operation - 1);
-                UserMqttSendTotalSocketState();
-                mico_system_context_update(sys_config);
-                break;
-            case SWITCH_LED_ENABLE:
 
-                if (RelayOut() && user_config->task_top->on) {
-                    UserLedSet(1);
-                } else {
-                    UserLedSet(0);
-                }
-                UserMqttSendLedState();
-                mico_system_context_update(sys_config);
-                break;
-            case SWITCH_CHILD_LOCK_ENABLE:
-                user_config->child_lock = user_config->task_top->on;
-                childLockEnabled = user_config->child_lock;
-                mico_system_context_update(sys_config);
-                UserMqttSendChildLockState();
-                break;
-            case REBOOT_SYSTEM:
-                MicoSystemReboot();
-                break;
-            case CONFIG_WIFI:
+    int op = user_config->task_top->operation;
+    int on_val = user_config->task_top->on;
 
-                micoWlanSuspendStation();
-                ApInit(true);
-                break;
-            case RESET_SYSTEM:
-
-                mico_system_context_restore(sys_config);
-                mico_rtos_thread_sleep(1);
-                MicoSystemReboot();
-                break;
-            default:
-                break;
+    if (op >= SWITCH_SOCKET_1 && op <= SWITCH_SOCKET_6) {
+        UserRelaySet(op - 1, on_val);
+        UserMqttSendSocketState(op - 1);
+        UserMqttSendTotalSocketState();
+    } else if (op == SWITCH_ALL_SOCKETS) {
+        UserRelaySetAll(on_val);
+        for (int i = 0; i < SOCKET_NUM; i++) {
+            UserMqttSendSocketState(i);
         }
+        UserMqttSendTotalSocketState();
+    } else if (op == SWITCH_LED_ENABLE) {
+        if (RelayOut() && on_val) { UserLedSet(1); } else { UserLedSet(0); }
+        UserMqttSendLedState();
+    } else if (op == SWITCH_CHILD_LOCK_ENABLE) {
+        user_config->child_lock = on_val;
+        childLockEnabled = on_val;
+        UserMqttSendChildLockState();
+    } else if (op == REBOOT_SYSTEM) {
+        DelFirstTask();
+        mico_system_context_update(sys_config);
+        MicoSystemReboot();
+        return;
+    } else if (op == CONFIG_WIFI) {
+        DelFirstTask();
+        mico_system_context_update(sys_config);
+        micoWlanSuspendStation();
+        ApInit(true);
+        return;
+    } else if (op == RESET_SYSTEM) {
+        DelFirstTask();
+        mico_system_context_update(sys_config);
+        mico_system_context_restore(sys_config);
+        mico_rtos_thread_sleep(1);
+        MicoSystemReboot();
+        return;
+    }
+    mico_system_context_update(sys_config);
+
+    /* 循环任务：执行后重新调度下一次 */
+    if (IS_LOOP_TASK(user_config->task_top->weekday)) {
+        int duration = GET_LOOP_DURATION(user_config->task_top->weekday);
+        int interval = GET_LOOP_INTERVAL(user_config->task_top->weekday);
+        time_t next;
+        if (user_config->task_top->on >= 0) {
+            /* 刚执行了 on/off 动作：交替 on/off，用 duration 或 interval */
+            next = user_config->task_top->prs_time + (duration > 0 ? duration : 1) * 60;
+            user_config->task_top->on = (user_config->task_top->on == 0) ? 1 : 0;
+        } else {
+            /* 切换动作：统一用 duration */
+            next = user_config->task_top->prs_time + (duration > 0 ? duration : 1) * 60;
+        }
+        user_config->task_top->prs_time = next;
+        task_log("loop reschedule: next=%ld on=%d", next, user_config->task_top->on);
+        /* 重新插入排序 */
+        DelFirstTask();
+        AddTask(user_config->task_top);
+        return;
+    }
+
     DelFirstTask();
 }
 
@@ -278,8 +288,15 @@ char* GetTaskStr()
         tm_info = localtime(&prs_time);
         strftime(buffer, 26, "%m-%d %H:%M", tm_info);
 
-        sprintf(tmp_str, "{'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d},",
-            tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday);
+        int is_loop = IS_LOOP_TASK(tmp_tsk->weekday);
+        int loop_dur = GET_LOOP_DURATION(tmp_tsk->weekday);
+        int loop_int = GET_LOOP_INTERVAL(tmp_tsk->weekday);
+
+        sprintf(tmp_str,
+            "{'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
+            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d},",
+            tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday,
+            is_loop, loop_dur, loop_int);
         tmp_str += strlen(tmp_str);
         tmp_tsk = tmp_tsk->next;
     }
