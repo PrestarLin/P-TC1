@@ -287,3 +287,214 @@ char* GetTaskStr()
     *tmp_str = ']';
     return str;
 }
+
+/* ==================== 倒计时任务 ==================== */
+static CountdownTask countdown_task = {0};
+
+void CountdownTaskInit(void)
+{
+    // 从user_config恢复倒计时状态
+    if (user_config->countdown.enabled && user_config->countdown.remaining_seconds > 0) {
+        task_log("Countdown restored: %d seconds remaining, operation=%d",
+                 user_config->countdown.remaining_seconds, user_config->countdown.operation);
+    } else {
+        memset(&countdown_task, 0, sizeof(CountdownTask));
+    }
+}
+
+void CountdownTaskStart(int total_seconds, int operation)
+{
+    TaskLock();
+    user_config->countdown.enabled = true;
+    user_config->countdown.total_seconds = total_seconds;
+    user_config->countdown.remaining_seconds = total_seconds;
+    user_config->countdown.operation = operation;
+    mico_system_context_update(sys_config);
+    TaskUnlock();
+    
+    task_log("Countdown started: %d seconds, operation=%d", total_seconds, operation);
+}
+
+void CountdownTaskStop(void)
+{
+    TaskLock();
+    user_config->countdown.enabled = false;
+    user_config->countdown.remaining_seconds = 0;
+    mico_system_context_update(sys_config);
+    TaskUnlock();
+    
+    task_log("Countdown stopped");
+}
+
+void CountdownTaskTick(void)
+{
+    if (!user_config->countdown.enabled || user_config->countdown.remaining_seconds <= 0) {
+        return;
+    }
+    
+    user_config->countdown.remaining_seconds--;
+    
+    if (user_config->countdown.remaining_seconds <= 0) {
+        // 倒计时完成，执行操作
+        task_log("Countdown completed, executing operation=%d", user_config->countdown.operation);
+        
+        int operation = user_config->countdown.operation;
+        switch (operation) {
+            case SWITCH_ALL_SOCKETS:
+                UserRelaySetAll(1);
+                for (int i = 0; i < SOCKET_NUM; i++) {
+                    UserMqttSendSocketState(i);
+                }
+                UserMqttSendTotalSocketState();
+                break;
+            case SWITCH_SOCKET_1:
+            case SWITCH_SOCKET_2:
+            case SWITCH_SOCKET_3:
+            case SWITCH_SOCKET_4:
+            case SWITCH_SOCKET_5:
+            case SWITCH_SOCKET_6:
+                UserRelaySet(operation - 1, 1);
+                UserMqttSendSocketState(operation - 1);
+                UserMqttSendTotalSocketState();
+                break;
+            case REBOOT_SYSTEM:
+                MicoSystemReboot();
+                break;
+            default:
+                break;
+        }
+        
+        // 停止倒计时
+        user_config->countdown.enabled = false;
+        user_config->countdown.remaining_seconds = 0;
+    }
+    
+    // 每秒保存一次状态（减少flash写入）
+    if (user_config->countdown.remaining_seconds % 10 == 0) {
+        mico_system_context_update(sys_config);
+    }
+}
+
+char* CountdownTaskGetStatus(void)
+{
+    char* str = (char*)malloc(128);
+    if (!str) return NULL;
+    
+    sprintf(str, "{'enabled':%d,'remaining':%d,'total':%d,'operation':%d}",
+            user_config->countdown.enabled ? 1 : 0,
+            user_config->countdown.remaining_seconds,
+            user_config->countdown.total_seconds,
+            user_config->countdown.operation);
+    return str;
+}
+
+/* ==================== 循环任务 ==================== */
+static CycleTask cycle_task = {0};
+
+void CycleTaskInit(void)
+{
+    // 从user_config恢复循环任务状态
+    if (user_config->cycle.enabled && user_config->cycle.on_seconds > 0) {
+        task_log("Cycle task restored: on=%d, off=%d, operation=%d",
+                 user_config->cycle.on_seconds, user_config->cycle.off_seconds,
+                 user_config->cycle.operation);
+    } else {
+        memset(&cycle_task, 0, sizeof(CycleTask));
+    }
+}
+
+void CycleTaskStart(int on_seconds, int off_seconds, int operation)
+{
+    TaskLock();
+    user_config->cycle.enabled = true;
+    user_config->cycle.is_on_phase = true;
+    user_config->cycle.on_seconds = on_seconds;
+    user_config->cycle.off_seconds = off_seconds;
+    user_config->cycle.remaining_seconds = on_seconds;
+    user_config->cycle.operation = operation;
+    mico_system_context_update(sys_config);
+    TaskUnlock();
+    
+    // 立即开启插座
+    UserRelaySet(operation - 1, 1);
+    UserMqttSendSocketState(operation - 1);
+    
+    task_log("Cycle started: on=%d, off=%d, operation=%d", on_seconds, off_seconds, operation);
+}
+
+void CycleTaskStop(void)
+{
+    TaskLock();
+    int operation = user_config->cycle.operation;
+    user_config->cycle.enabled = false;
+    user_config->cycle.remaining_seconds = 0;
+    mico_system_context_update(sys_config);
+    TaskUnlock();
+    
+    // 停止时关闭插座
+    if (operation >= SWITCH_SOCKET_1 && operation <= SWITCH_SOCKET_6) {
+        UserRelaySet(operation - 1, 0);
+        UserMqttSendSocketState(operation - 1);
+    }
+    
+    task_log("Cycle stopped");
+}
+
+void CycleTaskTick(void)
+{
+    if (!user_config->cycle.enabled || user_config->cycle.remaining_seconds <= 0) {
+        return;
+    }
+    
+    user_config->cycle.remaining_seconds--;
+    
+    if (user_config->cycle.remaining_seconds <= 0) {
+        int operation = user_config->cycle.operation;
+        
+        if (user_config->cycle.is_on_phase) {
+            // 开启阶段结束，切换到关闭阶段
+            user_config->cycle.is_on_phase = false;
+            user_config->cycle.remaining_seconds = user_config->cycle.off_seconds;
+            
+            // 关闭插座
+            if (operation >= SWITCH_SOCKET_1 && operation <= SWITCH_SOCKET_6) {
+                UserRelaySet(operation - 1, 0);
+                UserMqttSendSocketState(operation - 1);
+            }
+            
+            task_log("Cycle: switching to OFF phase for %d seconds", user_config->cycle.off_seconds);
+        } else {
+            // 关闭阶段结束，切换到开启阶段
+            user_config->cycle.is_on_phase = true;
+            user_config->cycle.remaining_seconds = user_config->cycle.on_seconds;
+            
+            // 开启插座
+            if (operation >= SWITCH_SOCKET_1 && operation <= SWITCH_SOCKET_6) {
+                UserRelaySet(operation - 1, 1);
+                UserMqttSendSocketState(operation - 1);
+            }
+            
+            task_log("Cycle: switching to ON phase for %d seconds", user_config->cycle.on_seconds);
+        }
+    }
+    
+    // 每10秒保存一次状态
+    if (user_config->cycle.remaining_seconds % 10 == 0) {
+        mico_system_context_update(sys_config);
+    }
+}
+
+char* CycleTaskGetStatus(void)
+{
+    char* str = (char*)malloc(128);
+    if (!str) return NULL;
+    
+    sprintf(str, "{'enabled':%d,'is_on':%d,'remaining':%d,'on_sec':%d,'off_sec':%d,'operation':%d}",
+            user_config->cycle.enabled ? 1 : 0,
+            user_config->cycle.is_on_phase ? 1 : 0,
+            user_config->cycle.remaining_seconds,
+            user_config->cycle.on_seconds,
+            user_config->cycle.off_seconds,
+            user_config->cycle.operation);
+    return str;
+}

@@ -1,308 +1,164 @@
 ﻿<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description"
-          content="A front-end template that helps you build fast, modern mobile web apps.">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-    <title>TC1智能插座</title>
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="icon" sizes="192x192" href="http://yuntong.icu/tc1/images/android-desktop.png">
-    <!-- Add to homescreen for Safari on iOS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TC1 智能插座</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Material Design Lite">
-    <link rel="apple-touch-icon-precomposed" href="http://yuntong.icu/tc1/images/ios-desktop.png">
-    <!-- Tile icon for Win8 (144x144 + tile color) -->
-    <meta name="msapplication-TileImage"
-          content="http://yuntong.icu/tc1/images/touch/ms-touch-icon-144x144-precomposed.png">
-    <meta name="msapplication-TileColor" content="#3372DF">
-    <link rel="shortcut icon" href="http://yuntong.icu/tc1/images/favicon.png">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="assets/css_pack.css">
     <style>
-        .mdl-menu {
-            max-height: 300px !important;
-            overflow-y: auto !important;
-        }
+        .mdl-menu { max-height: 300px !important; overflow-y: auto !important; }
     </style>
 </head>
 <body>
 <div class="demo-layout mdl-layout mdl-js-layout mdl-layout--fixed-drawer mdl-layout--fixed-header">
-    <header class="demo-header mdl-layout__header">
+    <!-- Header -->
+    <header class="mdl-layout__header">
         <div class="mdl-layout__header-row">
-            <button class="mdl-button  mdl-button--icon edit-device-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
+            <button class="mdl-button mdl-button--icon edit-device-name" style="margin-right:8px;">
+                <i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i>
             </button>
-            <span class="mdl-layout-title">TC1智能插座</span>
+            <span class="mdl-layout-title">TC1 智能插座</span>
             <div class="mdl-layout-spacer"></div>
-            <!--            <button class="mdl-button  mdl-button&#45;&#45;icon"-->
-            <!--                    id="hdrbtn">-->
-            <!--                <i class="material-icons">-->
-            <!--                    <svg>-->
-            <!--                        <use xlink:href="#icon-translate"/>-->
-            <!--                    </svg>-->
-            <!--                </i>-->
-            <!--            </button>-->
-            <!--            <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect mdl-menu&#45;&#45;bottom-right"-->
-            <!--                for="hdrbtn">-->
-            <!--                <li class="mdl-menu__item" onclick="ChangeLanguage('en')">English</li>-->
-            <!--                <li class="mdl-menu__item" onclick="ChangeLanguage('cn')">中文</li>-->
-            <!--                <li class="mdl-menu__item" onclick="ChangeLanguage('jp')">日本語</li>-->
-            <!--            </ul>-->
-            <button onclick="reboot()"
-                    class="mdl-button  mdl-button--icon"
-                    id="rebootbtn">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-reboot"/>
-                    </svg>
-                </i>
+            <button onclick="reboot()" class="mdl-button mdl-button--icon" id="rebootbtn">
+                <i class="material-icons"><svg><use xlink:href="#icon-reboot"/></svg></i>
             </button>
         </div>
     </header>
-    <div class="demo-drawer mdl-layout__drawer mdl-color--blue-grey-900 mdl-color-text--blue-grey-50">
-        <nav class="demo-navigation mdl-navigation mdl-color--blue-grey-800">
+
+    <!-- Drawer -->
+    <div class="demo-drawer mdl-layout__drawer">
+        <nav class="demo-navigation mdl-navigation">
             <a class="mdl-navigation__link mdl-nav-active" href="javascript:ShowPage(1);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-home"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="Home">主页</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-home"/></svg></i>
+                <span>主页</span>
             </a>
             <a class="mdl-navigation__link" href="javascript:ShowPage(2);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-settings"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="Config">设置</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-settings"/></svg></i>
+                <span>设置</span>
             </a>
             <a class="mdl-navigation__link" href="javascript:ShowPage(3);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-access_alarm"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="TimedTask">定时任务</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-access_alarm"/></svg></i>
+                <span>定时任务</span>
             </a>
             <a class="mdl-navigation__link" href="javascript:ShowPage(4);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-click"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="TimedTask">按键自定义</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-click"/></svg></i>
+                <span>按键自定义</span>
             </a>
             <a class="mdl-navigation__link" href="javascript:ShowPage(5);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-info"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="SystemStatus">系统状态</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-info"/></svg></i>
+                <span>系统状态</span>
             </a>
             <a class="mdl-navigation__link" href="javascript:ShowPage(6);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-cloud_download"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="OTA">固件升级</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-cloud_download"/></svg></i>
+                <span>固件升级</span>
             </a>
             <a class="mdl-navigation__link" href="javascript:ShowPage(7);">
-                <i class="mdl-color-text--blue-grey-400 material-icons" role="presentation">
-                    <svg>
-                        <use xlink:href="#icon-notes"/>
-                    </svg>
-                </i>
-                <span class="lang" langKey="SystemLog">系统日志</span>
+                <i class="material-icons"><svg><use xlink:href="#icon-notes"/></svg></i>
+                <span>系统日志</span>
             </a>
         </nav>
     </div>
+
     <main class="mdl-layout__content">
         <div class="mdl-grid demo-content">
 
-
-
-            <div class="page page1 mdl-cell mdl-cell--4-col mdl-cell--8-col-tablet mdl-grid mdl-grid--no-spacing">
-                <div class="demo-options mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--3-col-tablet mdl-cell--12-col-desktop">
+            <!-- Page 1: Socket Control -->
+            <div class="page page1 mdl-cell mdl-cell--12-col mdl-grid mdl-grid--no-spacing">
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-cell--12-col-tablet">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">插座控制</h2>
+                    </div>
                     <div class="mdl-card__supporting-text">
-
-                        <div class="mdl-card__title mdl-card--expand">
-                            <h2 class="mdl-card__title-text">插座控制</h2>
-                        </div>
-                        <ul id="socket_ul" class="demo-list-control mdl-list">
+                        <ul id="socket_ul" class="mdl-list">
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                      <span class="lang" langKey="ChildLock">启用童锁</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">启用童锁</span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-child-lock">
-                        <input type="checkbox" id="list-switch-child-lock" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-child-lock">
+                                        <input type="checkbox" id="list-switch-child-lock" class="mdl-switch__input"/>
+                                    </label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                      <span class="lang" langKey="Led">电源指示灯</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">电源指示灯</span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-0">
-                        <input type="checkbox" id="list-switch-0" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-0">
+                                        <input type="checkbox" id="list-switch-0" class="mdl-switch__input" checked/>
+                                    </label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                      <span class="lang" langKey="SocketAll">总开关</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">总开关</span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-all">
-                        <input type="checkbox" id="list-switch-all" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-all">
+                                        <input type="checkbox" id="list-switch-all" class="mdl-switch__input" checked/>
+                                    </label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                        <button class="mdl-button  mdl-button--icon edit-socket-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
-            </button>
-                      <span class="lang" langKey="Socket">插座</span><span class="socket-index">-1</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">
+                                    <button class="mdl-button mdl-button--icon edit-socket-name"><i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i></button>
+                                    <span class="lang" langKey="Socket">插座</span><span class="socket-index">-1</span>
+                                </span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-1">
-                        <input type="checkbox" id="list-switch-1" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-1"><input type="checkbox" id="list-switch-1" class="mdl-switch__input" checked/></label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                        <button class="mdl-button  mdl-button--icon edit-socket-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
-            </button>
-                      <span class="lang" langKey="Socket">插座</span><span class="socket-index">-2</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">
+                                    <button class="mdl-button mdl-button--icon edit-socket-name"><i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i></button>
+                                    <span class="lang" langKey="Socket">插座</span><span class="socket-index">-2</span>
+                                </span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-2">
-                        <input type="checkbox" id="list-switch-2" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-2"><input type="checkbox" id="list-switch-2" class="mdl-switch__input" checked/></label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                        <button class="mdl-button  mdl-button--icon edit-socket-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
-            </button>
-                      <span class="lang" langKey="Socket">插座</span><span class="socket-index">-3</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">
+                                    <button class="mdl-button mdl-button--icon edit-socket-name"><i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i></button>
+                                    <span class="lang" langKey="Socket">插座</span><span class="socket-index">-3</span>
+                                </span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-3">
-                        <input type="checkbox" id="list-switch-3" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-3"><input type="checkbox" id="list-switch-3" class="mdl-switch__input" checked/></label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                        <button class="mdl-button  mdl-button--icon edit-socket-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
-            </button>
-                      <span class="lang" langKey="Socket">插座</span><span class="socket-index">-4</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">
+                                    <button class="mdl-button mdl-button--icon edit-socket-name"><i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i></button>
+                                    <span class="lang" langKey="Socket">插座</span><span class="socket-index">-4</span>
+                                </span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-4">
-                        <input type="checkbox" id="list-switch-4" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-4"><input type="checkbox" id="list-switch-4" class="mdl-switch__input" checked/></label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                        <button class="mdl-button  mdl-button--icon edit-socket-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
-            </button>
-                      <span class="lang" langKey="Socket">插座</span><span class="socket-index">-5</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">
+                                    <button class="mdl-button mdl-button--icon edit-socket-name"><i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i></button>
+                                    <span class="lang" langKey="Socket">插座</span><span class="socket-index">-5</span>
+                                </span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-5">
-                        <input type="checkbox" id="list-switch-5" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-5"><input type="checkbox" id="list-switch-5" class="mdl-switch__input" checked/></label>
+                                </span>
                             </li>
                             <li class="mdl-list__item">
-                    <span class="mdl-list__item-primary-content">
-                        <button class="mdl-button  mdl-button--icon edit-socket-name">
-                <i class="material-icons">
-                    <svg>
-                        <use xlink:href="#icon-edit"/>
-                    </svg>
-                </i>
-            </button>
-                      <span class="lang" langKey="Socket">插座</span><span class="socket-index">-6</span>
-                    </span>
+                                <span class="mdl-list__item-primary-content">
+                                    <button class="mdl-button mdl-button--icon edit-socket-name"><i class="material-icons"><svg><use xlink:href="#icon-edit"/></svg></i></button>
+                                    <span class="lang" langKey="Socket">插座</span><span class="socket-index">-6</span>
+                                </span>
                                 <span class="mdl-list__item-secondary-action">
-                      <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect"
-                             for="list-switch-6">
-                        <input type="checkbox" id="list-switch-6" class="mdl-switch__input"
-                               checked/>
-                      </label>
-                    </span>
+                                    <label class="mdl-switch mdl-js-switch" for="list-switch-6"><input type="checkbox" id="list-switch-6" class="mdl-switch__input" checked/></label>
+                                </span>
                             </li>
                         </ul>
                     </div>
                 </div>
-            </div>
-
-            <div class="page page1 mdl-cell mdl-cell--4-col mdl-cell--8-col-tablet mdl-grid mdl-grid--no-spacing">
-                <div class="demo-options mdl-card mdl-shadow--2dp mdl-cell mdl-cell--4-col mdl-cell--3-col-tablet mdl-cell--12-col-desktop">
+                <div class="mdl-card mdl-cell mdl-cell--6-col mdl-cell--12-col-tablet">
+                    <div class="mdl-card__title">
+                        <h2 class="mdl-card__title-text">功率图</h2>
+                    </div>
                     <div class="mdl-card__supporting-text">
-                        <div class="mdl-card__title mdl-card--expand">
-                            <h2 class="mdl-card__title-text">功率图</h2>
-                        </div>
-
-                        <div id="ct-chart-par"
-                             class="page page1 mdl-card__supporting-text mdl-shadow--2dp"
-                             style="height:315px;overflow-x:scroll;overflow-y:hidden;">
+                        <div id="ct-chart-par" style="height:315px;overflow-x:scroll;overflow-y:hidden;">
                             <table class="pw">
                                 <tr>
                                     <td>当前功率: <span id="p" class="success">0</span> W</td>
@@ -311,258 +167,92 @@
                                     <td>总电量: <span id="w" class="error">0</span> kW·h</td>
                                 </tr>
                             </table>
-                            <div id="ct-chart" class="ct-chart ct-perfect-fourth"
-                                 style="height:280px;margin-top:40px;"></div>
+                            <div id="ct-chart" class="ct-chart ct-perfect-fourth" style="height:280px;margin-top:40px;"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="page page2 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
-                 style="overflow: unset;">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">网络设置</h2>
-                </div>
-                <div class="mdl-card__supporting-text" style="overflow: unset;">
+            <!-- Page 2: Settings -->
+            <div class="page page2 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet" style="overflow:unset;">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">网络设置</h2></div>
+                <div class="mdl-card__supporting-text" style="overflow:unset;">
                     <form action="#">
-                        <div id="div_wifi_sel"
-                             class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label getmdl-select getmdl-select__fix-height">
-                            <input id="wifi_sel" type="text" value="" class="mdl-textfield__input"
-                                   readonly>
+                        <div id="div_wifi_sel" class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label getmdl-select getmdl-select__fix-height">
+                            <input id="wifi_sel" type="text" value="" class="mdl-textfield__input" readonly>
                             <input type="hidden" value="" name="wifi_sel">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
+                            <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
                             <label for="wifi_sel" class="mdl-textfield__label">SSID</label>
-                            <ul id="ssid_sel_list" for="wifi_sel"
-                                class="mdl-menu mdl-menu--bottom-left mdl-js-menu">
-                            </ul>
+                            <ul id="ssid_sel_list" for="wifi_sel" class="mdl-menu mdl-menu--bottom-left mdl-js-menu"></ul>
                         </div>
-                        <div id="div_custom_ssid"
-                             class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"
-                             hidden>
+                        <div id="div_custom_ssid" class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" hidden>
                             <input id="custom_ssid" class="mdl-textfield__input" type="text">
                             <label class="mdl-textfield__label" for="custom_ssid">SSID</label>
                         </div>
                         <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input id="custom_password" class="mdl-textfield__input"
-                                   type="password">
+                            <input id="custom_password" class="mdl-textfield__input" type="password">
                             <label class="mdl-textfield__label" for="custom_password">密码</label>
                         </div>
                         <div>
-                            <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect"
-                                   for="custom_ap">
-                                <input type="radio" id="custom_ap" class="mdl-radio__button"
-                                       name="options" value="1">
+                            <label class="mdl-radio mdl-js-radio mdl-js-ripple-effect" for="custom_ap">
+                                <input type="radio" id="custom_ap" class="mdl-radio__button" name="options" value="1">
                                 <span class="mdl-radio__label">开热点</span>
                             </label>
-                            <label class="station-radio mdl-radio mdl-js-radio mdl-js-ripple-effect"
-                                   for="custom_station">
-                                <input type="radio" id="custom_station" class="mdl-radio__button"
-                                       name="options" value="2" checked>
+                            <label class="station-radio mdl-radio mdl-js-radio mdl-js-ripple-effect" for="custom_station">
+                                <input type="radio" id="custom_station" class="mdl-radio__button" name="options" value="2" checked>
                                 <span class="mdl-radio__label">连Wifi</span>
                             </label>
                         </div>
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" id="wifi_submit"
-                       class="mdl-button mdl-button--colored ">
-                        提交
-                    </button>
-                </div>
+                <div class="mdl-card__actions"><button type="button" id="wifi_submit" class="mdl-button mdl-button--colored">提交</button></div>
             </div>
 
-            <div class="page page2 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
-                 style="z-index: unset;">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">MQTT 设置</h2>
-                </div>
+            <div class="page page2 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet" style="overflow:unset;">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">MQTT 设置</h2></div>
                 <div class="mdl-card__supporting-text">
                     <form action="#">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="mqtt_addr">
-                            <label class="mdl-textfield__label" for="mqtt_addr">地址</label>
-                        </div>
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="mqtt_port">
-                            <label class="mdl-textfield__label" for="mqtt_port">端口</label>
-                        </div>
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="mqtt_usr">
-                            <label class="mdl-textfield__label" for="mqtt_usr">用户名</label>
-                        </div>
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="mqtt_pwd">
-                            <label class="mdl-textfield__label" for="mqtt_pwd">密码</label>
-                        </div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="text" id="mqtt_addr"><label class="mdl-textfield__label" for="mqtt_addr">地址</label></div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="text" id="mqtt_port"><label class="mdl-textfield__label" for="mqtt_port">端口</label></div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="text" id="mqtt_usr"><label class="mdl-textfield__label" for="mqtt_usr">用户名</label></div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="text" id="mqtt_pwd"><label class="mdl-textfield__label" for="mqtt_pwd">密码</label></div>
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" id="mqtt_submit"
-                       class="mdl-button mdl-button--colored ">
-                        提交
-                    </button>
-                </div>
+                <div class="mdl-card__actions"><button type="button" id="mqtt_submit" class="mdl-button mdl-button--colored">提交</button></div>
             </div>
 
-            <div class="page page2 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
-                 style="z-index: unset;">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">MQTT 功率上报设置</h2>
-                </div>
+            <div class="page page2 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet" style="overflow:unset;">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">MQTT 功率上报设置</h2></div>
                 <div class="mdl-card__supporting-text">
                     <form action="#">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="mqtt_freq">
-                            <label class="mdl-textfield__label" for="mqtt_freq">上报频率（秒）</label>
-                        </div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="text" id="mqtt_freq"><label class="mdl-textfield__label" for="mqtt_freq">上报频率（秒）</label></div>
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" id="mqtt_freq_submit"
-                       class="mdl-button mdl-button--colored ">
-                        提交
-                    </button>
+                <div class="mdl-card__actions"><button type="button" id="mqtt_freq_submit" class="mdl-button mdl-button--colored">提交</button></div>
+            </div>
+
+            <!-- Page 3: Timed Task + Countdown + Cycle -->
+            <div class="page page3 mdl-cell mdl-cell--12-col mdl-card">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">定时任务</h2></div>
+                <div class="mdl-card__supporting-text" style="overflow-x:auto;">
+                    <table id="timed_task_tb" class="mdl-data-table mdl-js-data-table">
+                        <thead><tr><th>时间</th><th>插座</th><th>开关</th><th>循环</th><th>操作</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
 
-            <div class="page page3 mdl-cell mdl-cell--5-col demo-card-event mdl-card mdl-shadow--2dp">
-                <table id="timed_task_tb" class="mdl-data-table mdl-js-data-table">
-                    <tr>
-                        <th>时间</th>
-                        <th>插座</th>
-                        <th>开关</th>
-                        <th>循环</th>
-                        <th>操作</th>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="page page3 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">倒计时</h2>
-                </div>
-                <div class="mdl-card__supporting-text">
-                    <div id="countdown-container" style="text-align:center; padding:20px 0;">
-                        <div id="countdown-display" style="font-size:36px; font-weight:bold; color:#1976D2; margin-bottom:16px;">
-                            00:00:00
-                        </div>
-                        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:16px;">
-                            <input id="countdown-hours" type="number" min="0" max="23" value="0" class="mdl-textfield__input" style="width:60px; text-align:center; font-size:18px;">
-                            <span style="line-height:40px;">时</span>
-                            <input id="countdown-minutes" type="number" min="0" max="59" value="5" class="mdl-textfield__input" style="width:60px; text-align:center; font-size:18px;">
-                            <span style="line-height:40px;">分</span>
-                            <input id="countdown-seconds" type="number" min="0" max="59" value="0" class="mdl-textfield__input" style="width:60px; text-align:center; font-size:18px;">
-                            <span style="line-height:40px;">秒</span>
-                        </div>
-                        <div class="mdl-textfield mdl-js-textfield getmdl-select" style="width:100%; margin-bottom:16px;">
-                            <input type="text" id="countdown-target" value="" class="mdl-textfield__input" readonly>
-                            <input type="hidden" value="0" id="countdown-target-value">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
-                            <label for="countdown-target" class="mdl-textfield__label">执行操作</label>
-                            <ul for="countdown-target" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="countdown_action_list">
-                            </ul>
-                        </div>
-                        <div style="display:flex; justify-content:center; gap:8px;">
-                            <button type="button" onclick="startCountdown();" id="countdown-start-btn" class="mdl-button mdl-button--colored" style="min-width:80px;">
-                                开始
-                            </button>
-                            <button type="button" onclick="stopCountdown();" id="countdown-stop-btn" class="mdl-button" style="min-width:80px; display:none;">
-                                停止
-                            </button>
-                            <button type="button" onclick="resetCountdown();" class="mdl-button" style="min-width:80px;">
-                                重置
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page page3 mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">循环开关</h2>
-                </div>
-                <div class="mdl-card__supporting-text">
-                    <div id="cycle-container" style="text-align:center; padding:20px 0;">
-                        <div id="cycle-status" style="font-size:16px; color:#757575; margin-bottom:16px; min-height:24px;">
-                            未运行
-                        </div>
-                        <div id="cycle-countdown-display" style="font-size:32px; font-weight:bold; color:#26A69A; margin-bottom:16px; display:none;">
-                            00:00:00
-                        </div>
-                        <div style="margin-bottom:16px;">
-                            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
-                                <span style="min-width:50px; text-align:right;">开启</span>
-                                <input id="cycle-on-value" type="number" min="1" max="999" value="30" class="mdl-textfield__input" style="width:70px; text-align:center;">
-                                <select id="cycle-on-unit" class="mdl-textfield__input" style="width:70px; padding:8px 4px;">
-                                    <option value="60">分钟</option>
-                                    <option value="3600">小时</option>
-                                    <option value="1">秒</option>
-                                </select>
-                            </div>
-                            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
-                                <span style="min-width:50px; text-align:right;">关闭</span>
-                                <input id="cycle-off-value" type="number" min="1" max="999" value="30" class="mdl-textfield__input" style="width:70px; text-align:center;">
-                                <select id="cycle-off-unit" class="mdl-textfield__input" style="width:70px; padding:8px 4px;">
-                                    <option value="60">分钟</option>
-                                    <option value="3600">小时</option>
-                                    <option value="1">秒</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mdl-textfield mdl-js-textfield getmdl-select" style="width:100%; margin-bottom:16px;">
-                            <input type="text" id="cycle-target" value="" class="mdl-textfield__input" readonly>
-                            <input type="hidden" value="0" id="cycle-target-value">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
-                            <label for="cycle-target" class="mdl-textfield__label">控制插座</label>
-                            <ul for="cycle-target" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="cycle_action_list">
-                            </ul>
-                        </div>
-                        <div style="display:flex; justify-content:center; gap:8px;">
-                            <button type="button" onclick="startCycle();" id="cycle-start-btn" class="mdl-button mdl-button--colored" style="min-width:80px;">
-                                开始
-                            </button>
-                            <button type="button" onclick="stopCycle();" id="cycle-stop-btn" class="mdl-button" style="min-width:80px; display:none;">
-                                停止
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page page3 over-unset mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
-                 style="z-index: unset;">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">添加任务</h2>
-                </div>
-                <div class="over-unset mdl-card__supporting-text">
+            <div class="page page3 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet" style="overflow:unset;">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">添加任务</h2></div>
+                <div class="mdl-card__supporting-text" style="overflow:unset;">
                     <form action="#">
                         <div class="mdl-textfield mdl-js-textfield getmdl-select">
-                            <input type="text" id="task_weekday" value=""
-                                   class="mdl-textfield__input" readonly>
+                            <input type="text" id="task_weekday" value="" class="mdl-textfield__input" readonly>
                             <input type="hidden" value="0" name="task_weekday">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
+                            <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
                             <label for="task_weekday" class="mdl-textfield__label">是否循环</label>
-                            <ul for="task_weekday"
-                                class="mdl-menu mdl-menu--bottom-left mdl-js-menu">
-                                <li class="mdl-menu__item" data-val="0" data-selected='true'>
-                                    无循环
-                                </li>
+                            <ul for="task_weekday" class="mdl-menu mdl-menu--bottom-left mdl-js-menu">
+                                <li class="mdl-menu__item" data-val="0" data-selected='true'>无循环</li>
                                 <li class="mdl-menu__item" data-val="8">每天</li>
                                 <li class="mdl-menu__item" data-val="1">星期一</li>
                                 <li class="mdl-menu__item" data-val="2">星期二</li>
@@ -576,1426 +266,554 @@
                         <div class="mdl-textfield mdl-js-textfield getmdl-select">
                             <input type="text" value="" class="mdl-textfield__input" readonly>
                             <input type="hidden" value="" id="task_skt_idx" name="task_skt_idx">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
+                            <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
                             <label for="task_skt_idx" class="mdl-textfield__label">操作</label>
-                            <ul for="task_skt_idx"
-                                class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="operations_list">
-                            </ul>
+                            <ul for="task_skt_idx" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="operations_list"></ul>
                         </div>
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="date" id="task_date">
-                            <label class="mdl-textfield__label" for="sample1"></label>
-                        </div>
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="time" step="1" id="task_time">
-                            <label class="mdl-textfield__label" for="sample1"></label>
-                        </div>
+                        <div class="mdl-textfield mdl-js-textfield"><input class="mdl-textfield__input" type="date" id="task_date"><label class="mdl-textfield__label"></label></div>
+                        <div class="mdl-textfield mdl-js-textfield"><input class="mdl-textfield__input" type="time" step="1" id="task_time"><label class="mdl-textfield__label"></label></div>
                         <div class="mdl-textfield mdl-js-textfield">
                             <span>开关: </span>
-                            <span class="on-off mdl-list__item-secondary-action">
-                    <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="task_on">
-                      <input type="checkbox" id="task_on" class="mdl-switch__input" checked/>
-                    </label>
-                  </span>
+                            <label class="mdl-switch mdl-js-switch" for="task_on"><input type="checkbox" id="task_on" class="mdl-switch__input" checked/></label>
                         </div>
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" onclick="AddTimedTask();"
-                       class="mdl-button mdl-button--colored ">
-                        提交
-                    </button>
+                <div class="mdl-card__actions"><button type="button" onclick="AddTimedTask();" class="mdl-button mdl-button--colored">提交</button></div>
+            </div>
+
+            <!-- Countdown -->
+            <div class="page page3 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">倒计时</h2></div>
+                <div class="mdl-card__supporting-text">
+                    <div id="countdown-display" class="countdown-display">00:00:00</div>
+                    <div class="input-group"><label>时</label><input id="countdown-hours" type="number" min="0" max="23" value="0"><label>分</label><input id="countdown-minutes" type="number" min="0" max="59" value="5"><label>秒</label><input id="countdown-seconds" type="number" min="0" max="59" value="0"></div>
+                    <div class="mdl-textfield mdl-js-textfield getmdl-select" style="width:100%;margin-bottom:12px;">
+                        <input type="text" id="countdown-target" value="" class="mdl-textfield__input" readonly>
+                        <input type="hidden" value="0" id="countdown-target-value">
+                        <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
+                        <label for="countdown-target" class="mdl-textfield__label">执行操作</label>
+                        <ul for="countdown-target" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="countdown_action_list"></ul>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" onclick="startCountdown();" id="countdown-start-btn" class="mdl-button mdl-button--colored">开始</button>
+                        <button type="button" onclick="stopCountdown();" id="countdown-stop-btn" class="mdl-button" style="display:none;">停止</button>
+                        <button type="button" onclick="resetCountdown();" class="mdl-button">重置</button>
+                    </div>
                 </div>
             </div>
 
-
-            <div class="page page4 over-unset mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
-                 style="z-index: unset;">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">按键自定义</h2>
+            <!-- Cycle -->
+            <div class="page page3 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">循环开关</h2></div>
+                <div class="mdl-card__supporting-text">
+                    <div id="cycle-status" class="countdown-display" style="font-size:20px;padding:12px;">未运行</div>
+                    <div id="cycle-countdown-display" class="countdown-display" style="display:none;">00:00:00</div>
+                    <div class="input-group"><label>开启</label><input id="cycle-on-value" type="number" min="1" max="999" value="30"><select id="cycle-on-unit"><option value="1">秒</option><option value="60" selected>分钟</option><option value="3600">小时</option></select></div>
+                    <div class="input-group"><label>关闭</label><input id="cycle-off-value" type="number" min="1" max="999" value="30"><select id="cycle-off-unit"><option value="1">秒</option><option value="60" selected>分钟</option><option value="3600">小时</option></select></div>
+                    <div class="mdl-textfield mdl-js-textfield getmdl-select" style="width:100%;margin-bottom:12px;">
+                        <input type="text" id="cycle-target" value="" class="mdl-textfield__input" readonly>
+                        <input type="hidden" value="0" id="cycle-target-value">
+                        <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
+                        <label for="cycle-target" class="mdl-textfield__label">控制插座</label>
+                        <ul for="cycle-target" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="cycle_action_list"></ul>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" onclick="startCycle();" id="cycle-start-btn" class="mdl-button mdl-button--colored">开始</button>
+                        <button type="button" onclick="stopCycle();" id="cycle-stop-btn" class="mdl-button" style="display:none;">停止</button>
+                    </div>
                 </div>
-                <table id="short_click_events_tb" class="mdl-data-table mdl-js-data-table">
-                    <tr>
-                        <th>按键类型</th>
-                        <th>执行操作</th>
-                        <th>操作</th>
-                    </tr>
-                </table>
             </div>
 
-            <div class="page page4 over-unset mdl-cell mdl-cell--5-col demo-card-square mdl-card mdl-shadow--2dp"
-                 style="z-index: unset;">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">添加按键操作</h2>
+            <!-- Page 4: Button Custom -->
+            <div class="page page4 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet" style="overflow:unset;">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">按键自定义</h2></div>
+                <div class="mdl-card__supporting-text" style="overflow-x:auto;">
+                    <table id="short_click_events_tb" class="mdl-data-table mdl-js-data-table">
+                        <thead><tr><th>按键类型</th><th>执行操作</th><th>操作</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-                <div class="over-unset mdl-card__supporting-text">
+            </div>
+
+            <div class="page page4 mdl-cell mdl-cell--6-col mdl-card mdl-cell--12-col-tablet" style="overflow:unset;">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">添加按键操作</h2></div>
+                <div class="mdl-card__supporting-text" style="overflow:unset;">
                     <form action="#">
                         <div class="mdl-textfield mdl-js-textfield getmdl-select">
-                            <input type="text"  value=""
-                                   class="mdl-textfield__input" readonly>
+                            <input type="text" value="" class="mdl-textfield__input" readonly>
                             <input type="hidden" value="0" name="button_type" id="button_type">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
+                            <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
                             <label for="button_type" class="mdl-textfield__label">按钮触发方式</label>
-                            <ul for="button_type"
-                                class="mdl-menu mdl-menu--bottom-left mdl-js-menu">
-                                <li class="mdl-menu__item" data-val="0" data-selected='true'>
-                                    单/多击
-                                </li>
+                            <ul for="button_type" class="mdl-menu mdl-menu--bottom-left mdl-js-menu">
+                                <li class="mdl-menu__item" data-val="0" data-selected='true'>单/多击</li>
                                 <li class="mdl-menu__item" data-val="1">长按</li>
                             </ul>
                         </div>
                         <div class="mdl-textfield mdl-js-textfield getmdl-select">
-                            <input type="text"  value=""
-                                   class="mdl-textfield__input" readonly>
+                            <input type="text" value="" class="mdl-textfield__input" readonly>
                             <input type="hidden" value="1" name="click_times_press_time" id="click_times_press_time">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
+                            <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
                             <label for="click_times_press_time" class="mdl-textfield__label" id="click_times_press_time_label">连击次数</label>
-                            <ul for="click_times_press_time"
-                                class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="click_times_press_time_selector" style="">
-                            </ul>
+                            <ul for="click_times_press_time" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="click_times_press_time_selector"></ul>
                         </div>
                         <div class="mdl-textfield mdl-js-textfield getmdl-select">
-                            <input type="text"  value=""
-                                   class="mdl-textfield__input" readonly>
+                            <input type="text" value="" class="mdl-textfield__input" readonly>
                             <input type="hidden" value="-1" name="action_type" id="action_type">
-                            <i class="mdl-icon-toggle__label material-icons">
-                                <svg>
-                                    <use xlink:href="#icon-keyboard_arrow_down"/>
-                                </svg>
-                            </i>
+                            <i class="mdl-icon-toggle__label material-icons"><svg><use xlink:href="#icon-keyboard_arrow_down"/></svg></i>
                             <label for="action_type" class="mdl-textfield__label">执行的操作</label>
-                            <ul for="action_type"
-                                class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="btn_action_selector">
-                            </ul>
+                            <ul for="action_type" class="mdl-menu mdl-menu--bottom-left mdl-js-menu" id="btn_action_selector"></ul>
                         </div>
-
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" onclick="addButtonEvent();"
-                       class="mdl-button mdl-button--colored ">
-                        添加
-                    </button>
-                </div>
+                <div class="mdl-card__actions"><button type="button" onclick="addButtonEvent();" class="mdl-button mdl-button--colored">添加</button></div>
             </div>
 
-
-            <div class="page page5 mdl-cell mdl-cell--12-col demo-card-event mdl-card mdl-shadow--2dp">
-                <table class="mdl-data-table mdl-js-data-table">
-                    <tr>
-                        <th>版本</th>
-                        <th id="info_version"></th>
-                    </tr>
-                    <tr>
-                        <td>IP</td>
-                        <td id="info_ip"></td>
-                    </tr>
-                    <tr>
-                        <td>子网掩码</td>
-                        <td id="info_mask"></td>
-                    </tr>
-                    <tr>
-                        <td>网关</td>
-                        <td id="info_gateway"></td>
-                    </tr>
-                    <tr>
-                        <td>启动时间</td>
-                        <td id="uptime"></td>
-                    </tr>
-                </table>
-                <div class="mdl-card__actions mdl-card--border" style="display: flex; align-items: center; flex-wrap: wrap;">
-                    <span style="font-size:0.8em;">提示：长按电源按钮5s，指示灯闪烁3次可开启热点重新配网，10s指示灯保持闪烁恢复出厂设置</span>
+            <!-- Page 5: System Status -->
+            <div class="page page5 mdl-cell mdl-cell--12-col mdl-card">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">系统状态</h2></div>
+                <div class="mdl-card__supporting-text">
+                    <table class="mdl-data-table mdl-js-data-table" style="width:100%;">
+                        <tr><th>版本</th><td id="info_version"></td></tr>
+                        <tr><th>IP</th><td id="info_ip"></td></tr>
+                        <tr><th>子网掩码</th><td id="info_mask"></td></tr>
+                        <tr><th>网关</th><td id="info_gateway"></td></tr>
+                        <tr><th>启动时间</th><td id="uptime"></td></tr>
+                    </table>
+                </div>
+                <div class="mdl-card__actions" style="display:flex;align-items:center;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:#94A3B8;">提示：长按电源按钮5s开启热点重新配网，10s恢复出厂设置</span>
                     <div class="mdl-layout-spacer"></div>
-                    <i class="material-icons">
-                        <svg>
-                            <use xlink:href="#icon-event"/>
-                        </svg>
-                    </i>
-                    <!-- <span>2020-02-22</span> -->
                     <a class="mdl-button" id="st-date"></a>
                 </div>
             </div>
 
-            <div class="page page6 mdl-cell mdl-cell--12-col demo-card-square mdl-card mdl-shadow--2dp">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">在线升级</h2>
-                </div>
+            <!-- Page 6: OTA -->
+            <div class="page page6 mdl-cell mdl-cell--12-col mdl-card">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">在线升级</h2></div>
                 <div class="mdl-card__supporting-text">
                     <form action="#">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="text" id="ota_url" value="">
-                            <label class="mdl-textfield__label" for="ota_url">OTA 地址</label>
-                        </div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="text" id="ota_url" value=""><label class="mdl-textfield__label" for="ota_url">OTA 地址</label></div>
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" onclick="OtaStart();" id="submit-ota-link"
-                       class="mdl-button mdl-button--colored ">
-                        提交
-                    </button>
-                </div>
+                <div class="mdl-card__actions"><button type="button" onclick="OtaStart();" id="submit-ota-link" class="mdl-button mdl-button--colored">提交</button></div>
                 <div id="ota_status" class="mdl-progress mdl-js-progress"></div>
             </div>
 
-            <div class="page page6 mdl-cell mdl-cell--12-col demo-card-square mdl-card mdl-shadow--2dp">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">本地升级</h2>
-                </div>
+            <div class="page page6 mdl-cell mdl-cell--12-col mdl-card">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">本地升级</h2></div>
                 <div class="mdl-card__supporting-text">
                     <form id="otaForm" action="/ota/fileUpload" method="post" enctype="multipart/form-data">
-                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                            <input class="mdl-textfield__input" type="file" id="ota_file" name="ota_file">
-                        </div>
+                        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label"><input class="mdl-textfield__input" type="file" id="ota_file" name="ota_file"></div>
                     </form>
                 </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" onclick="OtaFileUpload();" class="mdl-button mdl-button--colored " id="submit-ota-file">
-                        上传 OTA 文件
-                    </button>
-                </div>
+                <div class="mdl-card__actions"><button type="button" onclick="OtaFileUpload();" class="mdl-button mdl-button--colored" id="submit-ota-file">上传 OTA 文件</button></div>
                 <div id="upload_status" class="mdl-progress mdl-js-progress"></div>
             </div>
 
-            <div class="page page7 mdl-cell mdl-cell--12-col demo-card-square mdl-card mdl-shadow--2dp">
-                <div class="mdl-card__title mdl-card--expand">
-                    <h2 class="mdl-card__title-text">系统日志</h2>
-                </div>
-                <div class="sys-log mdl-card__supporting-text">
-                    <pre id="sys_log"></pre>
-                </div>
-                <div class="mdl-card__actions mdl-card--border">
-                    <button type="button" onclick="GetSysLog();"
-                       class="mdl-button mdl-button--colored ">
-                        刷新
-                    </button>
-                </div>
+            <!-- Page 7: System Log -->
+            <div class="page page7 mdl-cell mdl-cell--12-col mdl-card">
+                <div class="mdl-card__title"><h2 class="mdl-card__title-text">系统日志</h2></div>
+                <div class="mdl-card__supporting-text"><div class="sys-log"><pre id="sys_log"></pre></div></div>
+                <div class="mdl-card__actions"><button type="button" onclick="GetSysLog();" class="mdl-button mdl-button--colored">刷新</button></div>
             </div>
-
         </div>
     </main>
 </div>
 
-<!-- <button id="demo-show-toast" class="mdl-button mdl-js-button mdl-button--raised" type="button">Show Toast</button> -->
+<!-- Toast -->
 <div id="demo-toast-example" class="mdl-js-snackbar mdl-snackbar">
     <div class="mdl-snackbar__text"></div>
     <button class="mdl-snackbar__action" type="button"></button>
 </div>
 
+<!-- SVG Icons -->
 <svg>
     <defs>
-        <g id="icon-access_alarm">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M22 5.72l-4.6-3.86-1.29 1.53 4.6 3.86L22 5.72zM7.88 3.39L6.6 1.86 2 5.71l1.29 1.53 4.59-3.85zM12.5 8H11v6l4.75 2.85.75-1.23-4-2.37V8zM12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-        </g>
-        <g id="icon-add">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </g>
-        <g id="icon-edit">
-            <path d="M5,3C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19H5V5H12V3H5M17.78,4C17.61,4 17.43,4.07 17.3,4.2L16.08,5.41L18.58,7.91L19.8,6.7C20.06,6.44 20.06,6 19.8,5.75L18.25,4.2C18.12,4.07 17.95,4 17.78,4M15.37,6.12L8,13.5V16H10.5L17.87,8.62L15.37,6.12Z" />
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </g>
-        <g id ="icon-click">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M13 5C15.21 5 17 6.79 17 9C17 10.5 16.2 11.77 15 12.46V11.24C15.61 10.69 16 9.89 16 9C16 7.34 14.66 6 13 6S10 7.34 10 9C10 9.89 10.39 10.69 11 11.24V12.46C9.8 11.77 9 10.5 9 9C9 6.79 10.79 5 13 5M20 20.5C19.97 21.32 19.32 21.97 18.5 22H13C12.62 22 12.26 21.85 12 21.57L8 17.37L8.74 16.6C8.93 16.39 9.2 16.28 9.5 16.28H9.7L12 18V9C12 8.45 12.45 8 13 8S14 8.45 14 9V13.47L15.21 13.6L19.15 15.79C19.68 16.03 20 16.56 20 17.14V20.5M20 2H4C2.9 2 2 2.9 2 4V12C2 13.11 2.9 14 4 14H8V12L4 12L4 4H20L20 12H18V14H20V13.96L20.04 14C21.13 14 22 13.09 22 12V4C22 2.9 21.11 2 20 2Z" />
-        </g>
-        <g id="icon-translate">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
-        </g>
-        <g id="icon-reboot">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12,4C14.1,4 16.1,4.8 17.6,6.3C20.7,9.4 20.7,14.5 17.6,17.6C15.8,19.5 13.3,20.2 10.9,19.9L11.4,17.9C13.1,18.1 14.9,17.5 16.2,16.2C18.5,13.9 18.5,10.1 16.2,7.7C15.1,6.6 13.5,6 12,6V10.6L7,5.6L12,0.6V4M6.3,17.6C3.7,15 3.3,11 5.1,7.9L6.6,9.4C5.5,11.6 5.9,14.4 7.8,16.2C8.3,16.7 8.9,17.1 9.6,17.4L9,19.4C8,19 7.1,18.4 6.3,17.6Z"/>
-        </g>
-        <g id="icon-arrow_drop_down">
-            <path d="M7 10l5 5 5-5z"/>
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </g>
-        <g id="icon-cloud_download">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-        </g>
-        <g id="icon-event">
-            <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </g>
-        <g id="icon-help">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-        </g>
-        <g id="icon-home">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </g>
-        <g id="icon-info">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-        </g>
-        <g id="icon-keyboard_arrow_down">
-            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-            <path d="M0 0h24v24H0V0z" fill="none"/>
-        </g>
-        <g id="icon-menu">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
-        </g>
-        <g id="icon-more_vert">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-        </g>
-        <g id="icon-notes">
-            <path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"/>
-            <path d="M0 0h24v24H0V0z" fill="none"/>
-        </g>
-        <g id="icon-search">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            <path d="M0 0h24v24H0z" fill="none"/>
-        </g>
-        <g id="icon-settings">
-            <path d="M0,0h24v24H0V0z" fill="none"/>
-            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
-        </g>
+        <g id="icon-access_alarm"><path d="M0 0h24v24H0z" fill="none"/><path d="M22 5.72l-4.6-3.86-1.29 1.53 4.6 3.86L22 5.72zM7.88 3.39L6.6 1.86 2 5.71l1.29 1.53 4.59-3.85zM12.5 8H11v6l4.75 2.85.75-1.23-4-2.37V8zM12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></g>
+        <g id="icon-add"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/><path d="M0 0h24v24H0z" fill="none"/></g>
+        <g id="icon-edit"><path d="M5,3C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19H5V5H12V3H5M17.78,4C17.61,4 17.43,4.07 17.3,4.2L16.08,5.41L18.58,7.91L19.8,6.7C20.06,6.44 20.06,6 19.8,5.75L18.25,4.2C18.12,4.07 17.95,4 17.78,4M15.37,6.12L8,13.5V16H10.5L17.87,8.62L15.37,6.12Z"/><path d="M0 0h24v24H0z" fill="none"/></g>
+        <g id="icon-click"><path d="M0 0h24v24H0z" fill="none"/><path d="M13 5C15.21 5 17 6.79 17 9C17 10.5 16.2 11.77 15 12.46V11.24C15.61 10.69 16 9.89 16 9C16 7.34 14.66 6 13 6S10 7.34 10 9C10 9.89 10.39 10.69 11 11.24V12.46C9.8 11.77 9 10.5 9 9C9 6.79 10.79 5 13 5M20 20.5C19.97 21.32 19.32 21.97 18.5 22H13C12.62 22 12.26 21.85 12 21.57L8 17.37L8.74 16.6C8.93 16.39 9.2 16.28 9.5 16.28H9.7L12 18V9C12 8.45 12.45 8 13 8S14 8.45 14 9V13.47L15.21 13.6L19.15 15.79C19.68 16.03 20 16.56 20 17.14V20.5M20 2H4C2.9 2 2 2.9 2 4V12C2 13.11 2.9 14 4 14H8V12L4 12L4 4H20L20 12H18V14H20V13.96L20.04 14C21.13 14 22 13.09 22 12V4C22 2.9 21.11 2 20 2Z"/></g>
+        <g id="icon-reboot"><path d="M0 0h24v24H0z" fill="none"/><path d="M12,4C14.1,4 16.1,4.8 17.6,6.3C20.7,9.4 20.7,14.5 17.6,17.6C15.8,19.5 13.3,20.2 10.9,19.9L11.4,17.9C13.1,18.1 14.9,17.5 16.2,16.2C18.5,13.9 18.5,10.1 16.2,7.7C15.1,6.6 13.5,6 12,6V10.6L7,5.6L12,0.6V4M6.3,17.6C3.7,15 3.3,11 5.1,7.9L6.6,9.4C5.5,11.6 5.9,14.4 7.8,16.2C8.3,16.7 8.9,17.1 9.6,17.4L9,19.4C8,19 7.1,18.4 6.3,17.6Z"/></g>
+        <g id="icon-keyboard_arrow_down"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></g>
+        <g id="icon-cloud_download"><path d="M0 0h24v24H0z" fill="none"/><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></g>
+        <g id="icon-event"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/><path d="M0 0h24v24H0z" fill="none"/></g>
+        <g id="icon-help"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></g>
+        <g id="icon-home"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/><path d="M0 0h24v24H0z" fill="none"/></g>
+        <g id="icon-info"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></g>
+        <g id="icon-notes"><path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"/><path d="M0 0h24v24H0V0z" fill="none"/></g>
+        <g id="icon-settings"><path d="M0,0h24v24H0V0z" fill="none"/><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></g>
     </defs>
 </svg>
 
-<script>
-    var icon_menu = "<svg><path d='M0 0h24v24H0z' fill='none'/><path d='M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'/></svg>";
-</script>
 <script type="text/javascript" src="assets/js_pack.js"></script>
 <script>
-    //语言
-    var LangConfig = {
-      //菜单
-      Home: {en: "Home", cn: "主页"},
-      Config: {en: "Config", cn: "设置"},
-      TimedTask: {en: "Timed Task", cn: "定时任务"},
-      SystemStatus: {en: "System Status", cn: "系统状态"},
-      OTA: {en: "OTA", cn: "固件升级"},
-      SystemLog: {en: "System Log", cn: "系统日志"},
-      About: {en: "About", cn: "关于"},
-      //主页
-      Socket: {en: "Socket", cn: "插座"},
-      Led:{en: "PowerLed", cn: "电源指示灯"},
-      SocketAll:{en: "Total Switch", cn: "总开关"},
-      ChildLock:{en: "Child Lock", cn: "童锁"}
-    }
-    function ChangeLanguage(lang) {
-      if (lang == "jp") {
-        ShowToast("申し訳ありませんが、日本語はありません。");
-        return;
-      }
-      $(".lang").each(function() {
-        var key = $(this).attr("langKey");
-        var val = LangConfig[key][lang];
-        $(this).html(val);
-      });
-    }
     var BTN_OPERATIONS=["切换总开关"];
     var names_arr = [];
-    //弹框-start
     var snackbarContainer = document.querySelector('#demo-toast-example');
-    function ShowToast(mess) {
-      var data = {message: mess};
-      snackbarContainer.MaterialSnackbar.showSnackbar(data);
-    }
-    //弹框-end
-    $(document).ready(function() {
-      componentHandler.upgradeAllRegistered();
-      //Material加载完成
-    });
+    function ShowToast(mess) { snackbarContainer.MaterialSnackbar.showSnackbar({message: mess}); }
 
-    //Ajax-start
-    function AjaxErr(re) {
-      ShowToast("Ajax err: " + re.status);
-    }
+    $(document).ready(function() { componentHandler.upgradeAllRegistered(); });
+
+    function AjaxErr(re) { ShowToast("Ajax err: " + re.status); }
     function Ajax(url, onsuccess, type, data) {
-      $.ajax({
-        url: url,
-        type: type,
-        data: data,
-        success: function(re) {
-          onsuccess(re.replace(/'/g, '"'));
-        },
-        error: AjaxErr
-      });
+        $.ajax({ url: url, type: type, data: data, success: function(re) { onsuccess(re.replace(/'/g, '"')); }, error: AjaxErr });
     }
-    function HttpGet(url, onsuccess) {
-      Ajax(url, onsuccess, "GET", null);
-    }
-    function HttpPost(url, onsuccess, data) {
-      Ajax(url, onsuccess, "POST", data);
-    }
-    function HttpDel(url, onsuccess, data) {
-      Ajax(url, onsuccess, "DELETE", data);
-    }
-    //Ajax-end
+    function HttpGet(url, onsuccess) { Ajax(url, onsuccess, "GET", null); }
+    function HttpPost(url, onsuccess, data) { Ajax(url, onsuccess, "POST", data); }
+    function HttpDel(url, onsuccess, data) { Ajax(url, onsuccess, "DELETE", data); }
 
-    //DateTool-start
-    // (new Date()).Format("yyyy-MM-dd hh:mm:ss.S") ==> 2006-07-02 08:09:04.423
-    // (new Date()).Format("yyyy-M-d h:m:s.S")      ==> 2006-7-2 8:9:4.18
     Date.prototype.Format = function(fmt) {
-      var o = {
-        "M+" : this.getMonth()+1,                 //月份
-        "d+" : this.getDate(),                    //日
-        "h+" : this.getHours(),                   //小时
-        "m+" : this.getMinutes(),                 //分
-        "s+" : this.getSeconds(),                 //秒
-        "q+" : Math.floor((this.getMonth()+3)/3), //季度
-        "S"  : this.getMilliseconds()             //毫秒
-      };
-      if(/(y+)/.test(fmt))
-        fmt=fmt.replace(RegExp.$1, (this.getFullYear()+"").substr(4 - RegExp.$1.length));
-      for(var k in o)
-        if(new RegExp("("+ k +")").test(fmt))
-      fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length)));
-      return fmt;
+        var o = {"M+":this.getMonth()+1,"d+":this.getDate(),"h+":this.getHours(),"m+":this.getMinutes(),"s+":this.getSeconds(),"q+":Math.floor((this.getMonth()+3)/3),"S":this.getMilliseconds()};
+        if(/(y+)/.test(fmt)) fmt=fmt.replace(RegExp.$1,(this.getFullYear()+"").substr(4-RegExp.$1.length));
+        for(var k in o) if(new RegExp("("+k+")").test(fmt)) fmt=fmt.replace(RegExp.$1,(RegExp.$1.length==1)?(o[k]):(("00"+o[k]).substr((""+o[k]).length)));
+        return fmt;
     }
-    //DateTool-end
 
-    var info_station_name;
-    var info_wifi_password;
-    var mqtt_addr;
-    var mqtt_port;
-    var mqtt_usr;
-    var mqtt_pwd;
-    var mqtt_freq;
-
+    var info_station_name, info_wifi_password, mqtt_addr, mqtt_port, mqtt_usr, mqtt_pwd, mqtt_freq;
     $("#st-date").html((new Date()).Format("yyyy-MM-dd"));
 
-    //Menu-start
     var chart_par = document.getElementById("ct-chart-par");
     chart_par.scrollTo(chart_par.scrollWidth, 0);
-
     var ssid_slt = document.getElementById("ssid_sel_list");
-
     var rescan_timer;
 
     function ShowPage(id) {
-      $(".page").hide();
-      $(".page"+id).show();
-      $(".is-small-screen >> .mdl-layout__drawer-button").click()
-
-      chart_par.scrollTo(chart_par.scrollWidth, 0);
-
-      $(".mdl-navigation__link").removeClass("mdl-nav-active");
-      $(".mdl-navigation__link:eq("+(id-1)+")").addClass("mdl-nav-active");
-
-      if(id == 2) {
-        Rescan();
-        $("#custom_password")[0].parentElement.MaterialTextfield.change(info_wifi_password);
-        $("#mqtt_addr")[0].parentElement.MaterialTextfield.change(mqtt_addr);
-        $("#mqtt_port")[0].parentElement.MaterialTextfield.change(mqtt_port);
-        $("#mqtt_usr")[0].parentElement.MaterialTextfield.change(mqtt_usr);
-        $("#mqtt_pwd")[0].parentElement.MaterialTextfield.change(mqtt_pwd);
-        $("#mqtt_freq")[0].parentElement.MaterialTextfield.change(mqtt_freq);
-      } else {
-        window.clearTimeout(rescan_timer);
-      }
+        $(".page").hide();
+        $(".page"+id).show();
+        $(".is-small-screen >> .mdl-layout__drawer-button").click();
+        chart_par.scrollTo(chart_par.scrollWidth, 0);
+        $(".mdl-navigation__link").removeClass("mdl-nav-active");
+        $(".mdl-navigation__link:eq("+(id-1)+")").addClass("mdl-nav-active");
+        if(id == 2) { Rescan(); $("#custom_password")[0].parentElement.MaterialTextfield.change(info_wifi_password); $("#mqtt_addr")[0].parentElement.MaterialTextfield.change(mqtt_addr); $("#mqtt_port")[0].parentElement.MaterialTextfield.change(mqtt_port); $("#mqtt_usr")[0].parentElement.MaterialTextfield.change(mqtt_usr); $("#mqtt_pwd")[0].parentElement.MaterialTextfield.change(mqtt_pwd); $("#mqtt_freq")[0].parentElement.MaterialTextfield.change(mqtt_freq); }
+        else { window.clearTimeout(rescan_timer); }
+        if(id == 3) { getCountdownStatus(); getCycleStatus(); }
     }
     ShowPage(1);
-    //Menu-end
 
-    //Socket-start
+    // Socket Control
     var socket_ul = document.getElementById("socket_ul");
     var checkboxs = socket_ul.getElementsByClassName("mdl-switch__input");
     var switch_lables = socket_ul.getElementsByClassName("mdl-switch");
 
-
     HttpGet("/status", function (re) {
-      var status = JSON.parse(re);
-      var status_arr = status.sockets.split(",");
-      names_arr = status.socketNames.split(",");
-      var switchTexts = document.querySelectorAll('.mdl-list__item-primary-content');
-      $(".mdl-layout-title").text(status.deviceName);
-      document.title=status.deviceName;
-      for (var i = 0; i < status_arr.length; i++) {
-          var langSpan = switchTexts[i+3].querySelector('.lang');
-          var indexSpan = switchTexts[i+3].querySelector('.socket-index');
-          if (langSpan) langSpan.textContent = names_arr[i];   // 修改插座名称
-          if (indexSpan) indexSpan.textContent = ""; // 修改序号，可自定义起始数字
-          //checkboxs[i].checked = status_arr[i] == "1";
-          if (status_arr[i] == "1") {
-            switch_lables[i+3].MaterialSwitch.on();
-          } else {
-            switch_lables[i+3].MaterialSwitch.off();
-          }
+        var status = JSON.parse(re);
+        var status_arr = status.sockets.split(",");
+        names_arr = status.socketNames.split(",");
+        var switchTexts = document.querySelectorAll('.mdl-list__item-primary-content');
+        $(".mdl-layout-title").text(status.deviceName);
+        document.title=status.deviceName;
+        for (var i = 0; i < status_arr.length; i++) {
+            var langSpan = switchTexts[i+3].querySelector('.lang');
+            var indexSpan = switchTexts[i+3].querySelector('.socket-index');
+            if (langSpan) langSpan.textContent = names_arr[i];
+            if (indexSpan) indexSpan.textContent = "";
+            if (status_arr[i] == "1") { switch_lables[i+3].MaterialSwitch.on(); } else { switch_lables[i+3].MaterialSwitch.off(); }
         }
-
-      if(status.mode == 1) {
-        $("#custom_station").click();
-        info_station_name = status.station_ssid;
-        info_wifi_password = status.station_pwd;
-      } else {
-        $("#custom_ap").click();
-        $("#custom_ssid")[0].parentElement.MaterialTextfield.change(status.ap_ssid);
-        info_wifi_password = status.ap_pwd;
-      }
-
-      mqtt_addr = status.mqtt_addr;
-      mqtt_port = status.mqtt_port;
-      mqtt_usr = status.mqtt_usr;
-      mqtt_pwd = status.mqtt_pwd;
-      mqtt_freq = status.reportFreq;
-      $("#info_version").html(status.version);
-      $("#info_ip").html(status.ip);
-      $("#info_mask").html(status.mask);
-      $("#info_gateway").html(status.gateway);
-      $("#uptime").html(status.up_time);
-
-      for (var i = 0; i < names_arr.length; i++) {
-      BTN_OPERATIONS.push(`切换${names_arr[i]}`);
-    }
-    BTN_OPERATIONS.push("切换电源指示灯启用");
-    BTN_OPERATIONS.push("重启系统");
-    BTN_OPERATIONS.push("重新配网");
-    BTN_OPERATIONS.push("重置系统");
-    BTN_OPERATIONS.push("切换童锁");
-    BTN_OPERATIONS.push("重启网页");
-
-      $('#btn_action_selector').append(
-      $('<li>')
-        .addClass('mdl-menu__item')
-        .attr('data-val', -1)
-        .text("未设置")
-    );
-    for (let i = 0; i < BTN_OPERATIONS.length; i++) {
-    $('#operations_list').append(
-      $('<li>')
-        .addClass('mdl-menu__item')
-        .attr('data-val', `${i}`)
-        .attr('data-selected', `false`)
-        .text(BTN_OPERATIONS[i].replaceAll('切换','设置'))
-    );
-    $('#btn_action_selector').append(
-      $('<li>')
-        .addClass('mdl-menu__item')
-        .attr('data-val', i)
-        .text(BTN_OPERATIONS[i])
-    );
-  }
-getmdlSelect.init(".getmdl-select");
-
-refreshButtonEvents(status.btnClicks);
-GetTimedTask();
+        if(status.mode == 1) { $("#custom_station").click(); info_station_name = status.station_ssid; info_wifi_password = status.station_pwd; }
+        else { $("#custom_ap").click(); $("#custom_ssid")[0].parentElement.MaterialTextfield.change(status.ap_ssid); info_wifi_password = status.ap_pwd; }
+        mqtt_addr = status.mqtt_addr; mqtt_port = status.mqtt_port; mqtt_usr = status.mqtt_usr; mqtt_pwd = status.mqtt_pwd; mqtt_freq = status.reportFreq;
+        $("#info_version").html(status.version); $("#info_ip").html(status.ip); $("#info_mask").html(status.mask); $("#info_gateway").html(status.gateway); $("#uptime").html(status.up_time);
+        for (var i = 0; i < names_arr.length; i++) { BTN_OPERATIONS.push("切换"+names_arr[i]); }
+        BTN_OPERATIONS.push("切换电源指示灯启用"); BTN_OPERATIONS.push("重启系统"); BTN_OPERATIONS.push("重新配网"); BTN_OPERATIONS.push("重置系统"); BTN_OPERATIONS.push("切换童锁"); BTN_OPERATIONS.push("重启网页");
+        $('#btn_action_selector').append($('<li>').addClass('mdl-menu__item').attr('data-val', -1).text("未设置"));
+        for (let i = 0; i < BTN_OPERATIONS.length; i++) {
+            $('#operations_list').append($('<li>').addClass('mdl-menu__item').attr('data-val', `${i}`).attr('data-selected', 'false').text(BTN_OPERATIONS[i].replaceAll('切换','设置')));
+            $('#btn_action_selector').append($('<li>').addClass('mdl-menu__item').attr('data-val', i).text(BTN_OPERATIONS[i]));
+        }
+        // Init countdown and cycle action lists
+        $('#countdown_action_list').append($('<li>').addClass('mdl-menu__item').attr('data-val', 0).text("打开总开关"));
+        $('#countdown_action_list').append($('<li>').addClass('mdl-menu__item').attr('data-val', 1).text("关闭总开关"));
+        for (let i = 0; i < 6; i++) {
+            $('#countdown_action_list').append($('<li>').addClass('mdl-menu__item').attr('data-val', i+2).text("打开"+names_arr[i]));
+            $('#countdown_action_list').append($('<li>').addClass('mdl-menu__item').attr('data-val', i+8).text("关闭"+names_arr[i]));
+            $('#cycle_action_list').append($('<li>').addClass('mdl-menu__item').attr('data-val', i+2).text(names_arr[i]));
+        }
+        getmdlSelect.init(".getmdl-select");
+        refreshButtonEvents(status.btnClicks);
+        GetTimedTask();
     });
 
-
-    function refreshButtonEvents(actions){
-var tb_html = `
-<thead>
-  <tr>
-    <th>按键类型</th>
-    <th>执行动作</th>
-    <th>操作</th>
-  </tr>
-  </thead>
-  <tbody>
-`;
-
-var cnt=0;
-for (var i = 0; i < actions.length; i++) {
-  var rowId = `select-${i}`;
-  var times = Object.keys(actions[i])[0];
-  var operations = Object.values(actions[i])[0];
-  if(operations[0]!=-1){
-  cnt++;
-  var valueText = (isNaN(operations[0]) || operations[0] < 0 || operations[0] >= BTN_OPERATIONS.length) ? '未设置' : BTN_OPERATIONS[operations[0]];
-  tb_html += `
-    <tr>
-      <td>${times > 1 ? '连续' : ''}短按${times}次</td>
-      <td>${valueText}</td>
-      <td><a href='javascript:deleteButtonEvent(${times},0);'>删除</a></td>
-    </tr>
-  `;
-  }
-  if(operations[1]!=-1){
-  cnt++;
-    var valueText = (isNaN(operations[1]) || operations[1] < 0 || operations[1] >= BTN_OPERATIONS.length) ? '未设置' : BTN_OPERATIONS[operations[1]];
-
-  tb_html += `
-    <tr>
-      <td>长按${times}秒</td>
-      <td>${valueText}</td>
-      <td><a href='javascript:deleteButtonEvent(${times},1);'>删除</a></td>
-    </tr>
-  `;
-  }
-
-}
-if (cnt == 0) {
-          tb_html += "<tr><td colspan='5'>没有自定义按键动作</td></tr>";
+    function refreshButtonEvents(actions) {
+        var tb_html = '<thead><tr><th>按键类型</th><th>执行动作</th><th>操作</th></tr></thead><tbody>';
+        var cnt=0;
+        for (var i = 0; i < actions.length; i++) {
+            var times = Object.keys(actions[i])[0];
+            var operations = Object.values(actions[i])[0];
+            if(operations[0]!=-1){ cnt++; var valueText = (isNaN(operations[0]) || operations[0] < 0 || operations[0] >= BTN_OPERATIONS.length) ? '未设置' : BTN_OPERATIONS[operations[0]]; tb_html += `<tr><td>${times > 1 ? '连续' : ''}短按${times}次</td><td>${valueText}</td><td><a href='javascript:deleteButtonEvent(${times},0);'>删除</a></td></tr>`; }
+            if(operations[1]!=-1){ cnt++; var valueText = (isNaN(operations[1]) || operations[1] < 0 || operations[1] >= BTN_OPERATIONS.length) ? '未设置' : BTN_OPERATIONS[operations[1]]; tb_html += `<tr><td>长按${times}秒</td><td>${valueText}</td><td><a href='javascript:deleteButtonEvent(${times},1);'>删除</a></td></tr>`; }
         }
-         tb_html+="\
-        </tbody>";
-document.getElementById("short_click_events_tb").innerHTML = tb_html;
-componentHandler.upgradeDom();
+        if (cnt == 0) { tb_html += "<tr><td colspan='3'>没有自定义按键动作</td></tr>"; }
+        tb_html += "</tbody>";
+        document.getElementById("short_click_events_tb").innerHTML = tb_html;
+        componentHandler.upgradeDom();
     }
 
     $(".mdl-switch__input").on("click", function() {
-    if("list-switch-all" == this.id||"list-switch-child-lock"== this.id||"task_on"== this.id){
-    return;
-    }
-      var sockets_st = "";
-      for (var i = 3; i < checkboxs.length; i++) {
-        sockets_st += (checkboxs[i].checked ? "1," : "0,");
-      }
-      HttpPost("/socket", function (re) {
-      }, sockets_st);
-        HttpPost("/led", function (re) {
-      }, checkboxs[1].checked ? "1" : "0");
-
+        if("list-switch-all"==this.id||"list-switch-child-lock"==this.id||"task_on"==this.id) return;
+        var sockets_st = "";
+        for (var i = 3; i < checkboxs.length; i++) { sockets_st += (checkboxs[i].checked ? "1," : "0,"); }
+        HttpPost("/socket", function (re) {}, sockets_st);
+        HttpPost("/led", function (re) {}, checkboxs[1].checked ? "1" : "0");
     });
 
     $(".edit-socket-name").on("click", function () {
-    // 获取当前按钮所在的 li 元素
-    var $li = $(this).closest(".mdl-list__item");
-
-    // 获取当前索引
-    var index = $(".edit-socket-name").index(this);
-
-    // 获取 lang 名称和 socket-index 元素
-    var $lang = $li.find(".lang");
-    var $index = $li.find(".socket-index");
-
-    // 原名称
-    var oldName = $lang.text().trim();
-
-    // 弹窗编辑
-    var newName = prompt("请输入新的插座名称", oldName);
-    if (newName && newName.trim() !== "") {
-    if(newName.trim().includes(" ")){
-    ShowToast("名称不能包含空格");
-    return;
-    }
-    if(newName.trim().length>16){
-     ShowToast("名称不能超过16个字");
-    return;
-    }
-      $lang.text(newName.trim());
-      // 可选：更新序号
-      $index.text("");
-      HttpPost("/socketNames", function (re) {
-      }, index+' '+newName.trim());}
-  });
-
-   $(".edit-device-name").on("click", function () {
-    var title = $(".mdl-layout-title");
-    // 原名称
-    var oldName = title.text().trim();
-
-    // 弹窗编辑
-    var newName = prompt("请输入新的设备名称", oldName);
-    if (newName && newName.trim() !== "") {
-    if(newName.trim().includes(" ")){
-    ShowToast("名称不能包含空格");
-    return;
-    }
-    if(newName.trim().length>16){
-     ShowToast("名称不能超过16个字");
-    return;
-    }
-      title.text(newName.trim());
-
-      HttpPost("/deviceName", function (re) {
-      }, newName.trim());}
-  });
-
-    document.getElementById("list-switch-all").addEventListener("click", function() {
-     HttpPost("/socketAll", function (re) {
-      }, checkboxs[2].checked ? "1" : "0");});
-
-          document.getElementById("list-switch-child-lock").addEventListener("click", function() {
-     HttpPost("/childLock", function (re) {
-      }, checkboxs[0].checked ? "1" : "0");});
-
-    //Socket-end
-
-    //Config-start
-    $("#wifi_sel").on("change", function() {
-      var div_custom = $("#div_custom_ssid")[0];
-      var wifi_sel_id = $("input[name='wifi_sel']")[0];
-      var wifi_sel_name = $("#wifi_sel")[0];
-      var custom_ssid = $("#custom_ssid")[0];
-      if (wifi_sel_id.value == "0") {
-        div_custom.hidden = false;
-        custom_ssid.parentElement.MaterialTextfield.change("");
-      } else {
-        div_custom.hidden = true;
-        custom_ssid.parentElement.MaterialTextfield.change(wifi_sel_name.value);
-      }
+        var $li = $(this).closest(".mdl-list__item"); var index = $(".edit-socket-name").index(this);
+        var $lang = $li.find(".lang"); var $index = $li.find(".socket-index"); var oldName = $lang.text().trim();
+        var newName = prompt("请输入新的插座名称", oldName);
+        if (newName && newName.trim() !== "") { if(newName.trim().includes(" ")){ ShowToast("名称不能包含空格"); return; } if(newName.trim().length>16){ ShowToast("名称不能超过16个字"); return; } $lang.text(newName.trim()); $index.text(""); HttpPost("/socketNames", function (re) {}, index+' '+newName.trim()); }
     });
 
-    $("#custom_ap").on("change", function(){
-      $("#div_custom_ssid")[0].hidden = false;
-      $("#div_wifi_sel")[0].hidden = true;
-    });
-    $("#custom_station").on("change", function(){
-      $("#div_custom_ssid")[0].hidden = true;
-      $("#div_wifi_sel")[0].hidden = false;
+    $(".edit-device-name").on("click", function () {
+        var title = $(".mdl-layout-title"); var oldName = title.text().trim();
+        var newName = prompt("请输入新的设备名称", oldName);
+        if (newName && newName.trim() !== "") { if(newName.trim().includes(" ")){ ShowToast("名称不能包含空格"); return; } if(newName.trim().length>16){ ShowToast("名称不能超过16个字"); return; } title.text(newName.trim()); HttpPost("/deviceName", function (re) {}, newName.trim()); }
     });
 
-    function Rescan() {
-      HttpPost("/wifi/scan", function (re) {
-        if (re == "OK") {
-          window.setTimeout(GetScanResult, 1000);
-        } else {
-          ShowToast(re);
-        }
-      });
-    }
+    document.getElementById("list-switch-all").addEventListener("click", function() { HttpPost("/socketAll", function (re) {}, checkboxs[2].checked ? "1" : "0"); });
+    document.getElementById("list-switch-child-lock").addEventListener("click", function() { HttpPost("/childLock", function (re) {}, checkboxs[0].checked ? "1" : "0"); });
 
-    function GetScanResult() {
-      HttpGet("/wifi/scan", function (re) {
-        if (re != "NO") {
-          var wifi_sel_name = $("#wifi_sel").val();
-          if(!wifi_sel_name) {
-            wifi_sel_name = info_station_name;
-          }
-          var wifi_sel_id = $("input[name='wifi_sel']").val();
-          var ret = JSON.parse(re.replace(/'/g, '"')); //TODO: Fix this later
-          if(wifi_sel_id === "0") {
-            var html = "<li class='mdl-menu__item' data-val='0' data-selected='true'>Manual</li>";
-          } else {
-            var html = "<li class='mdl-menu__item' data-val='0'>Manual</li>";
-          }
-          for (var i = 0; i < ret.ssids.length; i++) {
-            if(wifi_sel_name == ret.ssids[i]) {
-              html += "<li class='mdl-menu__item' data-val='"+(i+1)+"' data-selected='true'>"+ret.ssids[i]+"</li>";
-            } else {
-              html += "<li class='mdl-menu__item' data-val='"+(i+1)+"'>"+ret.ssids[i]+"</li>";
-            }
-          }
-          ssid_slt.innerHTML = html;
-          getmdlSelect.init(".getmdl-select");
-          rescan_timer = window.setTimeout(Rescan, 20000);
-          return;
-        }
-        window.setTimeout(GetScanResult, 1000);
-      });
-    }
+    // WiFi Config
+    $("#wifi_sel").on("change", function() { var div_custom = $("#div_custom_ssid")[0]; var wifi_sel_id = $("input[name='wifi_sel']")[0]; var wifi_sel_name = $("#wifi_sel")[0]; var custom_ssid = $("#custom_ssid")[0]; if (wifi_sel_id.value == "0") { div_custom.hidden = false; custom_ssid.parentElement.MaterialTextfield.change(""); } else { div_custom.hidden = true; custom_ssid.parentElement.MaterialTextfield.change(wifi_sel_name.value); } });
+    $("#custom_ap").on("change", function(){ $("#div_custom_ssid")[0].hidden = false; $("#div_wifi_sel")[0].hidden = true; });
+    $("#custom_station").on("change", function(){ $("#div_custom_ssid")[0].hidden = true; $("#div_wifi_sel")[0].hidden = false; });
+    function Rescan() { HttpPost("/wifi/scan", function (re) { if (re == "OK") { window.setTimeout(GetScanResult, 1000); } else { ShowToast(re); } }); }
+    function GetScanResult() { HttpGet("/wifi/scan", function (re) { if (re != "NO") { var wifi_sel_name = $("#wifi_sel").val(); if(!wifi_sel_name) { wifi_sel_name = info_station_name; } var wifi_sel_id = $("input[name='wifi_sel']").val(); var ret = JSON.parse(re.replace(/'/g, '"')); if(wifi_sel_id === "0") { var html = "<li class='mdl-menu__item' data-val='0' data-selected='true'>Manual</li>"; } else { var html = "<li class='mdl-menu__item' data-val='0'>Manual</li>"; } for (var i = 0; i < ret.ssids.length; i++) { if(wifi_sel_name == ret.ssids[i]) { html += "<li class='mdl-menu__item' data-val='"+(i+1)+"' data-selected='true'>"+ret.ssids[i]+"</li>"; } else { html += "<li class='mdl-menu__item' data-val='"+(i+1)+"'>"+ret.ssids[i]+"</li>"; } } ssid_slt.innerHTML = html; getmdlSelect.init(".getmdl-select"); rescan_timer = window.setTimeout(Rescan, 20000); return; } window.setTimeout(GetScanResult, 1000); }); }
+    $("#mqtt_submit").on("click", function() { var params = $("#mqtt_addr").val() + " " + $("#mqtt_port").val() + " " + $("#mqtt_usr").val() + " " + $("#mqtt_pwd").val(); HttpPost("/mqtt/config", function (re) { ShowToast(re); }, params); });
+    $("#mqtt_freq_submit").on("click", function() { setReportFreq($("#mqtt_freq").val()); });
+    $("#wifi_submit").on("click", function() { var mode = $("#custom_station").prop("checked") ? 1 : 0; var ssid = $("#custom_ssid").val(); var passwd = $("#custom_password").val(); if (passwd.length < 8) { alert("密码长度不能小于8位"); return; } var params = mode + " " + encodeURIComponent(ssid) + " " + encodeURIComponent(passwd); HttpPost("/wifi/config", function (re) { ShowToast(re); }, params); });
 
-    $("#mqtt_submit").on("click", function() {
-      var mqtt_addr = $("#mqtt_addr").val();
-      var mqtt_port = $("#mqtt_port").val();
-      var mqtt_usr = $("#mqtt_usr").val();
-      var mqtt_pwd = $("#mqtt_pwd").val();
-      var params = mqtt_addr + " " + mqtt_port + " " + mqtt_usr + " " + mqtt_pwd;
-      HttpPost("/mqtt/config", function (re) {
-        ShowToast(re);
-      }, params);
-    });
-
-    $("#mqtt_freq_submit").on("click", function() {
-      var seconds = $("#mqtt_freq").val();
-      setReportFreq(seconds)
-    });
-
-
-    //Quotation Marks
-    function ContainQM(str) {
-      if (str == ""
-          || str.indexOf("'") >= 0
-          || str.indexOf('"') >= 0
-          || str.indexOf(' ') >= 0
-          || str.length > 32) {
-        return true;
-      }
-      return false;
-    }
-
-    var qm_mess = "Sorry, can't use ' or \" or space or empty.\n\nAlso, length <= 32."
-    var le_mess = "Sorry, length < 8."
-
-    $("#wifi_submit").on("click", function() {
-      var mode = $("#custom_station").prop("checked") ? 1 : 0;
-      var ssid = $("#custom_ssid").val();
-      var passwd = $("#custom_password").val();
-      //if (ContainQM(ssid) || ContainQM(passwd)) {
-      //  alert(qm_mess);
-      //  return;
-      //}
-      if (passwd.length < 8) {
-        alert(le_mess);
-        return;
-      }
-      var params = mode + " " + encodeURIComponent(ssid) + " " + encodeURIComponent(passwd);
-      HttpPost("/wifi/config", function (re) {
-        ShowToast(re);
-      }, params);
-    });
-    //Config-end
-
-    //图表-start
+    // Power Chart
     var ct_data = { series: [ [] ] };
     var ct_chart = new Chartist.Line('.ct-chart', ct_data, {showArea: true, axisY: {position: 'end'}});
-    var power_idx = 0;
-    var chart_wth = 0;
-    var p = document.getElementById("p");
-    var w = document.getElementById("w");
-    var w_t = document.getElementById("w_t");
-    var w_y = document.getElementById("w_y");
-    var powerTimerId;
+    var power_idx = 0; var chart_wth = 0; var p = document.getElementById("p"); var w = document.getElementById("w"); var w_t = document.getElementById("w_t"); var w_y = document.getElementById("w_y"); var powerTimerId;
+    function GetPowerRecord() { HttpPost("/power", function (re) { re = re.replace(/'/g, '"'); var power = JSON.parse(re); power_idx = power.idx + 1; var x = chart_par.scrollWidth - chart_par.offsetWidth - chart_par.scrollLeft; power.powers.forEach(element => { var curr_p = element/10; p.innerHTML = curr_p.toFixed(2); var len = ct_data.series[0].push(curr_p); if (len > 1000) { ct_data.series[0].shift(); } }); chart_wth += power.powers.length; $("#ct-chart").width(chart_wth * 10); ct_chart.update(ct_data); if (power.powers.length != 0 && x < 100) { chart_par.scrollTo(chart_par.scrollWidth, 0); } $("#uptime").html(power.up_time); var w_v = (17.1 * power.p_count) / 1000 / 36000; w.innerHTML = w_v.toFixed(3); var w_v_t = (17.1 * (power.p_count - power.p_count_1_day_ago)) / 1000 / 36000; w_v_t = w_v_t < 0 ? 0 : w_v_t; w_t.innerHTML = w_v_t.toFixed(3); var w_v_y = (17.1 * (power.p_count_1_day_ago - power.p_count_2_days_ago)) / 1000 / 36000; w_v_y = w_v_y < 0 ? 0 : w_v_y; w_y.innerHTML = w_v_y.toFixed(3); if (power.child_lock_enabled == 1) { switch_lables[0].MaterialSwitch.on(); } else { switch_lables[0].MaterialSwitch.off(); } if (power.led_enabled == 1) { switch_lables[1].MaterialSwitch.on(); } else { switch_lables[1].MaterialSwitch.off(); } if (power.total_switch_on == 1) { switch_lables[2].MaterialSwitch.on(); } else { switch_lables[2].MaterialSwitch.off(); } var status_arr = power.sockets.split(","); names_arr = power.socketNames.split(","); var switchTexts = document.querySelectorAll('.mdl-list__item-primary-content'); $(".mdl-layout-title").text(power.deviceName); document.title=power.deviceName; for (var i = 0; i < status_arr.length; i++) { var langSpan = switchTexts[i+3].querySelector('.lang'); var indexSpan = switchTexts[i+3].querySelector('.socket-index'); if (langSpan) langSpan.textContent = names_arr[i]; if (indexSpan) indexSpan.textContent = ""; if (status_arr[i] == "1") { switch_lables[i+3].MaterialSwitch.on(); } else { switch_lables[i+3].MaterialSwitch.off(); } } powerTimerId=window.setTimeout(GetPowerRecord, 3000); }, power_idx.toString()); }
+    $(document).ready(function(){ GetPowerRecord(); });
 
-    function GetPowerRecord() {
-      HttpPost("/power", function (re) {
-        re = re.replace(/'/g, '"');
-        var power = JSON.parse(re);
-        power_idx = power.idx + 1;
+    // Timed Task
+    $("#task_weekday").on("change", function() { if ($("input[name='task_weekday']")[0].value != "0") { $("#task_date")[0].hidden = true; } else { $("#task_date")[0].hidden = false; } });
+    function GetTimedTask() { HttpGet("/task", function (re) { var tb_html = "<thead><tr><th>时间</th><th>插座</th><th>开关</th><th>循环</th><th>操作</th></tr></thead><tbody>"; var tasks = JSON.parse(re); if (tasks.length == 0) { tb_html += "<tr><td colspan='5'>没有定时任务</td></tr>"; } for (var i = 0; i < tasks.length; i++) { tb_html += `<tr><td>${tasks[i].prs_time}</td><td>${BTN_OPERATIONS[tasks[i].operation].replaceAll('切换','设置')}</td><td>${(tasks[i].operation==11||tasks[i].operation<8)?(tasks[i].on == 1?"开":"关"):"-"}</td><td>${getLoopText(tasks[i].weekday)}</td><td><a href='javascript:DelTimedTask(${tasks[i].timestamp});'>删除</a></td></tr>`; } tb_html += "</tbody>"; document.getElementById("timed_task_tb").innerHTML = tb_html; }); }
+    function getLoopText(i){ switch(i){ case 0: return '不循环'; case 1: return '每周一'; case 2: return '每周二'; case 3: return '每周三'; case 4: return '每周四'; case 5: return '每周五'; case 6: return '每周六'; case 7: return '每周日'; case 8: return '每天'; } }
+    var task_date = document.getElementById("task_date"); var task_time = document.getElementById("task_time");
+    task_date.value = (new Date()).Format("yyyy-MM-dd"); task_time.value = (new Date()).Format("hh:mm:ss");
+    function AddTimedTask() { var dat = task_date.value; var tim = task_time.value; var idx = document.getElementById("task_skt_idx").value; var on = document.getElementById("task_on").checked; var wkd = $("input[name='task_weekday']")[0].value; var datatime = dat + "T" + tim; var prs_time = Math.round(new Date(datatime) / 1000); on = on ? "1" : "0"; var cmd = prs_time + " " + idx + " " + on + " " + wkd; HttpPost("/task", function (re) { if (re != "OK") { alert(re); return; } GetTimedTask(); }, cmd); }
+    function DelTimedTask(timestamp) { HttpDel("/task/"+timestamp, function (re) { ShowToast("Delete timed task OK!"); GetTimedTask(); }, timestamp); }
 
-        var x = chart_par.scrollWidth - chart_par.offsetWidth - chart_par.scrollLeft;
-
-        power.powers.forEach(element => {
-          var curr_p = element/10;
-          p.innerHTML = curr_p.toFixed(2);
-          var len = ct_data.series[0].push(curr_p);
-          if (len > 1000) { //最多1000条数据
-            ct_data.series[0].shift();
-          }
-        });
-        chart_wth += power.powers.length;
-        $("#ct-chart").width(chart_wth * 10);
-        ct_chart.update(ct_data);
-        if (power.powers.length != 0 && x < 100) {
-          chart_par.scrollTo(chart_par.scrollWidth, 0);
-        }
-        $("#uptime").html(power.up_time);
-
-        var w_v = (17.1 * power.p_count) / 1000 / 36000;
-        w.innerHTML = w_v.toFixed(3);
-        var w_v_t = (17.1 * (power.p_count - power.p_count_1_day_ago)) / 1000 / 36000;
-        w_v_t = w_v_t < 0 ? 0 : w_v_t;
-        w_t.innerHTML = w_v_t.toFixed(3);
-        var w_v_y = (17.1 * (power.p_count_1_day_ago - power.p_count_2_days_ago)) / 1000 / 36000;
-        w_v_y = w_v_y < 0 ? 0 : w_v_y;
-        w_y.innerHTML = w_v_y.toFixed(3);
-        if (power.child_lock_enabled == 1) {
-            switch_lables[0].MaterialSwitch.on();
-          } else {
-            switch_lables[0].MaterialSwitch.off();
-          }
-    if (power.led_enabled == 1) {
-            switch_lables[1].MaterialSwitch.on();
-          } else {
-            switch_lables[1].MaterialSwitch.off();
-          }
-              if (power.total_switch_on == 1) {
-            switch_lables[2].MaterialSwitch.on();
-          } else {
-            switch_lables[2].MaterialSwitch.off();
-          }
-        var status_arr = power.sockets.split(",");
-        names_arr = power.socketNames.split(",");
-        var switchTexts = document.querySelectorAll('.mdl-list__item-primary-content');
-        $(".mdl-layout-title").text(power.deviceName);
-        document.title=power.deviceName;
-        for (var i = 0; i < status_arr.length; i++) {
-          //checkboxs[i].checked = status_arr[i] == "1";
-          var langSpan = switchTexts[i+3].querySelector('.lang');
-          var indexSpan = switchTexts[i+3].querySelector('.socket-index');
-          if (langSpan) langSpan.textContent = names_arr[i];   // 修改插座名称
-          if (indexSpan) indexSpan.textContent = ""; // 修改序号，可自定义起始数字
-          if (status_arr[i] == "1") {
-            switch_lables[i+3].MaterialSwitch.on();
-          } else {
-            switch_lables[i+3].MaterialSwitch.off();
-          }
-        }
-      powerTimerId=  window.setTimeout(GetPowerRecord, 3000);
-      }, power_idx.toString());
-    }
-    $(document).ready(function(){
-      GetPowerRecord();
-    })
-    //图表-end
-
-    //定时任务-start
-    $("#task_weekday").on("change", function() {
-      if ($("input[name='task_weekday']")[0].value != "0") {
-        $("#task_date")[0].hidden = true;
-      } else {
-        $("#task_date")[0].hidden = false;
-      }
-    });
-    function GetTimedTask() {
-      HttpGet("/task", function (re) {
-        var tb_html = "\
-        <thead><tr>\
-          <th>时间</th>\
-          <th>插座</th>\
-          <th>开关</th>\
-          <th>循环</th>\
-          <th>操作</th>\
-        </tr></thead>\
-        <tbody>";
-        console.log(re);
-        var tasks = JSON.parse(re);
-        if (tasks.length == 0) {
-          tb_html += "<tr><td colspan='5'>没有定时任务</td></tr>";
-        }
-        for (var i = 0; i < tasks.length; i++) {
-          tb_html += "\
-          <tr>\
-            <td>" + tasks[i].prs_time + "</td>\
-            <td>" + BTN_OPERATIONS[tasks[i].operation].replaceAll('切换','设置') + "</td>\
-            <td>" + ((tasks[i].operation==11||tasks[i].operation<8)?(tasks[i].on == 1?"开":"关"):"-") + "</td>\
-            <td>" + getLoopText(tasks[i].weekday) + "</td>\
-            <td><a href='javascript:DelTimedTask(" + tasks[i].timestamp + ");'>删除</a></td>\
-          </tr>";
-        }
-        tb_html+="\
-        </tbody>";
-        document.getElementById("timed_task_tb").innerHTML = tb_html;
-      });
-    }
-    function getLoopText(i){
-    switch(i){
-    case 0:
-    return '不循环';
-    case 1:
-    return '每周一';
-    case 2:
-    return '每周二';
-    case 3:
-    return '每周三';
-    case 4:
-    return '每周四';
-    case 5:
-    return '每周五';
-    case 6:
-    return '每周六';
-    case 7:
-    return '每周日';
-        case 8:
-    return '每天';
-    }
-    }
-
-    var task_date = document.getElementById("task_date");
-    var task_time = document.getElementById("task_time");
-    //task_date.value = "2020-12-31";
-    //task_time.value = "10:08:00";
-    task_date.value = (new Date()).Format("yyyy-MM-dd");
-    task_time.value = (new Date()).Format("hh:mm:ss");
-    function AddTimedTask() {
-      var dat = task_date.value;
-      var tim = task_time.value;
-      var idx = document.getElementById("task_skt_idx").value;
-      var  on = document.getElementById("task_on").checked;
-      var wkd = $("input[name='task_weekday']")[0].value;
-
-      datatime = dat + "T" + tim; // yyyy-MM-ddTHH:mm:ss
-      var prs_time = Math.round(new Date(datatime) / 1000);
-      //prs_time = prs_time + parseInt(sec);
-      on = on ? "1" : "0";
-      var cmd = prs_time + " " + idx + " " + on + " " + wkd;
-
-      HttpPost("/task", function (re) {
-        if (re != "OK") {
-          alert(re);
-          return;
-        }
-        GetTimedTask();
-      }, cmd);
-    }
-
-$(document).ready(function(){
-$('ul[for="button_type"] .mdl-menu__item').on('click',function(){
-$('#button_type').trigger('change');
-});
-});
-    $('#button_type').on('change', function() {
-  var value = $(this).val();
-  $('#click_times_press_time_label').text(value == '0'?'连击次数':'长按秒数');
-});
-  $(function() {
-  for (let i = 1; i <= 30; i++) {
-    $('#click_times_press_time_selector').append(
-      $('<li>')
-        .addClass('mdl-menu__item')
-        .attr('data-val', i)
-        .text(i)
-    );
-  }
-  getmdlSelect.init(".getmdl-select");
-});
-
-function getButtonEvents(){
-HttpGet("/buttonEvents", function (re) {
-
-refreshButtonEvents(JSON.parse(re));
-
-      });
-}
-
-   function addButtonEvent() {
-
-      var longPress = document.getElementById("button_type").value;
-      var event = document.getElementById("action_type").value;
-      var times_or_seconds = document.getElementById("click_times_press_time").value;
-
-if(!event||!times_or_seconds){
-ShowToast("请完成选项");
-return;
-}
-      HttpPost("/buttonEvents", function (re) {
-        if (re == "OK") {
-        ShowToast("已添加按键事件");
-        getButtonEvents();
-        }
-      }, `${times_or_seconds} ${event} ${longPress}`);
-    }
-    function deleteButtonEvent(times_or_seconds ,longPress){
-    HttpPost("/buttonEvents", function (re) {
-        if (re == "OK") {
-        ShowToast("已删除按键事件");
-        getButtonEvents();
-        }
-      }, `${times_or_seconds} -1 ${longPress}`);
-    }
-function selectOperation(rowId, index, operationText) {
-var witch = parseInt(rowId.split('-')[1]);
-if (index === -1) {
-    document.getElementById(`${rowId}-input`).value = '未设置';
-    document.getElementById(`${rowId}-value`).value = -1;
-  } else {
-  document.getElementById(`${rowId}-input`).value = operationText;
-  document.getElementById(`${rowId}-value`).value = index;
-  }
-HttpPost("/shortClickEvent", function (re) {
-        ShowToast("已设置按钮事件");
-      }, `${witch} ${index}`);
-}
-
-    function DelTimedTask(timestamp) {
-      HttpDel("/task/"+timestamp, function (re) {
-        ShowToast("Delete timed task OK!");
-        GetTimedTask();
-      }, timestamp);
-    }
-    //定时任务-end
-
-    //倒计时功能-start
+    // Countdown - Backend Persistent
     var countdownTimer = null;
-    var countdownTotalSeconds = 0;
     var countdownRemaining = 0;
+    var countdownOperation = 0;
 
-    function initCountdownActions() {
-      var actions = [
-        "切换总开关",
-        "打开总开关",
-        "关闭总开关",
-        "切换插座1",
-        "切换插座2",
-        "切换插座3",
-        "切换插座4",
-        "切换插座5",
-        "切换插座6",
-        "重启系统"
-      ];
-
-      for (var i = 0; i < actions.length; i++) {
-        $('#countdown_action_list').append(
-          $('<li>')
-            .addClass('mdl-menu__item')
-            .attr('data-val', i)
-            .text(actions[i])
-        );
-      }
-      getmdlSelect.init(".getmdl-select");
+    function getCountdownStatus() {
+        HttpGet("/countdown", function(re) {
+            var status = JSON.parse(re);
+            if (status.enabled && status.remaining > 0) {
+                countdownRemaining = status.remaining;
+                countdownOperation = status.operation;
+                document.getElementById('countdown-start-btn').style.display = 'none';
+                document.getElementById('countdown-stop-btn').style.display = 'inline-block';
+                document.getElementById('countdown-hours').disabled = true;
+                document.getElementById('countdown-minutes').disabled = true;
+                document.getElementById('countdown-seconds').disabled = true;
+                document.getElementById('countdown-display').classList.add('running');
+                updateCountdownDisplayBackend();
+                if (!countdownTimer) {
+                    countdownTimer = setInterval(updateCountdownDisplayBackend, 1000);
+                }
+            } else {
+                document.getElementById('countdown-display').classList.remove('running');
+            }
+        });
     }
 
-    function updateCountdownDisplay() {
-      var hours = Math.floor(countdownRemaining / 3600);
-      var minutes = Math.floor((countdownRemaining % 3600) / 60);
-      var seconds = countdownRemaining % 60;
-
-      var display = String(hours).padStart(2, '0') + ':' +
-                    String(minutes).padStart(2, '0') + ':' +
-                    String(seconds).padStart(2, '0');
-      document.getElementById('countdown-display').textContent = display;
-    }
-
-    function executeCountdownAction(actionIndex) {
-      switch(parseInt(actionIndex)) {
-        case 0: // 切换总开关
-          HttpPost("/socketAll", function(re) {
-            ShowToast("总开关已切换");
-          }, checkboxs[2].checked ? "0" : "1");
-          break;
-        case 1: // 打开总开关
-          HttpPost("/socketAll", function(re) {
-            ShowToast("总开关已打开");
-          }, "1");
-          break;
-        case 2: // 关闭总开关
-          HttpPost("/socketAll", function(re) {
-            ShowToast("总开关已关闭");
-          }, "0");
-          break;
-        case 3: // 切换插座1
-          toggleSocket(0);
-          break;
-        case 4: // 切换插座2
-          toggleSocket(1);
-          break;
-        case 5: // 切换插座3
-          toggleSocket(2);
-          break;
-        case 6: // 切换插座4
-          toggleSocket(3);
-          break;
-        case 7: // 切换插座5
-          toggleSocket(4);
-          break;
-        case 8: // 切换插座6
-          toggleSocket(5);
-          break;
-        case 9: // 重启系统
-          setRebootSystem();
-          ShowToast("系统正在重启");
-          break;
-        default:
-          ShowToast("未设置操作");
-      }
-    }
-
-    function toggleSocket(index) {
-      var sockets_st = "";
-      for (var i = 0; i < checkboxs.length - 3; i++) {
-        if (i === index) {
-          sockets_st += (checkboxs[i + 3].checked ? "0" : "1") + ",";
-        } else {
-          sockets_st += (checkboxs[i + 3].checked ? "1" : "0") + ",";
+    function updateCountdownDisplayBackend() {
+        if (countdownRemaining <= 0) {
+            getCountdownStatus();
+            return;
         }
-      }
-      HttpPost("/socket", function(re) {}, sockets_st);
+        countdownRemaining--;
+        var hours = Math.floor(countdownRemaining / 3600);
+        var minutes = Math.floor((countdownRemaining % 3600) / 60);
+        var seconds = countdownRemaining % 60;
+        document.getElementById('countdown-display').textContent = String(hours).padStart(2,'0') + ':' + String(minutes).padStart(2,'0') + ':' + String(seconds).padStart(2,'0');
     }
 
     function startCountdown() {
-      var hours = parseInt(document.getElementById('countdown-hours').value) || 0;
-      var minutes = parseInt(document.getElementById('countdown-minutes').value) || 0;
-      var seconds = parseInt(document.getElementById('countdown-seconds').value) || 0;
-      var actionIndex = document.getElementById('countdown-target-value').value;
-
-      countdownTotalSeconds = hours * 3600 + minutes * 60 + seconds;
-      countdownRemaining = countdownTotalSeconds;
-
-      if (countdownRemaining <= 0) {
-        ShowToast("请设置倒计时时长");
-        return;
-      }
-
-      if (actionIndex === '' || actionIndex === '-1') {
-        ShowToast("请选择要执行的操作");
-        return;
-      }
-
-      document.getElementById('countdown-start-btn').style.display = 'none';
-      document.getElementById('countdown-stop-btn').style.display = 'inline-block';
-      document.getElementById('countdown-hours').disabled = true;
-      document.getElementById('countdown-minutes').disabled = true;
-      document.getElementById('countdown-seconds').disabled = true;
-
-      updateCountdownDisplay();
-
-      countdownTimer = setInterval(function() {
-        countdownRemaining--;
-
-        if (countdownRemaining <= 0) {
-          clearInterval(countdownTimer);
-          countdownTimer = null;
-          var action = document.getElementById('countdown-target-value').value;
-          executeCountdownAction(action);
-          ShowToast("倒计时完成，已执行操作");
-          resetCountdown();
-        } else {
-          updateCountdownDisplay();
-        }
-      }, 1000);
+        var hours = parseInt(document.getElementById('countdown-hours').value) || 0;
+        var minutes = parseInt(document.getElementById('countdown-minutes').value) || 0;
+        var seconds = parseInt(document.getElementById('countdown-seconds').value) || 0;
+        var total = hours * 3600 + minutes * 60 + seconds;
+        var action = document.getElementById('countdown-target-value').value;
+        if (total <= 0) { ShowToast("请设置倒计时时长"); return; }
+        if (action === '' || action === '-1') { ShowToast("请选择要执行的操作"); return; }
+        var cmd = "start " + total + " " + action;
+        HttpPost("/countdown", function(re) {
+            if (re === "OK") {
+                countdownRemaining = total;
+                countdownOperation = parseInt(action);
+                document.getElementById('countdown-start-btn').style.display = 'none';
+                document.getElementById('countdown-stop-btn').style.display = 'inline-block';
+                document.getElementById('countdown-hours').disabled = true;
+                document.getElementById('countdown-minutes').disabled = true;
+                document.getElementById('countdown-seconds').disabled = true;
+                document.getElementById('countdown-display').classList.add('running');
+                if (!countdownTimer) { countdownTimer = setInterval(updateCountdownDisplayBackend, 1000); }
+                ShowToast("倒计时已启动");
+            }
+        }, cmd);
     }
 
     function stopCountdown() {
-      if (countdownTimer) {
-        clearInterval(countdownTimer);
-        countdownTimer = null;
-      }
-      document.getElementById('countdown-start-btn').style.display = 'inline-block';
-      document.getElementById('countdown-stop-btn').style.display = 'none';
-      document.getElementById('countdown-hours').disabled = false;
-      document.getElementById('countdown-minutes').disabled = false;
-      document.getElementById('countdown-seconds').disabled = false;
+        HttpPost("/countdown", function(re) {
+            if (re === "OK") {
+                if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+                countdownRemaining = 0;
+                document.getElementById('countdown-start-btn').style.display = 'inline-block';
+                document.getElementById('countdown-stop-btn').style.display = 'none';
+                document.getElementById('countdown-hours').disabled = false;
+                document.getElementById('countdown-minutes').disabled = false;
+                document.getElementById('countdown-seconds').disabled = false;
+                document.getElementById('countdown-display').textContent = '00:00:00';
+                document.getElementById('countdown-display').classList.remove('running');
+                ShowToast("倒计时已停止");
+            }
+        }, "stop");
     }
 
     function resetCountdown() {
-      stopCountdown();
-      countdownRemaining = 0;
-      countdownTotalSeconds = 0;
-      document.getElementById('countdown-display').textContent = '00:00:00';
-      document.getElementById('countdown-hours').value = 0;
-      document.getElementById('countdown-minutes').value = 5;
-      document.getElementById('countdown-seconds').value = 0;
-      document.getElementById('countdown-hours').disabled = false;
-      document.getElementById('countdown-minutes').disabled = false;
-      document.getElementById('countdown-seconds').disabled = false;
+        stopCountdown();
+        document.getElementById('countdown-hours').value = 0;
+        document.getElementById('countdown-minutes').value = 5;
+        document.getElementById('countdown-seconds').value = 0;
     }
 
-    //初始化倒计时功能
-    $(document).ready(function() {
-      initCountdownActions();
-      initCycleActions();
-    });
-    //倒计时功能-end
-
-    //循环开关功能-start
+    // Cycle - Backend Persistent
     var cycleTimer = null;
-    var cyclePhase = 'off'; // 'on' or 'off'
     var cycleRemaining = 0;
-    var cycleOnSeconds = 0;
-    var cycleOffSeconds = 0;
-    var cycleTargetAction = 0;
+    var cycleIsOnPhase = false;
 
-    function initCycleActions() {
-      var sockets = ["插座1", "插座2", "插座3", "插座4", "插座5", "插座6"];
-      for (var i = 0; i < sockets.length; i++) {
-        $('#cycle_action_list').append(
-          $('<li>')
-            .addClass('mdl-menu__item')
-            .attr('data-val', i)
-            .text(sockets[i])
-        );
-      }
-      getmdlSelect.init("#cycle-container .getmdl-select");
+    function getCycleStatus() {
+        HttpGet("/cycle", function(re) {
+            var status = JSON.parse(re);
+            if (status.enabled && status.remaining > 0) {
+                cycleRemaining = status.remaining;
+                cycleIsOnPhase = status.is_on === 1;
+                document.getElementById('cycle-start-btn').style.display = 'none';
+                document.getElementById('cycle-stop-btn').style.display = 'inline-block';
+                document.getElementById('cycle-countdown-display').style.display = 'block';
+                document.getElementById('cycle-on-value').disabled = true;
+                document.getElementById('cycle-on-unit').disabled = true;
+                document.getElementById('cycle-off-value').disabled = true;
+                document.getElementById('cycle-off-unit').disabled = true;
+                updateCycleDisplayBackend();
+                if (!cycleTimer) { cycleTimer = setInterval(updateCycleDisplayBackend, 1000); }
+            } else {
+                document.getElementById('cycle-status').textContent = '未运行';
+                document.getElementById('cycle-countdown-display').style.display = 'none';
+            }
+        });
     }
 
-    function updateCycleDisplay() {
-      var hours = Math.floor(cycleRemaining / 3600);
-      var minutes = Math.floor((cycleRemaining % 3600) / 60);
-      var seconds = cycleRemaining % 60;
-      var display = String(hours).padStart(2, '0') + ':' +
-                    String(minutes).padStart(2, '0') + ':' +
-                    String(seconds).padStart(2, '0');
-
-      var phaseText = cyclePhase === 'on' ? '开启中' : '关闭中';
-      document.getElementById('cycle-status').textContent = phaseText;
-      document.getElementById('cycle-countdown-display').textContent = display;
-      document.getElementById('cycle-countdown-display').style.color =
-        cyclePhase === 'on' ? '#4caf50' : '#f44336';
-    }
-
-    function toggleCycleSocket(index, turnOn) {
-      var sockets_st = "";
-      for (var i = 0; i < 6; i++) {
-        if (i === index) {
-          sockets_st += (turnOn ? "1" : "0") + ",";
-        } else {
-          sockets_st += (checkboxs[i + 3].checked ? "1" : "0") + ",";
-        }
-      }
-      HttpPost("/socket", function(re) {}, sockets_st);
-    }
-
-    function cycleTick() {
-      if (cycleRemaining > 0) {
-        cycleRemaining--;
-        updateCycleDisplay();
-      } else {
-        // 切换阶段
-        if (cyclePhase === 'on') {
-          cyclePhase = 'off';
-          cycleRemaining = cycleOffSeconds;
-          toggleCycleSocket(cycleTargetAction, false);
-        } else {
-          cyclePhase = 'on';
-          cycleRemaining = cycleOnSeconds;
-          toggleCycleSocket(cycleTargetAction, true);
-        }
-        updateCycleDisplay();
-      }
+    function updateCycleDisplayBackend() {
+        HttpGet("/cycle", function(re) {
+            var status = JSON.parse(re);
+            if (!status.enabled || status.remaining <= 0) {
+                if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+                document.getElementById('cycle-status').textContent = '未运行';
+                document.getElementById('cycle-countdown-display').style.display = 'none';
+                document.getElementById('cycle-start-btn').style.display = 'inline-block';
+                document.getElementById('cycle-stop-btn').style.display = 'none';
+                document.getElementById('cycle-on-value').disabled = false;
+                document.getElementById('cycle-on-unit').disabled = false;
+                document.getElementById('cycle-off-value').disabled = false;
+                document.getElementById('cycle-off-unit').disabled = false;
+                return;
+            }
+            cycleRemaining = status.remaining;
+            cycleIsOnPhase = status.is_on === 1;
+            var phaseText = cycleIsOnPhase ? '开启中' : '关闭中';
+            document.getElementById('cycle-status').textContent = phaseText;
+            var hours = Math.floor(cycleRemaining / 3600);
+            var minutes = Math.floor((cycleRemaining % 3600) / 60);
+            var seconds = cycleRemaining % 60;
+            var display = String(hours).padStart(2,'0') + ':' + String(minutes).padStart(2,'0') + ':' + String(seconds).padStart(2,'0');
+            document.getElementById('cycle-countdown-display').textContent = display;
+            document.getElementById('cycle-countdown-display').style.color = cycleIsOnPhase ? '#4caf50' : '#f44336';
+        });
     }
 
     function startCycle() {
-      var onValue = parseInt(document.getElementById('cycle-on-value').value) || 30;
-      var onUnit = parseInt(document.getElementById('cycle-on-unit').value) || 60;
-      var offValue = parseInt(document.getElementById('cycle-off-value').value) || 30;
-      var offUnit = parseInt(document.getElementById('cycle-off-unit').value) || 60;
-      var actionIndex = document.getElementById('cycle-target-value').value;
-
-      if (onValue <= 0 || offValue <= 0) {
-        ShowToast("请设置有效的时长");
-        return;
-      }
-
-      if (actionIndex === '' || actionIndex === '-1') {
-        ShowToast("请选择要控制的插座");
-        return;
-      }
-
-      cycleOnSeconds = onValue * onUnit;
-      cycleOffSeconds = offValue * offUnit;
-      cycleTargetAction = parseInt(actionIndex);
-      cyclePhase = 'on';
-      cycleRemaining = cycleOnSeconds;
-
-      document.getElementById('cycle-start-btn').style.display = 'none';
-      document.getElementById('cycle-stop-btn').style.display = 'inline-block';
-      document.getElementById('cycle-countdown-display').style.display = 'block';
-      document.getElementById('cycle-on-value').disabled = true;
-      document.getElementById('cycle-on-unit').disabled = true;
-      document.getElementById('cycle-off-value').disabled = true;
-      document.getElementById('cycle-off-unit').disabled = true;
-
-      toggleCycleSocket(cycleTargetAction, true);
-      updateCycleDisplay();
-
-      cycleTimer = setInterval(cycleTick, 1000);
+        var onValue = parseInt(document.getElementById('cycle-on-value').value) || 30;
+        var onUnit = parseInt(document.getElementById('cycle-on-unit').value) || 60;
+        var offValue = parseInt(document.getElementById('cycle-off-value').value) || 30;
+        var offUnit = parseInt(document.getElementById('cycle-off-unit').value) || 60;
+        var action = document.getElementById('cycle-target-value').value;
+        if (onValue <= 0 || offValue <= 0) { ShowToast("请设置有效的时长"); return; }
+        if (action === '' || action === '-1') { ShowToast("请选择要控制的插座"); return; }
+        var onSec = onValue * onUnit;
+        var offSec = offValue * offUnit;
+        var cmd = "start " + onSec + " " + offSec + " " + action;
+        HttpPost("/cycle", function(re) {
+            if (re === "OK") {
+                document.getElementById('cycle-start-btn').style.display = 'none';
+                document.getElementById('cycle-stop-btn').style.display = 'inline-block';
+                document.getElementById('cycle-countdown-display').style.display = 'block';
+                document.getElementById('cycle-on-value').disabled = true;
+                document.getElementById('cycle-on-unit').disabled = true;
+                document.getElementById('cycle-off-value').disabled = true;
+                document.getElementById('cycle-off-unit').disabled = true;
+                if (!cycleTimer) { cycleTimer = setInterval(updateCycleDisplayBackend, 1000); }
+                ShowToast("循环任务已启动");
+            }
+        }, cmd);
     }
 
     function stopCycle() {
-      if (cycleTimer) {
-        clearInterval(cycleTimer);
-        cycleTimer = null;
-      }
-
-      // 停止时关闭插座
-      toggleCycleSocket(cycleTargetAction, false);
-
-      document.getElementById('cycle-start-btn').style.display = 'inline-block';
-      document.getElementById('cycle-stop-btn').style.display = 'none';
-      document.getElementById('cycle-countdown-display').style.display = 'none';
-      document.getElementById('cycle-status').textContent = '已停止';
-      document.getElementById('cycle-on-value').disabled = false;
-      document.getElementById('cycle-on-unit').disabled = false;
-      document.getElementById('cycle-off-value').disabled = false;
-      document.getElementById('cycle-off-unit').disabled = false;
+        HttpPost("/cycle", function(re) {
+            if (re === "OK") {
+                if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+                document.getElementById('cycle-start-btn').style.display = 'inline-block';
+                document.getElementById('cycle-stop-btn').style.display = 'none';
+                document.getElementById('cycle-countdown-display').style.display = 'none';
+                document.getElementById('cycle-status').textContent = '未运行';
+                document.getElementById('cycle-on-value').disabled = false;
+                document.getElementById('cycle-on-unit').disabled = false;
+                document.getElementById('cycle-off-value').disabled = false;
+                document.getElementById('cycle-off-unit').disabled = false;
+                ShowToast("循环任务已停止");
+            }
+        }, "stop");
     }
-    //循环开关功能-end
 
-    //OTA-start
-    function OtaStart() {
-      var ota_url = document.getElementById("ota_url").value;
-      var protocol = window.location.protocol;
-      var baseUrl = protocol+"//"+window.location.host;
-document.getElementById("submit-ota-link").disabled = true;
-      HttpPost("/ota", function (re) {
-        OtaStatus();
-      }, ota_url);
-    }
+    $(document).ready(function() { getmdlSelect.init(".getmdl-select"); });
+
+    // Button Events
+    $('#button_type').on('change', function() { $('#click_times_press_time_label').text($(this).val() == '0'?'连击次数':'长按秒数'); });
+    $(function() { for (let i = 1; i <= 30; i++) { $('#click_times_press_time_selector').append($('<li>').addClass('mdl-menu__item').attr('data-val', i).text(i)); } getmdlSelect.init(".getmdl-select"); });
+    function getButtonEvents(){ HttpGet("/buttonEvents", function (re) { refreshButtonEvents(JSON.parse(re)); }); }
+    function addButtonEvent() { var longPress = document.getElementById("button_type").value; var event = document.getElementById("action_type").value; var times_or_seconds = document.getElementById("click_times_press_time").value; if(!event||!times_or_seconds){ ShowToast("请完成选项"); return; } HttpPost("/buttonEvents", function (re) { if (re == "OK") { ShowToast("已添加按键事件"); getButtonEvents(); } }, `${times_or_seconds} ${event} ${longPress}`); }
+    function deleteButtonEvent(times_or_seconds, longPress){ HttpPost("/buttonEvents", function (re) { if (re == "OK") { ShowToast("已删除按键事件"); getButtonEvents(); } }, `${times_or_seconds} -1 ${longPress}`); }
+
+    // OTA
     var upload_status = document.querySelector('#upload_status');
-    upload_status.addEventListener('mdl-componentupgraded', function() {
-      this.MaterialProgress.setProgress(0);
-    });
-    function OtaFileUpload() {
-    //alert("假的假的是假的，忽略");
-    //return;
-    var fileInput = document.getElementById("ota_file");
-    if (fileInput.files.length === 0) {
-        ShowToast("请选择要上传的 OTA 文件");
-        return;
-    }
-clearTimeout(powerTimerId);
-console.log(fileInput.files[0].size);  // 应显示 647168 左右
-document.getElementById("submit-ota-file").disabled = true;
-const xhr = new XMLHttpRequest();
-xhr.open("POST", "/ota/fileUpload");
-
-xhr.upload.onprogress = function (e) {
-  if (e.lengthComputable) {
-    let percent = (e.loaded / e.total * 100).toFixed(1);
-    upload_status.MaterialProgress.setProgress(percent);
-    console.log(`上传进度：${percent}%`);
-  }
-};
-
-xhr.onload = function () {
-  alert("上传完成：" + xhr.responseText);
-  document.getElementById("submit-ota-file").disabled = false;
-};
-
-xhr.onerror = function () {
-  alert("上传失败");
-  document.getElementById("submit-ota-file").disabled = false;
-};
-
-xhr.setRequestHeader("Content-Type", "application/octet-stream");
-xhr.send(fileInput.files[0]);
- }
-
+    upload_status.addEventListener('mdl-componentupgraded', function() { this.MaterialProgress.setProgress(0); });
+    function OtaStart() { document.getElementById("submit-ota-link").disabled = true; HttpPost("/ota", function (re) { OtaStatus(); }, document.getElementById("ota_url").value); }
+    function OtaFileUpload() { var fileInput = document.getElementById("ota_file"); if (fileInput.files.length === 0) { ShowToast("请选择要上传的 OTA 文件"); return; } clearTimeout(powerTimerId); document.getElementById("submit-ota-file").disabled = true; const xhr = new XMLHttpRequest(); xhr.open("POST", "/ota/fileUpload"); xhr.upload.onprogress = function (e) { if (e.lengthComputable) { upload_status.MaterialProgress.setProgress((e.loaded / e.total * 100).toFixed(1)); } }; xhr.onload = function () { alert("上传完成：" + xhr.responseText); document.getElementById("submit-ota-file").disabled = false; }; xhr.onerror = function () { alert("上传失败"); document.getElementById("submit-ota-file").disabled = false; }; xhr.setRequestHeader("Content-Type", "application/octet-stream"); xhr.send(fileInput.files[0]); }
     var ota_status = document.querySelector('#ota_status');
-    ota_status.addEventListener('mdl-componentupgraded', function() {
-      this.MaterialProgress.setProgress(0);
-    });
-    function OtaStatus() {
-      var protocol = window.location.protocol;
-      var baseUrl = protocol+"//"+window.location.host;
+    ota_status.addEventListener('mdl-componentupgraded', function() { this.MaterialProgress.setProgress(0); });
+    function OtaStatus() { HttpGet("/ota", function (re) { var percent = parseInt(re); ota_status.MaterialProgress.setProgress(percent); if (percent < 0) { location.reload(); } window.setTimeout(OtaStatus, 1000); }); }
 
-      HttpGet("/ota", function (re) {
-        var percent = parseInt(re);
-        //console.log(re + " " + parseInt(re));
-        ota_status.MaterialProgress.setProgress(percent);
-        if (percent < 0) {
-          location.reload();
-        }
-        window.setTimeout(OtaStatus, 1000);
-      });
-    }
-    //OTA-end
-
-    //日志-start
-    var sys_log = document.getElementById("sys_log");
-    var log_div = document.getElementsByClassName("sys-log")[0];
-    function GetSysLog() {
-      HttpGet("/log", function (re) {
-        sys_log.innerHTML = re;
-        log_div.scrollTo(0, log_div.scrollHeight);
-      });
-    }
+    // System Log
+    var sys_log = document.getElementById("sys_log"); var log_div = document.getElementsByClassName("sys-log")[0];
+    function GetSysLog() { HttpGet("/log", function (re) { sys_log.innerHTML = re; log_div.scrollTo(0, log_div.scrollHeight); }); }
     GetSysLog();
-    //日志-end
 
-    //上報頻率
-    function GetReportFreq() {
-      HttpGet("/mqtt/report/freq", function (re) {
-      var mqtt_freq = document.getElementById("mqtt_freq");
-       mqtt_freq.innerHTML = re;
-      });
-    }
+    // MQTT Report Freq
+    function GetReportFreq() { HttpGet("/mqtt/report/freq", function (re) { document.getElementById("mqtt_freq").innerHTML = re; }); }
     GetReportFreq();
 
-    function reboot(){
-    var r=confirm("确定要重启吗？");
-    if (r==true)
-    {
-        setRebootSystem();
-    }
-    }
-
-    function setRebootSystem() {
-      HttpPost("/reboot", function (re) {
-        ShowToast("已重启");
-      }, "000");
-    }
-
-    function setReportFreq(seconds) {
-    if(!seconds||seconds==0){
-      seconds=1;
-    }
-      HttpPost("/mqtt/report/freq", function (re) {
-        ShowToast("已设置上报频率");
-
-      }, seconds);
-    }
+    function reboot(){ if(confirm("确定要重启吗？")) { setRebootSystem(); } }
+    function setRebootSystem() { HttpPost("/reboot", function (re) { ShowToast("已重启"); }, "000"); }
+    function setReportFreq(seconds) { if(!seconds||seconds==0){ seconds=1; } HttpPost("/mqtt/report/freq", function (re) { ShowToast("已设置上报频率"); }, seconds); }
 </script>
 </body>
 </html>

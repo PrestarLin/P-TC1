@@ -255,6 +255,10 @@ int application_start(void) {
     require_noerr_string(err, exit, "ERROR: Unable to start the mqtt_power_report thread.");
 
 
+    // 初始化倒计时和循环任务
+    CountdownTaskInit();
+    CycleTaskInit();
+
     while (1) {
         time_t now = time(NULL);
         TaskLock();
@@ -262,6 +266,13 @@ int application_start(void) {
             ProcessTask();
         }
         TaskUnlock();
+        
+        // 处理倒计时任务
+        CountdownTaskTick();
+        
+        // 处理循环任务
+        CycleTaskTick();
+        
         mico_thread_msleep(1000);
     }
 

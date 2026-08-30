@@ -786,6 +786,97 @@ static int OtaStart(httpd_request_t *req) {
     return err;
 }
 
+/* ==================== 倒计时任务 API ==================== */
+static int HttpGetCountdownStatus(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    char *status = CountdownTaskGetStatus();
+    if (status) {
+        send_http(status, strlen(status), exit, &err);
+        free(status);
+    } else {
+        send_http("{'enabled':0,'remaining':0,'total':0,'operation':0}", 50, exit, &err);
+    }
+    exit:
+    return err;
+}
+
+static int HttpSetCountdown(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    char buf[64] = {0};
+    err = httpd_get_data(req, buf, 64);
+    require_noerr(err, exit);
+
+    http_log("HttpSetCountdown: %s", buf);
+
+    // 解析参数：action start|stop, seconds, operation
+    char action[16] = {0};
+    int seconds = 0;
+    int operation = 0;
+
+    if (sscanf(buf, "%15s %d %d", action, &seconds, &operation) >= 1) {
+        if (strcmp(action, "start") == 0 && seconds > 0) {
+            CountdownTaskStart(seconds, operation);
+            send_http("OK", 2, exit, &err);
+        } else if (strcmp(action, "stop") == 0) {
+            CountdownTaskStop();
+            send_http("OK", 2, exit, &err);
+        } else {
+            send_http("INVALID", 7, exit, &err);
+        }
+    } else {
+        send_http("INVALID", 7, exit, &err);
+    }
+
+    exit:
+    return err;
+}
+
+/* ==================== 循环任务 API ==================== */
+static int HttpGetCycleStatus(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    char *status = CycleTaskGetStatus();
+    if (status) {
+        send_http(status, strlen(status), exit, &err);
+        free(status);
+    } else {
+        send_http("{'enabled':0,'is_on':0,'remaining':0,'on_sec':0,'off_sec':0,'operation':0}", 70, exit, &err);
+    }
+    exit:
+    return err;
+}
+
+static int HttpSetCycle(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    char buf[64] = {0};
+    err = httpd_get_data(req, buf, 64);
+    require_noerr(err, exit);
+
+    http_log("HttpSetCycle: %s", buf);
+
+    // 解析参数：action start|stop, on_seconds, off_seconds, operation
+    char action[16] = {0};
+    int on_seconds = 0;
+    int off_seconds = 0;
+    int operation = 0;
+
+    if (sscanf(buf, "%15s %d %d %d", action, &on_seconds, &off_seconds, &operation) >= 1) {
+        if (strcmp(action, "start") == 0 && on_seconds > 0 && off_seconds > 0) {
+            CycleTaskStart(on_seconds, off_seconds, operation);
+            send_http("OK", 2, exit, &err);
+        } else if (strcmp(action, "stop") == 0) {
+            CycleTaskStop();
+            send_http("OK", 2, exit, &err);
+        } else {
+            send_http("INVALID", 7, exit, &err);
+        }
+    } else {
+        send_http("INVALID", 7, exit, &err);
+    }
+
+    exit:
+    return err;
+}
+
 const struct httpd_wsgi_call g_app_handlers[] = {
         {"/",                 HTTPD_HDR_DEFORT, 0,                             HttpGetIndexPage, NULL,                       NULL, NULL},
         {"/assets", HTTPD_HDR_ADD_SERVER |
@@ -808,6 +899,8 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/deviceName",       HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetDeviceName,     NULL, NULL},
         {"/buttonEvents",     HTTPD_HDR_DEFORT, 0,                             HttpGetButtonEvents,   HttpSetButtonEvent,    NULL, NULL},
         {"/ota/fileUpload",     HTTPD_HDR_DEFORT, 0,                             NULL,   HttpSetOTAFile,    NULL, NULL},
+        {"/countdown",        HTTPD_HDR_DEFORT, APP_HTTP_FLAGS_NO_EXACT_MATCH, HttpGetCountdownStatus, HttpSetCountdown, NULL, NULL},
+        {"/cycle",            HTTPD_HDR_DEFORT, APP_HTTP_FLAGS_NO_EXACT_MATCH, HttpGetCycleStatus,     HttpSetCycle,     NULL, NULL},
 };
 
 static int g_app_handlers_no = sizeof(g_app_handlers) / sizeof(struct httpd_wsgi_call);

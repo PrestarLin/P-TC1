@@ -1,5 +1,7 @@
 #pragma once
 #include <time.h>
+#include <stdbool.h>
+#include "main.h"
 
 struct TimedTask;
 typedef struct TimedTask* pTimedTask;
@@ -23,3 +25,17 @@ void TaskLock(void);
 void TaskUnlock(void);
 void TaskModuleInit(void);
 void RebuildTaskList(void);
+
+// 倒计时任务函数
+void CountdownTaskInit(void);
+void CountdownTaskStart(int total_seconds, int operation);
+void CountdownTaskStop(void);
+void CountdownTaskTick(void);
+char* CountdownTaskGetStatus(void);
+
+// 循环任务函数
+void CycleTaskInit(void);
+void CycleTaskStart(int on_seconds, int off_seconds, int operation);
+void CycleTaskStop(void);
+void CycleTaskTick(void);
+char* CycleTaskGetStatus(void);

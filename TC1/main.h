@@ -3,7 +3,6 @@
 
 #include "mico.h"
 #include "micokit_ext.h"
-#include "timed_task/timed_task.h"
 
 #define app_log(M, ...) custom_log("APP", M, ##__VA_ARGS__); web_log("APP", M, ##__VA_ARGS__);
 #define key_log(M, ...) custom_log("KEY", M, ##__VA_ARGS__); web_log("KEY", M, ##__VA_ARGS__);
@@ -61,6 +60,24 @@
 #define Relay_NUM SOCKET_NUM
 
 #define MAX_TASK_NUM 64
+
+// 倒计时任务结构
+typedef struct {
+    bool enabled;           // 是否启用
+    int total_seconds;      // 总倒计时秒数
+    int remaining_seconds;  // 剩余秒数
+    int operation;          // 倒计时结束执行的操作
+} CountdownTask;
+
+// 循环任务结构
+typedef struct {
+    bool enabled;           // 是否启用
+    bool is_on_phase;       // 当前是否为开启阶段
+    int on_seconds;         // 开启时长（秒）
+    int off_seconds;        // 关闭时长（秒）
+    int remaining_seconds;  // 当前阶段剩余秒数
+    int operation;          // 控制的插座操作
+} CycleTask;
 
 /* ===================== 配置布局迁移机制 =====================
  * 目的：布局变更不再清空用户配置。
@@ -126,7 +143,9 @@ typedef struct
     int power_led_enabled;
     pTimedTask task_top;
     struct TimedTask timed_tasks[MAX_TASK_NUM];
-    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t)]; // 定长补齐，必须保持为最后一个字段
+    CountdownTask countdown;  // 倒计时任务
+    CycleTask cycle;          // 循环任务
+    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - sizeof(CountdownTask) - sizeof(CycleTask)]; // 定长补齐，必须保持为最后一个字段
 } user_config_t;
 
 #if defined(__GNUC__)
