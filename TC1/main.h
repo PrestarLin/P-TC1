@@ -190,7 +190,8 @@ extern user_config_t* user_config;
 extern mico_gpio_t Relay[Relay_NUM];
 extern int childLockEnabled;
 
-void CheckNightMode(void);
+void RemoveNightModeTasks(void);
+void CreateNightModeTask(int hour, int minute, int on);
 
 
 #endif

@@ -939,10 +939,10 @@ static int HttpSetNightMode(httpd_request_t *req) {
     user_config->night_mode_end = (end_h * 60 + end_m) % 1440;
     mico_system_context_update(sys_config);
 
-    if (user_config->night_mode_enabled) {
-        CheckNightMode();
-    } else {
-        UserLedSet(user_config->power_led_enabled);
+    RemoveNightModeTasks();
+    if (enabled) {
+        CreateNightModeTask(start_h, start_m, 0);
+        CreateNightModeTask(end_h, end_m, 1);
     }
 
     send_http("OK", 2, exit, &err);

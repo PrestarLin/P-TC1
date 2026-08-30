@@ -212,21 +212,51 @@ static int GetMinutesSinceMidnight(void) {
     return t->tm_hour * 60 + t->tm_min;
 }
 
-void CheckNightMode(void) {
-    if (!user_config->night_mode_enabled) return;
-    int now_min = GetMinutesSinceMidnight();
-    if (now_min < 0) return;
-    int start = user_config->night_mode_start;
-    int end = user_config->night_mode_end;
-    bool in_night;
-    if (start <= end) {
-        in_night = (now_min >= start && now_min < end);
-    } else {
-        in_night = (now_min >= start || now_min < end);
+void RemoveNightModeTasks(void) {
+    TaskLock();
+    pTimedTask tsk = user_config->task_top;
+    pTimedTask prev = NULL;
+    while (tsk) {
+        pTimedTask next = tsk->next;
+        if (tsk->operation == SWITCH_LED_ENABLE && tsk->weekday == 8) {
+            if (prev) {
+                prev->next = next;
+            } else {
+                user_config->task_top = next;
+            }
+            tsk->on_use = false;
+            user_config->task_count--;
+        } else {
+            prev = tsk;
+        }
+        tsk = next;
     }
-    if (in_night) {
-        UserLedSet(0);
-    }
+    TaskUnlock();
+    mico_system_context_update(sys_config);
+}
+
+void CreateNightModeTask(int hour, int minute, int on) {
+    pTimedTask task = NewTask();
+    if (!task) { tc1_log("night mode: no free task slot"); return; }
+
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    if (!t) { task->on_use = false; return; }
+
+    time_t target = now - (t->tm_hour * 3600 + t->tm_min * 60 + t->tm_sec)
+                    + (hour * 3600 + minute * 60);
+    if (target <= now) target += 86400;
+
+    task->prs_time = target;
+    task->operation = SWITCH_LED_ENABLE;
+    task->on = on;
+    task->weekday = 8;
+    task->loop_end = 0;
+
+    TaskLock();
+    AddTask(task);
+    TaskUnlock();
+    mico_system_context_update(sys_config);
 }
 
 int application_start(void) {
@@ -278,6 +308,9 @@ int application_start(void) {
         user_config->night_mode_enabled = 1;
         user_config->night_mode_start = 23 * 60;
         user_config->night_mode_end = 7 * 60;
+        mico_system_context_update(sys_config);
+        CreateNightModeTask(23, 0, 0);
+        CreateNightModeTask(7, 0, 1);
     }
 
     if (sys_config->micoSystemConfig.name[0] == 1) {
@@ -333,7 +366,6 @@ int application_start(void) {
             ProcessTask();
         }
         TaskUnlock();
-        CheckNightMode();
         mico_thread_msleep(1000);
     }
 
