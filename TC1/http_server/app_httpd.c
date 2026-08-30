@@ -734,7 +734,7 @@ static int HttpGetButtonEvents(httpd_request_t *req) {
 static int HttpAddTask(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    char buf[48] = {0};
+    char buf[64] = {0};
     err = httpd_get_data(req, buf, sizeof(buf));
     require_noerr(err, exit);
 
@@ -747,16 +747,20 @@ static int HttpAddTask(httpd_request_t *req) {
         send_http(mess, strlen(mess), exit, &err);
         return err;
     }
+    int saved_on_use = task->on_use;
+    memset(task, 0, sizeof(struct TimedTask));
+    task->on_use = saved_on_use;
 
-    int loop_dur = 0, loop_int = 0;
-    int re = sscanf(buf, "%ld %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
-                    &task->weekday, &loop_dur, &loop_int);
+    int loop_dur = 0, loop_int = 0, loop_end = 0;
+    int re = sscanf(buf, "%ld %d %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
+                    &task->weekday, &loop_dur, &loop_int, &loop_end);
     http_log("AddTask buf[%s] re[%d]", buf, re);
 
     /* 如果传了循环参数，编码到 weekday */
     if (re >= 6 && loop_dur > 0) {
         task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int);
-        http_log("Loop task: dur=%d int=%d weekday=0x%X", loop_dur, loop_int, task->weekday);
+        task->loop_end = loop_end;
+        http_log("Loop task: dur=%d int=%d end=%d weekday=0x%X", loop_dur, loop_int, loop_end, task->weekday);
     }
 
     if (task->prs_time < 1577428136 || task->prs_time > 9577428136
@@ -804,6 +808,26 @@ static int HttpClearTasks(httpd_request_t *req) {
     OSStatus err = kNoErr;
     TaskLock();
     ClearAllTasks();
+    TaskUnlock();
+    send_http("OK", 2, exit, &err);
+    exit:
+    return err;
+}
+
+static int HttpClearLoopTasks(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    TaskLock();
+    ClearLoopTasks();
+    TaskUnlock();
+    send_http("OK", 2, exit, &err);
+    exit:
+    return err;
+}
+
+static int HttpClearScheduledTasks(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    TaskLock();
+    ClearScheduledTasks();
     TaskUnlock();
     send_http("OK", 2, exit, &err);
     exit:
@@ -937,6 +961,8 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/mqtt/report/freq", HTTPD_HDR_DEFORT, 0,                             HttpGetMqttReportFreq, HttpSetMqttReportFreq, NULL, NULL},
         {"/log",              HTTPD_HDR_DEFORT, 0,                             HttpGetLog,       NULL,                       NULL, NULL},
         {"/task/clear",       HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpClearTasks,        NULL, NULL},
+        {"/task/clear/loop",  HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpClearLoopTasks,    NULL, NULL},
+        {"/task/clear/scheduled", HTTPD_HDR_DEFORT, 0,                        NULL,                  HttpClearScheduledTasks, NULL, NULL},
         {"/task",             HTTPD_HDR_DEFORT, APP_HTTP_FLAGS_NO_EXACT_MATCH, HttpGetTasks,          HttpAddTask,           NULL, HttpDelTask},
         {"/ota",              HTTPD_HDR_DEFORT, 0,                             Otastatus,             OtaStart,              NULL, NULL},
         {"/led",              HTTPD_HDR_DEFORT, 0,                             LedStatus,             LedSetEnabled,         NULL, NULL},

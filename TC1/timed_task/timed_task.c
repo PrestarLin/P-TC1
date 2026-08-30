@@ -171,6 +171,50 @@ void ClearAllTasks()
     mico_system_context_update(sys_config);
 }
 
+void ClearLoopTasks()
+{
+    pTimedTask tsk = user_config->task_top;
+    pTimedTask prev = NULL;
+    while (tsk) {
+        pTimedTask next = tsk->next;
+        if (IS_LOOP_TASK(tsk->weekday)) {
+            if (prev) {
+                prev->next = next;
+            } else {
+                user_config->task_top = next;
+            }
+            tsk->on_use = false;
+            user_config->task_count--;
+        } else {
+            prev = tsk;
+        }
+        tsk = next;
+    }
+    mico_system_context_update(sys_config);
+}
+
+void ClearScheduledTasks()
+{
+    pTimedTask tsk = user_config->task_top;
+    pTimedTask prev = NULL;
+    while (tsk) {
+        pTimedTask next = tsk->next;
+        if (!IS_LOOP_TASK(tsk->weekday)) {
+            if (prev) {
+                prev->next = next;
+            } else {
+                user_config->task_top = next;
+            }
+            tsk->on_use = false;
+            user_config->task_count--;
+        } else {
+            prev = tsk;
+        }
+        tsk = next;
+    }
+    mico_system_context_update(sys_config);
+}
+
 bool DelTask(int time)
 {
     if (user_config->task_top == NULL)
@@ -255,13 +299,38 @@ void ProcessTask()
     }
     mico_system_context_update(sys_config);
 
-    /* 循环任务：执行后重新调度下一次 */
+    /* 循环任务：执行后检查是否在时间段内，是则重新调度 */
     if (IS_LOOP_TASK(user_config->task_top->weekday)) {
         int duration = GET_LOOP_DURATION(user_config->task_top->weekday);
         int interval = GET_LOOP_INTERVAL(user_config->task_top->weekday);
+        int loop_end = user_config->task_top->loop_end;
         int saved_op = user_config->task_top->operation;
         int saved_on = user_config->task_top->on;
         int saved_wd = user_config->task_top->weekday;
+        int saved_loop_end = user_config->task_top->loop_end;
+
+        /* 检查当前时间是否在时间段内 (loop_end=0 表示不限制) */
+        if (loop_end > 0) {
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            if (t) {
+                int now_min = t->tm_hour * 60 + t->tm_min;
+                int start_min = (int)(user_config->task_top->prs_time) % 1440;
+                bool in_range;
+                if (start_min <= loop_end) {
+                    in_range = (now_min >= start_min && now_min < loop_end);
+                } else {
+                    in_range = (now_min >= start_min || now_min < loop_end);
+                }
+                if (!in_range) {
+                    task_log("loop out of range, stop");
+                    DelFirstTask();
+                    mico_system_context_update(sys_config);
+                    return;
+                }
+            }
+        }
+
         int delay_sec = (duration > 0 ? duration : 1) * 60;
         if (delay_sec < 60) delay_sec = 60;
         time_t next = time(NULL) + delay_sec;
@@ -276,6 +345,7 @@ void ProcessTask()
             newTask->operation = saved_op;
             newTask->on = saved_on;
             newTask->weekday = saved_wd;
+            newTask->loop_end = saved_loop_end;
             AddTask(newTask);
         }
         mico_system_context_update(sys_config);
@@ -317,9 +387,9 @@ char* GetTaskStr()
 
         sprintf(tmp_str,
             "{'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
-            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d},",
+            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_end':%d},",
             tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday,
-            is_loop, loop_dur, loop_int);
+            is_loop, loop_dur, loop_int, tmp_tsk->loop_end);
         tmp_str += strlen(tmp_str);
         tmp_tsk = tmp_tsk->next;
     }

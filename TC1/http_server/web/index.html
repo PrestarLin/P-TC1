@@ -176,10 +176,6 @@
               <option value="loop">Loop</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="task_time">Time (HH:MM)</label>
-            <input class="form-input" id="taskTime" type="time" value="08:00">
-          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -203,28 +199,48 @@
             </select>
           </div>
         </div>
-        <div id="loopFields" style="display:none">
+        <!-- Scheduled task fields -->
+        <div id="scheduleFields">
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label" data-i18n="loop_duration">Duration (min)</label>
-              <input class="form-input" id="loopDuration" type="number" value="5" min="1" max="32767">
+              <label class="form-label" data-i18n="task_time">Time (HH:MM)</label>
+              <input class="form-input" id="taskTime" type="time" value="08:00">
             </div>
-            <div class="form-group">
-              <label class="form-label" data-i18n="loop_interval">Interval (min)</label>
-              <input class="form-input" id="loopInterval" type="number" value="10" min="1" max="32767">
+          </div>
+          <div class="form-group" id="repeatGroup">
+            <label class="form-label" data-i18n="task_repeat">Repeat</label>
+            <div class="btn-group" id="taskRepeat">
+              <button type="button" class="btn btn-sm" data-day="1">Sun</button>
+              <button type="button" class="btn btn-sm" data-day="2">Mon</button>
+              <button type="button" class="btn btn-sm" data-day="4">Tue</button>
+              <button type="button" class="btn btn-sm" data-day="8">Wed</button>
+              <button type="button" class="btn btn-sm" data-day="16">Thu</button>
+              <button type="button" class="btn btn-sm" data-day="32">Fri</button>
+              <button type="button" class="btn btn-sm" data-day="64">Sat</button>
             </div>
           </div>
         </div>
-        <div class="form-group" id="repeatGroup">
-          <label class="form-label" data-i18n="task_repeat">Repeat</label>
-          <div class="btn-group" id="taskRepeat">
-            <button type="button" class="btn btn-sm" data-day="1">Sun</button>
-            <button type="button" class="btn btn-sm" data-day="2">Mon</button>
-            <button type="button" class="btn btn-sm" data-day="4">Tue</button>
-            <button type="button" class="btn btn-sm" data-day="8">Wed</button>
-            <button type="button" class="btn btn-sm" data-day="16">Thu</button>
-            <button type="button" class="btn btn-sm" data-day="32">Fri</button>
-            <button type="button" class="btn btn-sm" data-day="64">Sat</button>
+        <!-- Loop task fields -->
+        <div id="loopFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_start_time">Start Time</label>
+              <input class="form-input" id="loopStartTime" type="time" value="08:00">
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_end_time">End Time</label>
+              <input class="form-input" id="loopEndTime" type="time" value="22:00">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_duration">On Duration (min)</label>
+              <input class="form-input" id="loopDuration" type="number" value="5" min="1" max="32767">
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="loop_interval">Off Interval (min)</label>
+              <input class="form-input" id="loopInterval" type="number" value="10" min="1" max="32767">
+            </div>
           </div>
         </div>
         <div class="btn-group mt-3">
@@ -234,22 +250,22 @@
         </div>
       </div>
     </div>
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
         <span data-i18n="timed_tasks">Timed Tasks</span>
-        <button class="btn btn-sm btn-danger" onclick="clearAllTasks()" data-i18n="btn_clear_all">Clear All</button>
+        <button class="btn btn-sm btn-danger" onclick="clearScheduledTasks()" data-i18n="btn_clear_all">Clear All</button>
       </div>
       <div class="card-body" id="taskListScheduled">
-        <div class="text-center" style="padding:24px;color:var(--fg-dim)">No scheduled tasks</div>
+        <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="no_scheduled">No scheduled tasks</div>
       </div>
     </div>
     <div class="card">
-      <div class="card-head" data-i18n="loop_tasks">Loop Tasks</div>
-      <div class="card-body" id="taskListLoop">
-        <div class="text-center" style="padding:24px;color:var(--fg-dim)">No loop tasks</div>
+      <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+        <span data-i18n="loop_tasks">Loop Tasks</span>
+        <button class="btn btn-sm btn-danger" onclick="clearLoopTasks()" data-i18n="btn_clear_all">Clear All</button>
       </div>
-    </div>
-        <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="loading">Loading...</div>
+      <div class="card-body" id="taskListLoop">
+        <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="no_loop">No loop tasks</div>
       </div>
     </div>
   </div>
@@ -663,26 +679,36 @@ function setTaskOnce(){taskRepeatDays=0;document.querySelectorAll('#taskRepeat .
 function toggleLoopFields(){
   var isLoop=document.getElementById('taskType').value==='loop';
   document.getElementById('loopFields').style.display=isLoop?'block':'none';
-  document.getElementById('repeatGroup').style.display=isLoop?'none':'block';
+  document.getElementById('scheduleFields').style.display=isLoop?'none':'block';
 }
 function addTask(){
-  var timeVal=document.getElementById('taskTime').value;
-  if(!timeVal){toast('Set time');return;}
-  var parts=timeVal.split(':');
-  var hh=parseInt(parts[0]),mm=parseInt(parts[1]);
-  var now=new Date();
-  var target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);
-  if(target<=now)target.setDate(target.getDate()+1);
-  var ts=Math.floor(target.getTime()/1000);
   var socket=parseInt(document.getElementById('taskSocket').value);
   var on=parseInt(document.getElementById('taskAction').value);
   var isLoop=document.getElementById('taskType').value==='loop';
   var body;
   if(isLoop){
+    var st=document.getElementById('loopStartTime').value;
+    var et=document.getElementById('loopEndTime').value;
+    if(!st||!et){toast('Set start and end time');return;}
+    var sp=st.split(':'),ep=et.split(':');
+    var startMin=parseInt(sp[0])*60+parseInt(sp[1]);
+    var endMin=parseInt(ep[0])*60+parseInt(ep[1]);
+    var now=new Date();
+    var startTs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),parseInt(sp[0]),parseInt(sp[1]),0);
+    if(startTs<=now)startTs.setDate(startTs.getDate()+1);
+    var ts=Math.floor(startTs.getTime()/1000);
     var dur=parseInt(document.getElementById('loopDuration').value)||5;
     var interval=parseInt(document.getElementById('loopInterval').value)||10;
-    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval;
+    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin;
   }else{
+    var timeVal=document.getElementById('taskTime').value;
+    if(!timeVal){toast('Set time');return;}
+    var parts=timeVal.split(':');
+    var hh=parseInt(parts[0]),mm=parseInt(parts[1]);
+    var now=new Date();
+    var target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);
+    if(target<=now)target.setDate(target.getDate()+1);
+    var ts=Math.floor(target.getTime()/1000);
     body=ts+' '+socket+' '+on+' '+taskRepeatDays;
   }
   post('/task',body,function(e,r){
@@ -692,7 +718,7 @@ function addTask(){
 }
 function fetchTasks(){
   api('/task',function(e,d){
-    if(e){document.getElementById('taskList').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">Failed to load</div>';return;}
+    if(e){document.getElementById('taskListScheduled').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">Failed to load</div>';return;}
     var arr=p(d);S.tasks=Array.isArray(arr)?arr:[];renderTasks();
   });
 }
@@ -704,11 +730,12 @@ function renderTasks(){
     if(t.is_loop)loop.push(t);else scheduled.push(t);
   });
   var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  function renderRow(t){
+  function renderRow(t,isLoopTable){
     var wk=t.weekday||0;
     var rStr='';
     if(t.is_loop){
-      rStr='Loop '+t.loop_duration+'m / '+t.loop_interval+'m';
+      var endStr=t.loop_end!=null?(String(Math.floor(t.loop_end/60)).padStart(2,'0')+':'+String(t.loop_end%60).padStart(2,'0')):'--:--';
+      rStr=t.loop_duration+'m / '+t.loop_interval+'m  '+endStr;
     }else if(wk===127)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
@@ -721,17 +748,17 @@ function renderTasks(){
   }
   if(scheduled.length){
     var h='<table class="tbl"><thead><tr><th>Time</th><th>Socket</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
-    scheduled.forEach(function(t){h+=renderRow(t);});
+    scheduled.forEach(function(t){h+=renderRow(t,false);});
     h+='</tbody></table>';elS.innerHTML=h;
   }else{
-    elS.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No scheduled tasks</div>';
+    elS.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="no_scheduled">No scheduled tasks</div>';
   }
   if(loop.length){
-    var h='<table class="tbl"><thead><tr><th>Time</th><th>Socket</th><th>Action</th><th>Loop</th><th></th></tr></thead><tbody>';
-    loop.forEach(function(t){h+=renderRow(t);});
+    var h='<table class="tbl"><thead><tr><th>Start</th><th>Socket</th><th>Action</th><th>Loop (dur/int/end)</th><th></th></tr></thead><tbody>';
+    loop.forEach(function(t){h+=renderRow(t,true);});
     h+='</tbody></table>';elL.innerHTML=h;
   }else{
-    elL.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No loop tasks</div>';
+    elL.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="no_loop">No loop tasks</div>';
   }
 }
 
@@ -934,6 +961,8 @@ function doFactoryReset(){
 }
 function delTask(ts){if(confirm('Delete task?'))del('/task/'+ts,function(){fetchTasks();});}
 function clearAllTasks(){if(confirm('Clear ALL tasks?'))post('/task/clear','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('All tasks cleared');fetchTasks();});}
+function clearScheduledTasks(){if(confirm('Clear all scheduled tasks?'))post('/task/clear/scheduled','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('Scheduled tasks cleared');fetchTasks();});}
+function clearLoopTasks(){if(confirm('Clear all loop tasks?'))post('/task/clear/loop','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('Loop tasks cleared');fetchTasks();});}
 
 /* ── Utilities ── */
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
@@ -951,7 +980,8 @@ var i18nData={
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
     timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_socket:'Socket',task_action:'Action',task_repeat:'Repeat',
-    loop_duration:'Duration (min)',loop_interval:'Interval (min)',
+    loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
+    no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
@@ -973,7 +1003,8 @@ var i18nData={
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
     timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_socket:'插座',task_action:'动作',task_repeat:'重复',
-    loop_duration:'持续 (分)',loop_interval:'间隔 (分)',
+    loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
+    no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',

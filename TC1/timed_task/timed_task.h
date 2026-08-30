@@ -29,6 +29,7 @@ struct TimedTask
     int operation;  //要进行的操作
     int on;          //开或者关，-1=切换
     int weekday;     //星期重复 或 循环编码
+    int loop_end;    //循环任务结束时间（分钟 since midnight），非循环任务=0
     pTimedTask next; //下一个任务(按之间排序)
 };
 
@@ -43,3 +44,5 @@ void TaskUnlock(void);
 void TaskModuleInit(void);
 void RebuildTaskList(void);
 void ClearAllTasks(void);
+void ClearLoopTasks(void);
+void ClearScheduledTasks(void);
