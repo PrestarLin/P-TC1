@@ -249,14 +249,13 @@ void ProcessTask()
         int saved_op = user_config->task_top->operation;
         int saved_on = user_config->task_top->on;
         int saved_wd = user_config->task_top->weekday;
-        time_t next;
+        int delay_sec = (duration > 0 ? duration : 1) * 60;
+        if (delay_sec < 60) delay_sec = 60;
+        time_t next = time(NULL) + delay_sec;
         if (saved_on >= 0) {
-            next = user_config->task_top->prs_time + (duration > 0 ? duration : 1) * 60;
             saved_on = (saved_on == 0) ? 1 : 0;
-        } else {
-            next = user_config->task_top->prs_time + (duration > 0 ? duration : 1) * 60;
         }
-        task_log("loop reschedule: next=%ld on=%d", next, saved_on);
+        task_log("loop reschedule: next=%ld on=%d delay=%d", next, saved_on, delay_sec);
         DelFirstTask();
         pTimedTask newTask = NewTask();
         if (newTask) {
@@ -266,6 +265,7 @@ void ProcessTask()
             newTask->weekday = saved_wd;
             AddTask(newTask);
         }
+        mico_system_context_update(sys_config);
         return;
     }
 
