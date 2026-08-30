@@ -49,7 +49,7 @@
   <div class="nav-section" data-i18n="nav_management">Management</div>
   <div class="nav-item" data-page="schedule">
     <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-    <span data-i18n="nav_schedule">Schedule</span>
+    <span data-i18n="nav_tasks">Tasks</span>
   </div>
 
   <div class="nav-item" data-page="network">
@@ -195,15 +195,17 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" data-i18n="task_socket">Socket</label>
+            <label class="form-label" data-i18n="task_device">Device</label>
             <select class="form-select" id="taskSocket">
-              <option value="0">All Sockets</option>
+              <option value="7">All Sockets</option>
               <option value="1">Socket 1</option>
               <option value="2">Socket 2</option>
               <option value="3">Socket 3</option>
               <option value="4">Socket 4</option>
               <option value="5">Socket 5</option>
               <option value="6">Socket 6</option>
+              <option value="8">LED</option>
+              <option value="9">Child Lock</option>
             </select>
           </div>
           <div class="form-group">
@@ -748,22 +750,22 @@ function renderTasks(){
     }else if(wk===127)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
-    var sockStr='All';
-    if(t.operation>=1&&t.operation<=6)sockStr='Socket '+t.operation;
+    var devMap={7:'All Sockets',8:'LED',9:'Child Lock'};
+    var sockStr=devMap[t.operation]||('Socket '+t.operation);
     var act=t.on===-1?'Toggle':(t.on?'On':'Off');
     var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
     return '<tr><td>'+ts+'</td><td>'+sockStr+'</td><td>'+act+'</td><td>'+rStr+'</td>'
       +'<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   }
   if(scheduled.length){
-    var h='<table class="tbl"><thead><tr><th>Time</th><th>Socket</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
+    var h='<table class="tbl"><thead><tr><th>Time</th><th>Device</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
     scheduled.forEach(function(t){h+=renderRow(t,false);});
     h+='</tbody></table>';elS.innerHTML=h;
   }else{
     elS.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="no_scheduled">No scheduled tasks</div>';
   }
   if(loop.length){
-    var h='<table class="tbl"><thead><tr><th>Start</th><th>Socket</th><th>Action</th><th>Loop (dur/int/end)</th><th></th></tr></thead><tbody>';
+    var h='<table class="tbl"><thead><tr><th>Start</th><th>Device</th><th>Action</th><th>Loop (dur/int/end)</th><th></th></tr></thead><tbody>';
     loop.forEach(function(t){h+=renderRow(t,true);});
     h+='</tbody></table>';elL.innerHTML=h;
   }else{
@@ -1013,13 +1015,13 @@ var i18nData={
   en:{
     connecting:'Connecting...',offline:'Offline',online:'Online',
     nav_control:'Control',nav_status:'Status',nav_sockets:'Sockets',nav_power:'Power',
-    nav_management:'Management',nav_schedule:'Schedule',
+    nav_management:'Management',nav_tasks:'Tasks',
     nav_network:'Network',nav_log:'Log',nav_settings:'Settings',
     kpi_power:'Power (W)',kpi_voltage:'Voltage (V)',kpi_current:'Current (mA)',kpi_uptime:'Uptime',
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
-    timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_socket:'Socket',task_action:'Action',task_repeat:'Repeat',
+    timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_device:'Device',task_action:'Action',task_repeat:'Repeat',
     loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
     no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
@@ -1037,13 +1039,13 @@ var i18nData={
   zh:{
     connecting:'连接中...',offline:'离线',online:'在线',
     nav_control:'控制',nav_status:'状态',nav_sockets:'插座',nav_power:'功率',
-    nav_management:'管理',nav_schedule:'定时',
+    nav_management:'管理',nav_tasks:'任务',
     nav_network:'网络',nav_log:'日志',nav_settings:'设置',
     kpi_power:'功率 (W)',kpi_voltage:'电压 (V)',kpi_current:'电流 (mA)',kpi_uptime:'运行时间',
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
-    timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_socket:'插座',task_action:'动作',task_repeat:'重复',
+    timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_device:'设备',task_action:'动作',task_repeat:'重复',
     loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
     no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
