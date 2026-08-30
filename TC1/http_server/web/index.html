@@ -564,8 +564,7 @@ function renderTasks(){
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
     var act=t.operation<=1?(t.on?'On':'Off'):'Op'+t.operation;
-    var td=new Date(t.prs_time*1000);
-    var ts=String(td.getHours()).padStart(2,'0')+':'+String(td.getMinutes()).padStart(2,'0');
+    var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
     h+='<tr><td>'+ts+'</td><td>'+act+'</td><td>'+rStr+'</td>';
     h+='<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   });
