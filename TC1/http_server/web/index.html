@@ -249,15 +249,24 @@
             <input class="form-input" id="mqttPort" type="number" value="1883">
           </div>
           <div class="form-group">
+            <label class="form-label">Report Freq (s)</label>
+            <input class="form-input" id="mqttFreq" type="number" value="2">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label class="form-label">Username</label>
             <input class="form-input" id="mqttUser">
           </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input class="form-input" id="mqttPass" type="password">
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Password</label>
-          <input class="form-input" id="mqttPass" type="password">
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="saveMqtt()">Save MQTT</button>
+          <button class="btn btn-primary" onclick="saveMqttFreq()">Save Freq</button>
         </div>
-        <button class="btn btn-primary btn-block" onclick="saveMqtt()">Save MQTT</button>
       </div>
     </div>
   </div>
@@ -322,8 +331,7 @@
 </main>
 
 <script>
-/* ── State ── */
-var S={connected:false,page:'status',sockets:[],socketNames:[],tasks:[],power:[],sysname:'',btnClicks:[]};
+var S={page:'status',sockets:[],socketNames:[],tasks:[],power:[],powerIdx:0,deviceName:''};
 
 /* ── Navigation ── */
 var navItems=document.querySelectorAll('.nav-item[data-page]');
@@ -336,88 +344,65 @@ navItems.forEach(function(el){
     var target=document.getElementById('page-'+p);
     if(target)target.classList.add('active');
     S.page=p;
-    if(p==='status')fetchStatus();
-    if(p==='sockets')fetchStatus();
+    if(p==='status'||p==='sockets'||p==='power'||p==='settings')fetchPower();
     if(p==='schedule')fetchTasks();
-    if(p==='log')refreshLog();
+    if(p==='log')fetchLog();
     if(p==='network')fetchStatus();
     if(p==='ota')fetchOtaStatus();
-    if(p==='power')fetchStatus();
-    if(p==='settings')fetchStatus();
   });
 });
 
-/* Mobile sidebar toggle */
 var menuBtn=document.getElementById('menuToggle');
 var sidebar=document.getElementById('sidebar');
 function checkMobile(){menuBtn.style.display=window.innerWidth<=768?'flex':'none'}
 window.addEventListener('resize',checkMobile);checkMobile();
 menuBtn.addEventListener('click',function(){sidebar.classList.toggle('open')});
 
-/* ── Fetch helpers ── */
+/* ── HTTP helpers ── */
 function api(u,cb){
-  var x=new XMLHttpRequest();
-  x.open('GET',u,true);
-  x.timeout=8000;
-  x.onreadystatechange=function(){
-    if(x.readyState===4){
-      if(x.status===200)cb(null,x.responseText);
-      else cb(new Error('HTTP '+x.status));
-    }
-  };
-  x.onerror=function(){cb(new Error('Network'))};
-  x.ontimeout=function(){cb(new Error('Timeout'))};
-  x.send();
+  var x=new XMLHttpRequest();x.open('GET',u,true);x.timeout=8000;
+  x.onreadystatechange=function(){if(x.readyState===4){if(x.status===200)cb(null,x.responseText);else cb(new Error('HTTP '+x.status));}};
+  x.onerror=function(){cb(new Error('Network'))};x.ontimeout=function(){cb(new Error('Timeout'))};x.send();
 }
-
 function post(u,body,cb){
-  var x=new XMLHttpRequest();
-  x.open('POST',u,true);
-  x.timeout=10000;
-  x.onreadystatechange=function(){
-    if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);
-  };
-  x.onerror=function(){cb(new Error('Network'))};
-  x.send(body);
+  var x=new XMLHttpRequest();x.open('POST',u,true);x.timeout=10000;
+  x.onreadystatechange=function(){if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);};
+  x.onerror=function(){cb(new Error('Network'))};x.send(body);
 }
-
 function del(u,cb){
-  var x=new XMLHttpRequest();
-  x.open('DELETE',u,true);
-  x.timeout=10000;
-  x.onreadystatechange=function(){
-    if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);
-  };
-  x.onerror=function(){cb(new Error('Network'))};
-  x.send();
+  var x=new XMLHttpRequest();x.open('DELETE',u,true);x.timeout=10000;
+  x.onreadystatechange=function(){if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);};
+  x.onerror=function(){cb(new Error('Network'))};x.send();
 }
+function p(s){try{return JSON.parse(s.replace(/'/g,'"'));}catch(e){return null;}}
 
-/* Parse single-quote JSON (backend uses ' not ") */
-function parseJson(s){
-  try{return JSON.parse(s.replace(/'/g,'"'));}catch(e){return null;}
+/* ── Toggle helpers ── */
+function initToggle(id,cb){
+  var el=document.getElementById(id);if(!el)return;
+  el.addEventListener('click',function(){el.classList.toggle('on');if(cb)cb(el.classList.contains('on'));});
+  el.addEventListener('keydown',function(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();el.click();}});
 }
+function setToggle(id,on){var el=document.getElementById(id);if(el){if(on)el.classList.add('on');else el.classList.remove('on');}}
 
-/* ── Toggle helper ── */
-function initToggle(id,onChange){
-  var el=document.getElementById(id);
-  if(!el)return;
-  el.addEventListener('click',function(){
-    el.classList.toggle('on');
-    if(onChange)onChange(el.classList.contains('on'));
-  });
-  el.addEventListener('keydown',function(e){
-    if(e.key===' '||e.key==='Enter'){e.preventDefault();el.click();}
-  });
-}
-function setToggle(id,on){
-  var el=document.getElementById(id);
-  if(el){if(on)el.classList.add('on');else el.classList.remove('on');}
-}
-
-/* ── Status Page (single /power call gets everything) ── */
+/* ── GET /status → device info, wifi, mqtt config ── */
 function fetchStatus(){
-  /* /power POST with idx=0 returns POWER_INFO_JSON */
-  post('/power','0',function(e,d){
+  api('/status',function(e,d){
+    if(e)return;
+    var j=p(d);if(!j)return;
+    document.getElementById('infoFw').textContent=j.version||'--';
+    document.getElementById('infoIp').textContent=j.ip||'--';
+    document.getElementById('infoWifi').textContent=j.station_ssid||'--';
+    document.getElementById('mqttHost').value=j.mqtt_addr||'';
+    document.getElementById('mqttPort').value=j.mqtt_port||1883;
+    document.getElementById('mqttUser').value=j.mqtt_usr||'';
+    document.getElementById('mqttFreq').value=j.reportFreq||2;
+    document.getElementById('wifiSsid').value=j.station_ssid||'';
+  });
+}
+
+/* ── POST /power → power data + sockets + deviceName ── */
+function fetchPower(){
+  post('/power',S.powerIdx.toString(),function(e,d){
     if(e){
       document.getElementById('connDot').classList.add('offline');
       document.getElementById('connText').textContent='Offline';
@@ -425,131 +410,90 @@ function fetchStatus(){
     }
     document.getElementById('connDot').classList.remove('offline');
     document.getElementById('connText').textContent='Online';
-    var j=parseJson(d);
-    if(!j)return;
-    S.connected=true;
+    var j=p(d);if(!j)return;
 
-    /* KPI */
+    S.powerIdx=j.idx+1;
+
     var powers=j.powers||[];
-    var latest=powers.length>0?powers[powers.length-1]:0;
-    document.getElementById('kPower').textContent=latest;
-    document.getElementById('chartLive').textContent=latest+' W';
-
-    /* Parse sockets "0,1,0,..." */
-    var sockArr=(j.sockets||'').split(',').map(Number);
-    S.sockets=sockArr;
-
-    /* Parse socket names */
-    var names=(j.socketNames||'').split(',');
-    S.socketNames=names;
-
-    /* Status fields */
+    var latest=0;
+    if(powers.length>0)latest=powers[powers.length-1]/10;
+    document.getElementById('kPower').textContent=latest.toFixed(1);
+    document.getElementById('chartLive').textContent=latest.toFixed(1)+' W';
     document.getElementById('kUptime').textContent=j.up_time||'--';
     document.getElementById('kVoltage').textContent='--';
     document.getElementById('kCurrent').textContent='--';
+
     setToggle('togMaster',j.total_switch_on===1);
     setToggle('togLed',j.led_enabled===1);
     setToggle('togLock',j.child_lock_enabled===1);
 
-    /* Device info */
-    document.getElementById('infoFw').textContent=j.version||'--';
-    document.getElementById('infoWifi').textContent='--';
-    document.getElementById('infoIp').textContent='--';
-    document.getElementById('infoMac').textContent='--';
-    document.getElementById('setName').value=j.deviceName||'';
-    setToggle('setClick',j.btnClicks==='1');
+    var sockArr=(j.sockets||'').split(',').filter(function(s){return s!=='';}).map(Number);
+    S.sockets=sockArr;
+    S.socketNames=(j.socketNames||'').split(',');
+    S.deviceName=j.deviceName||'';
+    document.title=S.deviceName;
 
-    /* Power chart data */
-    S.power=powers.map(Number);
-    if(S.power.length>120)S.power=S.power.slice(-120);
+    powers.forEach(function(v){S.power.push(v/10);});
+    if(S.power.length>1000)S.power=S.power.slice(-1000);
     drawChart();
 
-    /* Update sub-pages if visible */
     if(S.page==='sockets')renderSockets();
     if(S.page==='power'){
-      document.getElementById('pRecord').textContent=j.idx||'--';
-      document.getElementById('pToday').textContent=j.p_count||'--';
+      var w_total=(17.1*j.p_count)/1000/36000;
+      var w_today=(17.1*(j.p_count-j.p_count_1_day_ago))/1000/36000;
+      var w_yest=(17.1*(j.p_count_1_day_ago-j.p_count_2_days_ago))/1000/36000;
+      if(w_today<0)w_today=0;if(w_yest<0)w_yest=0;
+      document.getElementById('pRecord').textContent=latest.toFixed(2);
+      document.getElementById('pToday').textContent=w_today.toFixed(3);
+      document.getElementById('pMonth').textContent=w_total.toFixed(3);
     }
-    if(S.page==='settings'){
-      document.getElementById('setName').value=j.deviceName||'';
-    }
+    if(S.page==='settings')document.getElementById('setName').value=S.deviceName;
   });
 }
 
-/* ── Power Chart (Canvas) ── */
+/* ── Power Chart ── */
 function drawChart(){
-  var canvas=document.getElementById('powerCanvas');
-  if(!canvas)return;
+  var canvas=document.getElementById('powerCanvas');if(!canvas)return;
   var ctx=canvas.getContext('2d');
   var dpr=window.devicePixelRatio||1;
   var rect=canvas.parentElement.getBoundingClientRect();
-  canvas.width=rect.width*dpr;
-  canvas.height=rect.height*dpr;
-  canvas.style.width=rect.width+'px';
-  canvas.style.height=rect.height+'px';
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  canvas.style.width=rect.width+'px';canvas.style.height=rect.height+'px';
   ctx.scale(dpr,dpr);
   var w=rect.width,h=rect.height;
   var pad={t:30,r:10,b:24,l:40};
   var cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
-
   ctx.clearRect(0,0,w,h);
-
-  var data=S.power;
-  if(data.length<2)return;
-
-  var max=0;
-  for(var i=0;i<data.length;i++){if(data[i]>max)max=data[i];}
+  var data=S.power;if(data.length<2)return;
+  var max=0;for(var i=0;i<data.length;i++){if(data[i]>max)max=data[i];}
   max=max*1.2||100;
-
-  ctx.strokeStyle='rgba(71,85,105,0.3)';
-  ctx.lineWidth=0.5;
+  ctx.strokeStyle='rgba(71,85,105,0.3)';ctx.lineWidth=0.5;
   for(var g=0;g<=4;g++){
     var gy=pad.t+ch*(1-g/4);
     ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(pad.l+cw,gy);ctx.stroke();
     ctx.fillStyle='#64748B';ctx.font='10px sans-serif';ctx.textAlign='right';
     ctx.fillText(Math.round(max*g/4),pad.l-6,gy+3);
   }
-
   var grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
-  grad.addColorStop(0,'rgba(34,197,94,0.35)');
-  grad.addColorStop(1,'rgba(34,197,94,0.02)');
+  grad.addColorStop(0,'rgba(34,197,94,0.35)');grad.addColorStop(1,'rgba(34,197,94,0.02)');
   ctx.beginPath();
   for(var i=0;i<data.length;i++){
-    var x=pad.l+(i/(data.length-1))*cw;
-    var y=pad.t+ch*(1-data[i]/max);
+    var x=pad.l+(i/(data.length-1))*cw;var y=pad.t+ch*(1-data[i]/max);
     if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
-  ctx.lineTo(pad.l+cw,pad.t+ch);
-  ctx.lineTo(pad.l,pad.t+ch);
-  ctx.closePath();
-  ctx.fillStyle=grad;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.strokeStyle='#22C55E';
-  ctx.lineWidth=2;
-  ctx.lineJoin='round';
+  ctx.lineTo(pad.l+cw,pad.t+ch);ctx.lineTo(pad.l,pad.t+ch);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();ctx.strokeStyle='#22C55E';ctx.lineWidth=2;ctx.lineJoin='round';
   for(var i=0;i<data.length;i++){
-    var x=pad.l+(i/(data.length-1))*cw;
-    var y=pad.t+ch*(1-data[i]/max);
+    var x=pad.l+(i/(data.length-1))*cw;var y=pad.t+ch*(1-data[i]/max);
     if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
   ctx.stroke();
-
-  var lastX=pad.l+cw;
-  var lastY=pad.t+ch*(1-data[data.length-1]/max);
-  ctx.beginPath();
-  ctx.arc(lastX,lastY,4,0,Math.PI*2);
-  ctx.fillStyle='#22C55E';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(lastX,lastY,7,0,Math.PI*2);
-  ctx.strokeStyle='rgba(34,197,94,0.4)';
-  ctx.lineWidth=2;
-  ctx.stroke();
+  var lastX=pad.l+cw;var lastY=pad.t+ch*(1-data[data.length-1]/max);
+  ctx.beginPath();ctx.arc(lastX,lastY,4,0,Math.PI*2);ctx.fillStyle='#22C55E';ctx.fill();
+  ctx.beginPath();ctx.arc(lastX,lastY,7,0,Math.PI*2);ctx.strokeStyle='rgba(34,197,94,0.4)';ctx.lineWidth=2;ctx.stroke();
 }
 
-/* ── Sockets ── */
+/* ── Sockets page ── */
 function renderSockets(){
   var el=document.getElementById('socketList');
   if(!S.sockets.length){el.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No sockets</div>';return;}
@@ -560,7 +504,8 @@ function renderSockets(){
     h+='<div class="socket-icon"><svg viewBox="0 0 24 24"><path d="M18 7V4H6v3H2v13h20V7h-4z"/></svg></div>';
     h+='<span class="socket-name truncate">'+esc(name)+'</span>';
     h+='<span class="socket-status '+(s?'on':'off')+'">'+(s?'ON':'OFF')+'</span>';
-    h+='<button class="socket-edit" onclick="toggleSocket('+i+','+(s?0:1)+')" aria-label="Toggle"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53A6.95 6.95 0 0112 19z"/></svg></button>';
+    h+='<button class="socket-edit" onclick="toggleSocket('+i+')" aria-label="Toggle">';
+    h+='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53A6.95 6.95 0 0112 19z"/></svg></button>';
     h+='</div>';
   });
   el.innerHTML=h;
@@ -568,12 +513,9 @@ function renderSockets(){
 
 /* ── Tasks ── */
 function fetchTasks(){
-  /* /task GET returns JSON array like [{'timestamp':..,'prs_time':'..','operation':..,'on':..,'weekday':..}] */
   api('/task',function(e,d){
     if(e){document.getElementById('taskList').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">Failed to load</div>';return;}
-    var arr=parseJson(d);
-    S.tasks=Array.isArray(arr)?arr:[];
-    renderTasks();
+    var arr=p(d);S.tasks=Array.isArray(arr)?arr:[];renderTasks();
   });
 }
 function renderTasks(){
@@ -586,47 +528,34 @@ function renderTasks(){
     var rStr='';
     if(wk===127)rStr='Daily';
     else if(wk===0)rStr='Once';
-    else{
-      var ds=[];
-      for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}
-      rStr=ds.join(', ')||'None';
-    }
+    else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
     var act=t.operation<=1?(t.on?'On':'Off'):'Op'+t.operation;
-    h+='<tr><td>'+esc(t.prs_time||'--')+'</td>';
-    h+='<td>'+act+'</td>';
-    h+='<td>'+rStr+'</td>';
+    h+='<tr><td>'+esc(t.prs_time||'--')+'</td><td>'+act+'</td><td>'+rStr+'</td>';
     h+='<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   });
-  h+='</tbody></table>';
-  el.innerHTML=h;
+  h+='</tbody></table>';el.innerHTML=h;
 }
 
 /* ── Log ── */
-function refreshLog(){
+function fetchLog(){
   api('/log',function(e,d){
     if(e){document.getElementById('logBox').innerHTML='<pre>Error loading log</pre>';return;}
     document.getElementById('logBox').innerHTML='<pre>'+esc(d)+'</pre>';
-    var box=document.getElementById('logBox');
-    box.scrollTop=box.scrollHeight;
+    var box=document.getElementById('logBox');box.scrollTop=box.scrollHeight;
   });
 }
 
 /* ── OTA ── */
 function fetchOtaStatus(){
-  api('/ota',function(e,d){
-    if(!e)document.getElementById('otaCurVer').textContent='Progress: '+d+'%';
-  });
+  api('/ota',function(e,d){if(!e)document.getElementById('otaCurVer').textContent='Progress: '+d+'%';});
   fetchStatus();
 }
 function startOta(){
-  var fileInput=document.getElementById('otaFile');
-  if(!fileInput.files.length)return;
+  var fileInput=document.getElementById('otaFile');if(!fileInput.files.length)return;
   var file=fileInput.files[0];
   var reader=new FileReader();
   reader.onload=function(e){
-    var x=new XMLHttpRequest();
-    x.open('POST','/ota/fileUpload',true);
-    x.timeout=120000;
+    var x=new XMLHttpRequest();x.open('POST','/ota/fileUpload',true);x.timeout=120000;
     x.upload.onprogress=function(ev){
       if(ev.lengthComputable){
         var pct=Math.round(ev.loaded/ev.total*100);
@@ -635,25 +564,23 @@ function startOta(){
         document.getElementById('otaStatus').textContent='Uploading: '+pct+'%';
       }
     };
-    x.onload=function(){
-      document.getElementById('otaStatus').textContent=x.status===200?'Upload complete, rebooting...':'Error: '+x.status;
-    };
+    x.onload=function(){document.getElementById('otaStatus').textContent=x.status===200?'Upload complete, rebooting...':'Error: '+x.status;};
     x.onerror=function(){document.getElementById('otaStatus').textContent='Upload failed';};
-    document.getElementById('otaBtn').disabled=true;
-    document.getElementById('otaStatus').textContent='Uploading...';
+    document.getElementById('otaBtn').disabled=true;document.getElementById('otaStatus').textContent='Uploading...';
     x.send(e.target.result);
   };
   reader.readAsArrayBuffer(file);
 }
-document.getElementById('otaFile').addEventListener('change',function(){
-  document.getElementById('otaBtn').disabled=!this.files.length;
-});
+document.getElementById('otaFile').addEventListener('change',function(){document.getElementById('otaBtn').disabled=!this.files.length;});
 
 /* ── Actions ── */
-function toggleSocket(i,on){post('/socket',i+' '+on,function(e){if(!e)fetchStatus();});}
-function toggleMaster(on){post('/socketAll',on?'1':'0',function(e){if(!e)fetchStatus();});}
-function toggleLed(on){post('/led',on?'1':'0',function(e){if(!e)fetchStatus();});}
-function toggleLock(on){post('/childLock',on?'1':'0',function(e){if(!e)fetchStatus();});}
+function toggleSocket(i){
+  S.sockets[i]=S.sockets[i]?0:1;
+  post('/socket',S.sockets.join(',')+',',function(e){if(!e)fetchPower();});
+}
+function toggleMaster(on){post('/socketAll',on?'1':'0',function(e){if(!e)fetchPower();});}
+function toggleLed(on){post('/led',on?'1':'0',function(e){if(!e)fetchPower();});}
+function toggleLock(on){post('/childLock',on?'1':'0',function(e){if(!e)fetchPower();});}
 
 initToggle('togMaster',toggleMaster);
 initToggle('togLed',toggleLed);
@@ -662,7 +589,8 @@ initToggle('togLock',toggleLock);
 function saveWifi(){
   var ssid=document.getElementById('wifiSsid').value;
   var pass=document.getElementById('wifiPass').value;
-  post('/wifi/config','1 '+enc(ssid)+' '+enc(pass),function(e){
+  if(pass.length<8){alert('Password must be >= 8 chars');return;}
+  post('/wifi/config','1 '+encodeURIComponent(ssid)+' '+encodeURIComponent(pass),function(e){
     toast(e?'Error':'Saved. Rebooting...');
   });
 }
@@ -670,32 +598,32 @@ function scanWifi(){
   document.getElementById('wifiScanResult').textContent='Scanning...';
   post('/wifi/scan','',function(e){
     if(e){document.getElementById('wifiScanResult').textContent='Scan failed';return;}
-    setTimeout(function(){
+    setTimeout(function pollScan(){
       api('/wifi/scan',function(e2,d){
-        if(e2){document.getElementById('wifiScanResult').textContent='No results';return;}
-        var lines=d.split('\n');
+        if(e2||d==='NO'){setTimeout(pollScan,1000);return;}
+        var j=p(d);
+        if(!j||!j.ssids){document.getElementById('wifiScanResult').textContent='No results';return;}
         var h='';
-        lines.forEach(function(line){
-          if(!line.trim())return;
-          var parts=line.trim().split(' ');
-          if(parts.length>=2){
-            h+='<div class="toggle-row" style="cursor:pointer" onclick="document.getElementById(\'wifiSsid\').value=\''+esc(parts[0])+'\'">';
-            h+='<span>'+esc(parts[0])+'</span>';
-            h+='<span style="color:var(--fg-dim)">'+parts[1]+' dBm</span></div>';
-          }
+        j.ssids.forEach(function(ssid){
+          h+='<div class="toggle-row" style="cursor:pointer" onclick="document.getElementById(\'wifiSsid\').value=\''+esc(ssid)+'\'">';
+          h+='<span>'+esc(ssid)+'</span></div>';
         });
-        document.getElementById('wifiScanResult').innerHTML=h||'No networks found';
+        document.getElementById('wifiScanResult').innerHTML=h;
       });
-    },2000);
+    },1000);
   });
 }
-
 function saveMqtt(){
   var h=document.getElementById('mqttHost').value;
-  var p=document.getElementById('mqttPort').value;
+  var pt=document.getElementById('mqttPort').value;
   var u=document.getElementById('mqttUser').value;
   var pw=document.getElementById('mqttPass').value;
-  post('/mqtt/config',h+' '+p+' '+enc(u)+' '+enc(pw),function(e){toast(e?'Error':'MQTT Saved');});
+  post('/mqtt/config',h+' '+pt+' '+u+' '+pw,function(e){toast(e?'Error':'MQTT Saved');});
+}
+function saveMqttFreq(){
+  var f=document.getElementById('mqttFreq').value;
+  if(!f||f==0)f=1;
+  post('/mqtt/report/freq',f.toString(),function(e){toast(e?'Error':'Frequency Saved');});
 }
 function saveDeviceName(){
   post('/deviceName',document.getElementById('setName').value,function(e){toast(e?'Error':'Saved');});
@@ -706,20 +634,12 @@ function openAddTask(){toast('Use MQTT or API to add tasks');}
 
 /* ── Utilities ── */
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function enc(s){return encodeURIComponent(s);}
-
-function toast(msg){
-  var t=document.createElement('div');
-  t.className='toast';t.textContent=msg;
-  document.body.appendChild(t);
-  setTimeout(function(){t.remove();},3000);
-}
+function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}
 
 /* ── Init ── */
 fetchStatus();
-setInterval(function(){
-  if(S.page==='status')fetchStatus();
-},2000);
+fetchPower();
+setInterval(function(){if(S.page==='status'||S.page==='sockets'||S.page==='power')fetchPower();},3000);
 </script>
 </body>
 </html>
