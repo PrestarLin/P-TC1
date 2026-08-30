@@ -3,6 +3,7 @@
 
 #include "mico.h"
 #include "micokit_ext.h"
+#include "timed_task/timed_task.h"
 
 #define app_log(M, ...) custom_log("APP", M, ##__VA_ARGS__); web_log("APP", M, ##__VA_ARGS__);
 #define key_log(M, ...) custom_log("KEY", M, ##__VA_ARGS__); web_log("KEY", M, ##__VA_ARGS__);

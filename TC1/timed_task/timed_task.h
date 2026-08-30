@@ -1,7 +1,6 @@
 #pragma once
 #include <time.h>
 #include <stdbool.h>
-#include "main.h"
 
 struct TimedTask;
 typedef struct TimedTask* pTimedTask;
