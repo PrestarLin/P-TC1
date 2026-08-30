@@ -28,7 +28,7 @@
 
 #define ZTC1_NAME "TC1-%s"
 
-#define USER_CONFIG_VERSION 11
+#define USER_CONFIG_VERSION 12
 #define SETTING_MQTT_STRING_LENGTH_MAX 32 //必须4字节对齐。
 
 /* 用户配置在 flash 上的固定落地大小（字节）。
@@ -104,7 +104,36 @@ typedef struct
     struct TimedTask timed_tasks[MAX_TASK_NUM];
 } user_config_v10_t;
 
-/* 当前活动布局：字段与 v10 一致（尚无字段新增/重排），末尾补齐到固定 CAP */
+/* 冻结：版本 11 布局（v10 + static IP 字段） */
+typedef struct
+{
+    char version;
+    char mqtt_ip[SETTING_MQTT_STRING_LENGTH_MAX];
+    char socket_names[SOCKET_NUM][SOCKET_NAME_LENGTH];
+    int mqtt_port;
+    int mqtt_report_freq;
+    char mqtt_user[SETTING_MQTT_STRING_LENGTH_MAX];
+    char mqtt_password[SETTING_MQTT_STRING_LENGTH_MAX];
+    char socket_status[SOCKET_NUM];
+    char user[maxNameLen];
+    char child_lock;
+    WiFiEvent last_wifi_status;
+    char ap_name[32];
+    char ap_key[32];
+    int task_count;
+    int p_count_2_days_ago;
+    int p_count_1_day_ago;
+    int power_led_enabled;
+    pTimedTask task_top;
+    struct TimedTask timed_tasks[MAX_TASK_NUM];
+    char ip_mode;
+    char static_ip[16];
+    char static_mask[16];
+    char static_gateway[16];
+    char static_dns[16];
+} user_config_v11_t;
+
+/* 当前活动布局：v12 = v11 + night mode */
 typedef struct
 {
     char version;
@@ -131,7 +160,10 @@ typedef struct
     char static_mask[16];
     char static_gateway[16];
     char static_dns[16];
-    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 65]; // 定长补齐，必须保持为最后一个字段
+    char night_mode_enabled;    // 0=off, 1=on
+    int  night_mode_start;      // minutes since midnight (0-1439)
+    int  night_mode_end;        // minutes since midnight (0-1439)
+    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 74]; // 定长补齐，必须保持为最后一个字段
 } user_config_t;
 
 #if defined(__GNUC__)
@@ -146,6 +178,8 @@ extern system_config_t* sys_config;
 extern user_config_t* user_config;
 extern mico_gpio_t Relay[Relay_NUM];
 extern int childLockEnabled;
+
+void CheckNightMode(void);
 
 
 #endif

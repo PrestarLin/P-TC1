@@ -397,6 +397,30 @@
         <button class="btn btn-primary btn-block" onclick="saveDeviceName()">Save Name</button>
       </div>
     </div>
+    <div class="card mb-4">
+      <div class="card-head" data-i18n="night_mode">Night Mode</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 auto">
+            <label class="toggle-track" id="nightModeTog" onclick="toggleNightMode()" role="switch" tabindex="0"><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="night_mode_hint">Turn off LED during night</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" data-i18n="night_start">Start</label>
+            <input class="form-input" id="nightStart" type="time" value="23:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="night_end">End</label>
+            <input class="form-input" id="nightEnd" type="time" value="07:00">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveNightMode()" style="margin-top:8px" data-i18n="btn_save_night">Save Night Mode</button>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head" style="color:var(--danger)">Danger Zone</div>
       <div class="card-body">
@@ -498,6 +522,10 @@ function fetchStatus(){
       document.getElementById('staticMask').value=j.static_mask||'';
       document.getElementById('staticGw').value=j.static_gateway||'';
       document.getElementById('staticDns').value=j.static_dns||'';
+    }
+    if(j.night_mode_enabled!==undefined){
+      S.nightMode={enabled:j.night_mode_enabled,start_h:j.night_mode_start/60|0,start_m:j.night_mode_start%60|0,end_h:j.night_mode_end/60|0,end_m:j.night_mode_end%60|0};
+      loadNightMode();
     }
   });
 }
@@ -872,6 +900,25 @@ function saveMqttFreq(){
 function saveDeviceName(){
   post('/deviceName',document.getElementById('setName').value,function(e){toast(e?'Error':'Saved');});
 }
+var nightModeOn=false;
+function toggleNightMode(){nightModeOn=!nightModeOn;setToggle('nightModeTog',nightModeOn);}
+function saveNightMode(){
+  var h=document.getElementById('nightStart').value.split(':');
+  var e=document.getElementById('nightEnd').value.split(':');
+  var body=(nightModeOn?1:0)+' '+h[0]+':'+h[1]+' '+e[0]+':'+e[1];
+  post('/night-mode',body,function(e){toast(e?'Error':'Saved');});
+}
+function loadNightMode(){
+  var nm=S.nightMode||{};
+  nightModeOn=!!nm.enabled;
+  setToggle('nightModeTog',nightModeOn);
+  if(nm.start_h!=null){
+    document.getElementById('nightStart').value=String(nm.start_h).padStart(2,'0')+':'+String(nm.start_m).padStart(2,'0');
+  }
+  if(nm.end_h!=null){
+    document.getElementById('nightEnd').value=String(nm.end_h).padStart(2,'0')+':'+String(nm.end_m).padStart(2,'0');
+  }
+}
 function rebootDevice(){if(confirm('Reboot device?'))post('/reboot','',function(){});}
 function showFactoryReset(){document.getElementById('factoryResetModal').style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
@@ -906,6 +953,7 @@ var i18nData={
     timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_socket:'Socket',task_action:'Action',task_repeat:'Repeat',
     loop_duration:'Duration (min)',loop_interval:'Interval (min)',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
+    night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
     broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
@@ -927,6 +975,7 @@ var i18nData={
     timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_socket:'插座',task_action:'动作',task_repeat:'重复',
     loop_duration:'持续 (分)',loop_interval:'间隔 (分)',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
+    night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',
     broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',

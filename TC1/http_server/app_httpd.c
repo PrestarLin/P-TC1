@@ -188,7 +188,10 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             user_config->static_gateway, user_config->static_dns,
             user_config->mqtt_report_freq,
             user_config->power_led_enabled, 0L, socket_names, childLockEnabled,
-            sys_config->micoSystemConfig.name, short_click_config);
+            sys_config->micoSystemConfig.name, short_click_config,
+            user_config->night_mode_enabled,
+            user_config->night_mode_start / 60, user_config->night_mode_start % 60,
+            user_config->night_mode_end / 60, user_config->night_mode_end % 60);
 
     OSStatus err = kNoErr;
     send_http(tc1_status, strlen(tc1_status), exit, &err);
@@ -898,6 +901,25 @@ static int OtaStart(httpd_request_t *req) {
     return err;
 }
 
+static int HttpSetNightMode(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    char buf[32] = {0};
+    err = httpd_get_data(req, buf, sizeof(buf));
+    require_noerr(err, exit);
+
+    int enabled = 0, start_h = 0, start_m = 0, end_h = 0, end_m = 0;
+    sscanf(buf, "%d %d:%d %d:%d", &enabled, &start_h, &start_m, &end_h, &end_m);
+
+    user_config->night_mode_enabled = enabled ? 1 : 0;
+    user_config->night_mode_start = (start_h * 60 + start_m) % 1440;
+    user_config->night_mode_end = (end_h * 60 + end_m) % 1440;
+    mico_system_context_update(sys_config);
+
+    send_http("OK", 2, exit, &err);
+    exit:
+    return err;
+}
+
 const struct httpd_wsgi_call g_app_handlers[] = {
         {"/",                 HTTPD_HDR_DEFORT, 0,                             HttpGetIndexPage, NULL,                       NULL, NULL},
         {"/assets", HTTPD_HDR_ADD_SERVER |
@@ -911,6 +933,7 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/mqtt/config",      HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetMqttConfig,     NULL, NULL},
         {"/reboot",           HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetRebootSystem,   NULL, NULL},
         {"/factory-reset",    HTTPD_HDR_DEFORT, 0, NULL,                                              HttpFactoryReset,      NULL, NULL},
+        {"/night-mode",       HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetNightMode,      NULL, NULL},
         {"/mqtt/report/freq", HTTPD_HDR_DEFORT, 0,                             HttpGetMqttReportFreq, HttpSetMqttReportFreq, NULL, NULL},
         {"/log",              HTTPD_HDR_DEFORT, 0,                             HttpGetLog,       NULL,                       NULL, NULL},
         {"/task/clear",       HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpClearTasks,        NULL, NULL},

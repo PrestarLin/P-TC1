@@ -172,8 +172,42 @@ bool user_config_migrate(void) {
         return true;
     }
 
+    if (old_version == 11) {
+        user_config_v11_t *v11 = (user_config_v11_t *) user_config;
+        user_config->night_mode_enabled = 0;
+        user_config->night_mode_start = 23 * 60;  /* 23:00 */
+        user_config->night_mode_end = 7 * 60;     /* 07:00 */
+        user_config->version = USER_CONFIG_VERSION;
+        mico_system_context_update(sys_config);
+        return true;
+    }
+
     tc1_log("WARNGIN: unsupported config version %d, restore to default!", old_version);
     return false;
+}
+
+static int GetMinutesSinceMidnight(void) {
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    if (!t) return -1;
+    return t->tm_hour * 60 + t->tm_min;
+}
+
+void CheckNightMode(void) {
+    if (!user_config->night_mode_enabled) return;
+    int now_min = GetMinutesSinceMidnight();
+    if (now_min < 0) return;
+    int start = user_config->night_mode_start;
+    int end = user_config->night_mode_end;
+    bool in_night;
+    if (start <= end) {
+        in_night = (now_min >= start && now_min < end);
+    } else {
+        in_night = (now_min >= start || now_min < end);
+    }
+    if (in_night) {
+        UserLedSet(0);
+    }
 }
 
 int application_start(void) {
@@ -219,6 +253,13 @@ int application_start(void) {
 
     childLockEnabled = user_config->child_lock;
     RebuildTaskList();
+
+    if (user_config->night_mode_start == 0 && user_config->night_mode_end == 0
+        && !user_config->night_mode_enabled) {
+        user_config->night_mode_enabled = 1;
+        user_config->night_mode_start = 23 * 60;
+        user_config->night_mode_end = 7 * 60;
+    }
 
     if (sys_config->micoSystemConfig.name[0] == 1) {
         sprintf(sys_config->micoSystemConfig.name, ZTC1_NAME, str_mac + 8);
@@ -273,6 +314,7 @@ int application_start(void) {
             ProcessTask();
         }
         TaskUnlock();
+        CheckNightMode();
         mico_thread_msleep(1000);
     }
 
