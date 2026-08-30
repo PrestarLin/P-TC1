@@ -496,3 +496,42 @@ ul, ol { list-style: none; }
 .justify-between { justify-content: space-between; }
 .gap-2 { gap: var(--sp-2); }
 .w-full { width: 100%; }
+
+/* ── WiFi Dropdown ── */
+.wifi-dropdown {
+  position: absolute; left: 0; right: 0; top: 100%;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  max-height: 200px; overflow-y: auto; z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.wifi-dd-item {
+  padding: 8px 12px; font-size: var(--text-sm); cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--duration) var(--ease);
+}
+.wifi-dd-item:last-child { border-bottom: none; }
+.wifi-dd-item:hover { background: var(--muted); }
+
+/* ── Task Repeat Buttons ── */
+#taskRepeat .btn {
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--fg-dim); min-width: 36px; padding: 4px 6px; font-size: 11px;
+}
+#taskRepeat .btn.on {
+  background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
+}
+#taskRepeat .btn:hover { border-color: var(--accent); }
+
+/* ── Socket Rename Hint ── */
+.socket-name { cursor: pointer; }
+.socket-name:hover { color: var(--accent); }
+.socket-rename {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--fg-dim); cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  flex-shrink: 0;
+}
+.socket-rename:hover { background: var(--muted); color: var(--accent); }

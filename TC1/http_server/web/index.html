@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0F172A">
+<link rel="icon" href="data:;base64,=">
 <title>TC1 Smart Plug</title>
 <link rel="stylesheet" href="/assets/css_pack.css">
 <style>
@@ -172,11 +173,44 @@
 
   <!-- Schedule Page -->
   <div class="page" id="page-schedule">
-    <div class="card">
-      <div class="card-head">
-        <span data-i18n="timed_tasks">Timed Tasks</span>
-        <button class="btn btn-primary btn-sm" onclick="openAddTask()" data-i18n="btn_add">+ Add</button>
+    <div class="card mb-4">
+      <div class="card-head" data-i18n="add_task">Add Task</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" data-i18n="task_time">Time (HH:MM)</label>
+            <input class="form-input" id="taskTime" type="time" value="08:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="task_action">Action</label>
+            <select class="form-select" id="taskAction">
+              <option value="1">Power On</option>
+              <option value="0">Power Off</option>
+              <option value="2">Toggle</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="task_repeat">Repeat</label>
+          <div class="btn-group" id="taskRepeat">
+            <button type="button" class="btn btn-sm" data-day="1">Sun</button>
+            <button type="button" class="btn btn-sm" data-day="2">Mon</button>
+            <button type="button" class="btn btn-sm" data-day="4">Tue</button>
+            <button type="button" class="btn btn-sm" data-day="8">Wed</button>
+            <button type="button" class="btn btn-sm" data-day="16">Thu</button>
+            <button type="button" class="btn btn-sm" data-day="32">Fri</button>
+            <button type="button" class="btn btn-sm" data-day="64">Sat</button>
+          </div>
+        </div>
+        <div class="btn-group mt-3">
+          <button class="btn btn-primary" onclick="addTask()" data-i18n="btn_save_task">Save Task</button>
+          <button class="btn btn-ghost" onclick="setTaskDaily()" data-i18n="btn_daily">Daily</button>
+          <button class="btn btn-ghost" onclick="setTaskOnce()" data-i18n="btn_once">Once</button>
+        </div>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-head" data-i18n="timed_tasks">Timed Tasks</div>
       <div class="card-body" id="taskList">
         <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="loading">Loading...</div>
       </div>
@@ -223,19 +257,19 @@
     <div class="card mb-4">
       <div class="card-head" data-i18n="wifi_config">WiFi Configuration</div>
       <div class="card-body">
-        <div class="form-group">
+        <div class="form-group" style="position:relative">
           <label class="form-label">SSID</label>
-          <input class="form-input" id="wifiSsid" data-i18n-placeholder="wifi_name" placeholder="WiFi name">
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="wifiSsid" data-i18n-placeholder="wifi_name" placeholder="WiFi name" autocomplete="off" style="flex:1">
+            <button class="btn btn-primary" onclick="scanWifi()" data-i18n="btn_scan" style="flex-shrink:0">Scan</button>
+          </div>
+          <div id="wifiDropdown" class="wifi-dropdown" style="display:none"></div>
         </div>
         <div class="form-group">
           <label class="form-label" data-i18n="password">Password</label>
           <input class="form-input" id="wifiPass" type="password" data-i18n-placeholder="wifi_password" placeholder="WiFi password">
         </div>
-        <div class="btn-group">
-          <button class="btn btn-primary" onclick="scanWifi()" data-i18n="btn_scan">Scan</button>
-          <button class="btn btn-primary" onclick="saveWifi()" data-i18n="btn_save_reboot">Save & Reboot</button>
-        </div>
-        <div id="wifiScanResult" class="mt-3" style="font-size:var(--text-sm)"></div>
+        <button class="btn btn-primary btn-block" onclick="saveWifi()" data-i18n="btn_save_reboot">Save & Reboot</button>
       </div>
     </div>
     <div class="card">
@@ -517,7 +551,8 @@ function renderSockets(){
     var name=S.socketNames[i]||('Socket '+(i+1));
     h+='<div class="socket-row">';
     h+='<div class="socket-icon"><svg viewBox="0 0 24 24"><path d="M18 7V4H6v3H2v13h20V7h-4z"/></svg></div>';
-    h+='<span class="socket-name truncate" id="sockName'+i+'" ondblclick="renameSocket('+i+')">'+esc(name)+'</span>';
+    h+='<span class="socket-name truncate" id="sockName'+i+'">'+esc(name)+'</span>';
+    h+='<span class="socket-rename" onclick="renameSocket('+i+')" title="Rename"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span>';
     h+='<div class="toggle-track'+(s?' on':'')+'" id="togSock'+i+'" onclick="toggleSocket('+i+')" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>';
     h+='</div>';
   });
@@ -525,6 +560,32 @@ function renderSockets(){
 }
 
 /* ── Tasks ── */
+var taskRepeatDays=0;
+document.getElementById('taskRepeat').addEventListener('click',function(e){
+  var btn=e.target.closest('[data-day]');if(!btn)return;
+  var d=parseInt(btn.dataset.day);
+  taskRepeatDays^=d;
+  btn.classList.toggle('on');
+});
+function setTaskDaily(){taskRepeatDays=127;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.add('on');});}
+function setTaskOnce(){taskRepeatDays=0;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.remove('on');});}
+function addTask(){
+  var timeVal=document.getElementById('taskTime').value;
+  if(!timeVal){toast('Set time');return;}
+  var parts=timeVal.split(':');
+  var hh=parseInt(parts[0]),mm=parseInt(parts[1]);
+  var now=new Date();
+  var target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm,0);
+  if(target<=now)target.setDate(target.getDate()+1);
+  var ts=Math.floor(target.getTime()/1000);
+  var action=parseInt(document.getElementById('taskAction').value);
+  var on=(action===1)?1:0;
+  var body=ts+' '+action+' '+on+' '+taskRepeatDays;
+  post('/task',body,function(e,r){
+    if(e||r!=='OK'){toast('Add failed: '+(r||'error'));return;}
+    toast('Task added');fetchTasks();
+  });
+}
 function fetchTasks(){
   api('/task',function(e,d){
     if(e){document.getElementById('taskList').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">Failed to load</div>';return;}
@@ -543,11 +604,14 @@ function renderTasks(){
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
     var act=t.operation<=1?(t.on?'On':'Off'):'Op'+t.operation;
-    h+='<tr><td>'+esc(t.prs_time||'--')+'</td><td>'+act+'</td><td>'+rStr+'</td>';
+    var td=new Date(t.prs_time*1000);
+    var ts=String(td.getHours()).padStart(2,'0')+':'+String(td.getMinutes()).padStart(2,'0');
+    h+='<tr><td>'+ts+'</td><td>'+act+'</td><td>'+rStr+'</td>';
     h+='<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   });
   h+='</tbody></table>';el.innerHTML=h;
 }
+function openAddTask(){}
 
 /* ── Log ── */
 function fetchLog(){
@@ -658,24 +722,34 @@ function saveWifi(){
   });
 }
 function scanWifi(){
-  document.getElementById('wifiScanResult').textContent='Scanning...';
+  var dd=document.getElementById('wifiDropdown');
+  dd.innerHTML='<div style="padding:8px;color:var(--fg-muted)">Scanning...</div>';
+  dd.style.display='block';
   post('/wifi/scan','',function(e){
-    if(e){document.getElementById('wifiScanResult').textContent='Scan failed';return;}
+    if(e){dd.innerHTML='<div style="padding:8px;color:var(--danger)">Scan failed</div>';return;}
     setTimeout(function pollScan(){
       api('/wifi/scan',function(e2,d){
         if(e2||d==='NO'){setTimeout(pollScan,1000);return;}
         var j=p(d);
-        if(!j||!j.ssids){document.getElementById('wifiScanResult').textContent='No results';return;}
+        if(!j||!j.ssids||!j.ssids.length){dd.innerHTML='<div style="padding:8px;color:var(--fg-muted)">No results</div>';return;}
         var h='';
         j.ssids.forEach(function(ssid){
-          h+='<div class="toggle-row" style="cursor:pointer" onclick="document.getElementById(\'wifiSsid\').value=\''+esc(ssid)+'\'">';
-          h+='<span>'+esc(ssid)+'</span></div>';
+          h+='<div class="wifi-dd-item" onclick="selectWifi(\''+esc(ssid).replace(/'/g,"\\'")+'\')">'+esc(ssid)+'</div>';
         });
-        document.getElementById('wifiScanResult').innerHTML=h;
+        dd.innerHTML=h;
       });
     },1000);
   });
 }
+function selectWifi(ssid){
+  document.getElementById('wifiSsid').value=ssid;
+  document.getElementById('wifiDropdown').style.display='none';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#wifiSsid')&&!e.target.closest('#wifiDropdown')&&!e.target.closest('[onclick="scanWifi()"]')){
+    document.getElementById('wifiDropdown').style.display='none';
+  }
+});
 function saveMqtt(){
   var h=document.getElementById('mqttHost').value;
   var pt=document.getElementById('mqttPort').value;
@@ -710,7 +784,8 @@ var i18nData={
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',total_wh:'Total (Wh)',
-    timed_tasks:'Timed Tasks',loading:'Loading...',
+    timed_tasks:'Timed Tasks',add_task:'Add Task',task_time:'Time (HH:MM)',task_action:'Action',task_repeat:'Repeat',
+    btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',loading:'Loading...',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
     firmware_update:'Firmware Update',current:'Current',select_firmware:'Select Firmware (.ota.bin)',
@@ -728,7 +803,8 @@ var i18nData={
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',total_wh:'累计 (Wh)',
-    timed_tasks:'定时任务',loading:'加载中...',
+    timed_tasks:'定时任务',add_task:'添加任务',task_time:'时间 (HH:MM)',task_action:'动作',task_repeat:'重复',
+    btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',loading:'加载中...',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',
     firmware_update:'固件升级',current:'当前版本',select_firmware:'选择固件 (.ota.bin)',
