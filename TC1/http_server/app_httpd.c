@@ -183,7 +183,10 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             sys_config->micoSystemConfig.ssid, sys_config->micoSystemConfig.user_key,
             user_config->ap_name, user_config->ap_key, MQTT_SERVER, MQTT_SERVER_PORT,
             MQTT_SERVER_USR, MQTT_SERVER_PWD,
-            VERSION, ip_status.ip, ip_status.mask, ip_status.gateway, str_mac, user_config->mqtt_report_freq,
+            VERSION, ip_status.ip, ip_status.mask, ip_status.gateway, str_mac,
+            user_config->ip_mode, user_config->static_ip, user_config->static_mask,
+            user_config->static_gateway, user_config->static_dns,
+            user_config->mqtt_report_freq,
             user_config->power_led_enabled, 0L, socket_names, childLockEnabled,
             sys_config->micoSystemConfig.name, short_click_config);
 
@@ -549,6 +552,39 @@ static int HttpSetRebootSystem(httpd_request_t *req) {
     return err;
 }
 
+static int HttpSetWifiStatic(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+
+    int buf_size = 128;
+    char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
+
+    err = httpd_get_data(req, buf, buf_size);
+    require_noerr(err, exit);
+
+    int mode = 0;
+    char ip[16] = {0}, mask[16] = {0}, gw[16] = {0}, dns[16] = {0};
+    sscanf(buf, "%d %15s %15s %15s %15s", &mode, ip, mask, gw, dns);
+
+    user_config->ip_mode = mode;
+    if (mode == 1) {
+        strncpy(user_config->static_ip, ip, sizeof(user_config->static_ip) - 1);
+        strncpy(user_config->static_mask, mask, sizeof(user_config->static_mask) - 1);
+        strncpy(user_config->static_gateway, gw, sizeof(user_config->static_gateway) - 1);
+        strncpy(user_config->static_dns, dns, sizeof(user_config->static_dns) - 1);
+        http_log("Static IP saved: %s/%s gw:%s dns:%s", ip, mask, gw, dns);
+    } else {
+        http_log("DHCP mode saved");
+    }
+    mico_system_context_update(sys_config);
+
+    send_http("OK", 2, exit, &err);
+
+    exit:
+    if (buf) free(buf);
+    return err;
+}
+
 static int HttpSetMqttConfig(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
@@ -795,6 +831,7 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/power",            HTTPD_HDR_DEFORT, 0,                             HttpGetPowerInfo,      HttpGetPowerInfo,      NULL, NULL},
         {"/wifi/config",      HTTPD_HDR_DEFORT, 0,                             HttpGetWifiConfig,     HttpSetWifiConfig,     NULL, NULL},
         {"/wifi/scan",        HTTPD_HDR_DEFORT, 0,                             HttpGetWifiScan,       HttpSetWifiScan,       NULL, NULL},
+        {"/wifi/static",      HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpSetWifiStatic,     NULL, NULL},
         {"/mqtt/config",      HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetMqttConfig,     NULL, NULL},
         {"/reboot",           HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetRebootSystem,   NULL, NULL},
         {"/mqtt/report/freq", HTTPD_HDR_DEFORT, 0,                             HttpGetMqttReportFreq, HttpSetMqttReportFreq, NULL, NULL},

@@ -63,6 +63,11 @@
     'mask':'%s',\
     'gateway':'%s',\
     'mac':'%s',\
+    'ip_mode':%d,\
+    'static_ip':'%s',\
+    'static_mask':'%s',\
+    'static_gateway':'%s',\
+    'static_dns':'%s',\
 	'reportFreq':'%d',\
     'ledEnabled':%d,\
     'up_time':%ld,\
@@ -77,4 +82,6 @@
 extern int AppHttpdStart(void);
 
 extern int AppHttpdStop();
+
+static int HttpSetWifiStatic(httpd_request_t *req);
 

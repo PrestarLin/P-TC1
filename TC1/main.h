@@ -126,7 +126,12 @@ typedef struct
     int power_led_enabled;
     pTimedTask task_top;
     struct TimedTask timed_tasks[MAX_TASK_NUM];
-    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t)]; // 定长补齐，必须保持为最后一个字段
+    char ip_mode;           // 0=DHCP, 1=static
+    char static_ip[16];
+    char static_mask[16];
+    char static_gateway[16];
+    char static_dns[16];
+    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 65]; // 定长补齐，必须保持为最后一个字段
 } user_config_t;
 
 #if defined(__GNUC__)

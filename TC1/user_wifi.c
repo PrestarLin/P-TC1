@@ -157,8 +157,19 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
     wNetConfig.wifi_mode = Station;
     snprintf(wNetConfig.wifi_ssid, sizeof(wNetConfig.wifi_ssid), "%s", wifi_ssid);
     snprintf((char*)wNetConfig.wifi_key, sizeof(wNetConfig.wifi_key), "%s", wifi_key);
-    wNetConfig.dhcpMode = DHCP_Client;
     wNetConfig.wifi_retry_interval = 6000;
+
+    if (user_config->ip_mode == 1) {
+        wNetConfig.dhcpMode = DHCP_Disable;
+        strncpy(wNetConfig.local_ip_addr, user_config->static_ip, sizeof(wNetConfig.local_ip_addr) - 1);
+        strncpy(wNetConfig.net_mask, user_config->static_mask, sizeof(wNetConfig.net_mask) - 1);
+        strncpy(wNetConfig.gateway_ip_addr, user_config->static_gateway, sizeof(wNetConfig.gateway_ip_addr) - 1);
+        strncpy(wNetConfig.dnsServer_ip_addr, user_config->static_dns, sizeof(wNetConfig.dnsServer_ip_addr) - 1);
+        wifi_log("Static IP: %s/%s gw:%s dns:%s", wNetConfig.local_ip_addr, wNetConfig.net_mask, wNetConfig.gateway_ip_addr, wNetConfig.dnsServer_ip_addr);
+    } else {
+        wNetConfig.dhcpMode = DHCP_Client;
+    }
+
     micoWlanStart(&wNetConfig);
 
     //保存wifi及密码到Flash
