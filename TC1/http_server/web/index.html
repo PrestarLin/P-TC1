@@ -49,7 +49,7 @@
     <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
     Schedule
   </div>
-  <div class="nav-item" data-page="timer">
+  <div class="nav-item" data-page="timer" style="display:none">
     <svg viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0012 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     Countdown
   </div>
@@ -239,12 +239,8 @@
     <div class="card">
       <div class="card-head">MQTT Configuration</div>
       <div class="card-body">
-        <div class="toggle-row mb-3">
-          <span class="toggle-label">Enable MQTT</span>
-          <div class="toggle-track" id="togMqtt" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
-        </div>
         <div class="form-group">
-          <label class="form-label">Broker</label>
+          <label class="form-label">Broker Host</label>
           <input class="form-input" id="mqttHost" placeholder="mqtt.example.com">
         </div>
         <div class="form-row">
@@ -253,25 +249,13 @@
             <input class="form-input" id="mqttPort" type="number" value="1883">
           </div>
           <div class="form-group">
-            <label class="form-label">Period (s)</label>
-            <input class="form-input" id="mqttPeriod" type="number" value="2">
+            <label class="form-label">Username</label>
+            <input class="form-input" id="mqttUser">
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Username</label>
-          <input class="form-input" id="mqttUser">
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
           <input class="form-input" id="mqttPass" type="password">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Topic Prefix</label>
-          <input class="form-input" id="mqttTopic" placeholder="home/tc1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Base Topic</label>
-          <input class="form-input" id="mqttBaseTopic" placeholder="home/tc1">
         </div>
         <button class="btn btn-primary btn-block" onclick="saveMqtt()">Save MQTT</button>
       </div>
@@ -324,23 +308,13 @@
           <label class="form-label">Device Name</label>
           <input class="form-input" id="setName" placeholder="TC1 Plug">
         </div>
-        <div class="form-group">
-          <label class="form-label">Button Click Action</label>
-          <select class="form-select" id="setClick">
-            <option value="0">Toggle</option>
-            <option value="1">Power Off</option>
-          </select>
-        </div>
-        <button class="btn btn-primary btn-block" onclick="saveSettings()">Save</button>
+        <button class="btn btn-primary btn-block" onclick="saveDeviceName()">Save Name</button>
       </div>
     </div>
     <div class="card">
       <div class="card-head" style="color:var(--danger)">Danger Zone</div>
       <div class="card-body">
-        <div class="btn-group">
-          <button class="btn btn-danger" onclick="rebootDevice()">Reboot</button>
-          <button class="btn btn-danger" onclick="factoryReset()">Factory Reset</button>
-        </div>
+        <button class="btn btn-danger" onclick="rebootDevice()">Reboot</button>
       </div>
     </div>
   </div>
@@ -349,7 +323,7 @@
 
 <script>
 /* ── State ── */
-var S={connected:false,page:'status',sockets:[],tasks:[],power:[]};
+var S={connected:false,page:'status',sockets:[],socketNames:[],tasks:[],power:[],sysname:'',btnClicks:[]};
 
 /* ── Navigation ── */
 var navItems=document.querySelectorAll('.nav-item[data-page]');
@@ -363,12 +337,13 @@ navItems.forEach(function(el){
     if(target)target.classList.add('active');
     S.page=p;
     if(p==='status')fetchStatus();
-    if(p==='sockets')fetchSockets();
+    if(p==='sockets')fetchStatus();
     if(p==='schedule')fetchTasks();
     if(p==='log')refreshLog();
-    if(p==='network')fetchMqtt();
-    if(p==='ota')fetchOtaInfo();
-    if(p==='power')fetchPowerInfo();
+    if(p==='network')fetchStatus();
+    if(p==='ota')fetchOtaStatus();
+    if(p==='power')fetchStatus();
+    if(p==='settings')fetchStatus();
   });
 });
 
@@ -399,12 +374,27 @@ function post(u,body,cb){
   var x=new XMLHttpRequest();
   x.open('POST',u,true);
   x.timeout=10000;
-  x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
   x.onreadystatechange=function(){
     if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);
   };
   x.onerror=function(){cb(new Error('Network'))};
   x.send(body);
+}
+
+function del(u,cb){
+  var x=new XMLHttpRequest();
+  x.open('DELETE',u,true);
+  x.timeout=10000;
+  x.onreadystatechange=function(){
+    if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);
+  };
+  x.onerror=function(){cb(new Error('Network'))};
+  x.send();
+}
+
+/* Parse single-quote JSON (backend uses ' not ") */
+function parseJson(s){
+  try{return JSON.parse(s.replace(/'/g,'"'));}catch(e){return null;}
 }
 
 /* ── Toggle helper ── */
@@ -424,35 +414,65 @@ function setToggle(id,on){
   if(el){if(on)el.classList.add('on');else el.classList.remove('on');}
 }
 
-/* ── Status Page ── */
+/* ── Status Page (single /power call gets everything) ── */
 function fetchStatus(){
-  api('/power.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      document.getElementById('kPower').textContent=j.power||'--';
-      document.getElementById('kVoltage').textContent=j.voltage||'--';
-      document.getElementById('kCurrent').textContent=j.current||'--';
-      document.getElementById('chartLive').textContent=(j.power||'--')+' W';
-      S.power.push(parseFloat(j.power)||0);
-      if(S.power.length>120)S.power.shift();
-      drawChart();
-    }catch(ex){}
-  });
-  api('/info.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      document.getElementById('kUptime').textContent=j.up_time||'--';
-      document.getElementById('infoFw').textContent=(j.firmware_version||'')+' ('+(j.compile_date||'')+')';
-      document.getElementById('infoSdk').textContent=j.sdk_version||'--';
-      document.getElementById('infoWifi').textContent=j.wifi_ssid||'--';
-      document.getElementById('infoIp').textContent=j.ip||'--';
-      document.getElementById('infoMac').textContent=j.mac||'--';
-      setToggle('togMaster',j.master_switch===1);
-      setToggle('togLed',j.led===1);
-      setToggle('togLock',j.child_lock===1);
-    }catch(ex){}
+  /* /power POST with idx=0 returns POWER_INFO_JSON */
+  post('/power','0',function(e,d){
+    if(e){
+      document.getElementById('connDot').classList.add('offline');
+      document.getElementById('connText').textContent='Offline';
+      return;
+    }
+    document.getElementById('connDot').classList.remove('offline');
+    document.getElementById('connText').textContent='Online';
+    var j=parseJson(d);
+    if(!j)return;
+    S.connected=true;
+
+    /* KPI */
+    var powers=j.powers||[];
+    var latest=powers.length>0?powers[powers.length-1]:0;
+    document.getElementById('kPower').textContent=latest;
+    document.getElementById('chartLive').textContent=latest+' W';
+
+    /* Parse sockets "0,1,0,..." */
+    var sockArr=(j.sockets||'').split(',').map(Number);
+    S.sockets=sockArr;
+
+    /* Parse socket names */
+    var names=(j.socketNames||'').split(',');
+    S.socketNames=names;
+
+    /* Status fields */
+    document.getElementById('kUptime').textContent=j.up_time||'--';
+    document.getElementById('kVoltage').textContent='--';
+    document.getElementById('kCurrent').textContent='--';
+    setToggle('togMaster',j.total_switch_on===1);
+    setToggle('togLed',j.led_enabled===1);
+    setToggle('togLock',j.child_lock_enabled===1);
+
+    /* Device info */
+    document.getElementById('infoFw').textContent=j.version||'--';
+    document.getElementById('infoWifi').textContent='--';
+    document.getElementById('infoIp').textContent='--';
+    document.getElementById('infoMac').textContent='--';
+    document.getElementById('setName').value=j.deviceName||'';
+    setToggle('setClick',j.btnClicks==='1');
+
+    /* Power chart data */
+    S.power=powers.map(Number);
+    if(S.power.length>120)S.power=S.power.slice(-120);
+    drawChart();
+
+    /* Update sub-pages if visible */
+    if(S.page==='sockets')renderSockets();
+    if(S.page==='power'){
+      document.getElementById('pRecord').textContent=j.idx||'--';
+      document.getElementById('pToday').textContent=j.p_count||'--';
+    }
+    if(S.page==='settings'){
+      document.getElementById('setName').value=j.deviceName||'';
+    }
   });
 }
 
@@ -481,7 +501,6 @@ function drawChart(){
   for(var i=0;i<data.length;i++){if(data[i]>max)max=data[i];}
   max=max*1.2||100;
 
-  /* Grid lines */
   ctx.strokeStyle='rgba(71,85,105,0.3)';
   ctx.lineWidth=0.5;
   for(var g=0;g<=4;g++){
@@ -491,7 +510,6 @@ function drawChart(){
     ctx.fillText(Math.round(max*g/4),pad.l-6,gy+3);
   }
 
-  /* Area fill */
   var grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
   grad.addColorStop(0,'rgba(34,197,94,0.35)');
   grad.addColorStop(1,'rgba(34,197,94,0.02)');
@@ -507,7 +525,6 @@ function drawChart(){
   ctx.fillStyle=grad;
   ctx.fill();
 
-  /* Line */
   ctx.beginPath();
   ctx.strokeStyle='#22C55E';
   ctx.lineWidth=2;
@@ -519,7 +536,6 @@ function drawChart(){
   }
   ctx.stroke();
 
-  /* Current point */
   var lastX=pad.l+cw;
   var lastY=pad.t+ch*(1-data[data.length-1]/max);
   ctx.beginPath();
@@ -534,26 +550,17 @@ function drawChart(){
 }
 
 /* ── Sockets ── */
-function fetchSockets(){
-  api('/sockets.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      S.sockets=j.sockets||[];
-      renderSockets();
-    }catch(ex){}
-  });
-}
 function renderSockets(){
   var el=document.getElementById('socketList');
-  if(!S.sockets.length){el.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No sockets configured</div>';return;}
+  if(!S.sockets.length){el.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No sockets</div>';return;}
   var h='';
   S.sockets.forEach(function(s,i){
+    var name=S.socketNames[i]||('Socket '+(i+1));
     h+='<div class="socket-row">';
     h+='<div class="socket-icon"><svg viewBox="0 0 24 24"><path d="M18 7V4H6v3H2v13h20V7h-4z"/></svg></div>';
-    h+='<span class="socket-name truncate">'+esc(s.name||('Socket '+(i+1)))+'</span>';
-    h+='<span class="socket-status '+(s.state?'on':'off')+'">'+(s.state?'ON':'OFF')+'</span>';
-    h+='<button class="socket-edit" onclick="editSocket('+i+')" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
+    h+='<span class="socket-name truncate">'+esc(name)+'</span>';
+    h+='<span class="socket-status '+(s?'on':'off')+'">'+(s?'ON':'OFF')+'</span>';
+    h+='<button class="socket-edit" onclick="toggleSocket('+i+','+(s?0:1)+')" aria-label="Toggle"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53A6.95 6.95 0 0112 19z"/></svg></button>';
     h+='</div>';
   });
   el.innerHTML=h;
@@ -561,28 +568,34 @@ function renderSockets(){
 
 /* ── Tasks ── */
 function fetchTasks(){
-  api('/tasks.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      S.tasks=j.tasks||[];
-      renderTasks();
-    }catch(ex){}
+  /* /task GET returns JSON array like [{'timestamp':..,'prs_time':'..','operation':..,'on':..,'weekday':..}] */
+  api('/task',function(e,d){
+    if(e){document.getElementById('taskList').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">Failed to load</div>';return;}
+    var arr=parseJson(d);
+    S.tasks=Array.isArray(arr)?arr:[];
+    renderTasks();
   });
 }
 function renderTasks(){
   var el=document.getElementById('taskList');
   if(!S.tasks.length){el.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">No scheduled tasks</div>';return;}
-  var h='<table class="tbl"><thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Repeat</th><th></th></tr></thead><tbody>';
+  var h='<table class="tbl"><thead><tr><th>Time</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   S.tasks.forEach(function(t,i){
-    var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    var r=t.repeat_days||[];
-    var rStr=r.map(function(d){return days[d]||d;}).join(', ')||'None';
-    h+='<tr><td>'+esc(t.name||'Task '+(i+1))+'</td>';
-    h+='<td>'+(t.action==='0'?'Off':'On')+'</td>';
-    h+='<td>'+pad2(t.hour)+':'+pad2(t.minute)+'</td>';
+    var wk=t.weekday||0;
+    var rStr='';
+    if(wk===127)rStr='Daily';
+    else if(wk===0)rStr='Once';
+    else{
+      var ds=[];
+      for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}
+      rStr=ds.join(', ')||'None';
+    }
+    var act=t.operation<=1?(t.on?'On':'Off'):'Op'+t.operation;
+    h+='<tr><td>'+esc(t.prs_time||'--')+'</td>';
+    h+='<td>'+act+'</td>';
     h+='<td>'+rStr+'</td>';
-    h+='<td><span class="tbl-del" onclick="delTask('+i+')">Delete</span></td></tr>';
+    h+='<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   });
   h+='</tbody></table>';
   el.innerHTML=h;
@@ -590,152 +603,110 @@ function renderTasks(){
 
 /* ── Log ── */
 function refreshLog(){
-  api('/log.txt',function(e,d){
+  api('/log',function(e,d){
     if(e){document.getElementById('logBox').innerHTML='<pre>Error loading log</pre>';return;}
     document.getElementById('logBox').innerHTML='<pre>'+esc(d)+'</pre>';
     var box=document.getElementById('logBox');
     box.scrollTop=box.scrollHeight;
   });
 }
-function clearLog(){
-  post('/log.txt?action=clear','',function(){refreshLog();});
-}
-
-/* ── MQTT ── */
-function fetchMqtt(){
-  api('/mqtt.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      setToggle('togMqtt',j.enable===1);
-      document.getElementById('mqttHost').value=j.host||'';
-      document.getElementById('mqttPort').value=j.port||1883;
-      document.getElementById('mqttPeriod').value=j.period||2;
-      document.getElementById('mqttUser').value=j.username||'';
-      document.getElementById('mqttPass').value='';
-      document.getElementById('mqttTopic').value=j.topic_prefix||'';
-      document.getElementById('mqttBaseTopic').value=j.base_topic||'';
-    }catch(ex){}
-  });
-}
 
 /* ── OTA ── */
-function fetchOtaInfo(){
-  api('/info.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      document.getElementById('otaCurVer').textContent=j.firmware_version||'--';
-    }catch(ex){}
+function fetchOtaStatus(){
+  api('/ota',function(e,d){
+    if(!e)document.getElementById('otaCurVer').textContent='Progress: '+d+'%';
   });
+  fetchStatus();
 }
 function startOta(){
   var fileInput=document.getElementById('otaFile');
   if(!fileInput.files.length)return;
   var file=fileInput.files[0];
-  var fd=new FormData();
-  fd.append('file',file);
-  var x=new XMLHttpRequest();
-  x.open('POST','/ota',true);
-  x.upload.onprogress=function(e){
-    if(e.lengthComputable){
-      var pct=Math.round(e.loaded/e.total*100);
-      document.getElementById('otaProgress').style.display='';
-      document.getElementById('otaBar').style.width=pct+'%';
-      document.getElementById('otaStatus').textContent='Uploading: '+pct+'%';
-    }
-  };
-  x.onload=function(){
-    document.getElementById('otaStatus').textContent=x.status===200?'Upload complete, flashing...':'Error: '+x.status;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var x=new XMLHttpRequest();
+    x.open('POST','/ota/fileUpload',true);
+    x.timeout=120000;
+    x.upload.onprogress=function(ev){
+      if(ev.lengthComputable){
+        var pct=Math.round(ev.loaded/ev.total*100);
+        document.getElementById('otaProgress').style.display='';
+        document.getElementById('otaBar').style.width=pct+'%';
+        document.getElementById('otaStatus').textContent='Uploading: '+pct+'%';
+      }
+    };
+    x.onload=function(){
+      document.getElementById('otaStatus').textContent=x.status===200?'Upload complete, rebooting...':'Error: '+x.status;
+    };
+    x.onerror=function(){document.getElementById('otaStatus').textContent='Upload failed';};
     document.getElementById('otaBtn').disabled=true;
+    document.getElementById('otaStatus').textContent='Uploading...';
+    x.send(e.target.result);
   };
-  x.onerror=function(){document.getElementById('otaStatus').textContent='Upload failed';};
-  document.getElementById('otaBtn').disabled=true;
-  document.getElementById('otaStatus').textContent='Uploading...';
-  x.send(fd);
+  reader.readAsArrayBuffer(file);
 }
 document.getElementById('otaFile').addEventListener('change',function(){
   document.getElementById('otaBtn').disabled=!this.files.length;
 });
 
-/* ── Power Info ── */
-function fetchPowerInfo(){
-  api('/power.json',function(e,d){
-    if(e)return;
-    try{
-      var j=JSON.parse(d);
-      document.getElementById('pRecord').textContent=j.power||'--';
-      document.getElementById('pToday').textContent=j.energy_today||'--';
-      document.getElementById('pMonth').textContent=j.energy_month||'--';
-      document.getElementById('pYear').textContent=j.energy_year||'--';
-    }catch(ex){}
-  });
-}
-
 /* ── Actions ── */
-function toggleMaster(on){post('/control','master='+(on?'1':'0'),function(){});}
-function toggleLed(on){post('/control','led='+(on?'1':'0'),function(){});}
-function toggleLock(on){post('/control','lock='+(on?'1':'0'),function(){});}
-function toggleMqtt(on){post('/mqtt','enable='+(on?'1':'0'),function(){});}
-function toggleCountdown(on){post('/countdown','enable='+(on?'1':'0'),function(){});}
+function toggleSocket(i,on){post('/socket',i+' '+on,function(e){if(!e)fetchStatus();});}
+function toggleMaster(on){post('/socketAll',on?'1':'0',function(e){if(!e)fetchStatus();});}
+function toggleLed(on){post('/led',on?'1':'0',function(e){if(!e)fetchStatus();});}
+function toggleLock(on){post('/childLock',on?'1':'0',function(e){if(!e)fetchStatus();});}
 
 initToggle('togMaster',toggleMaster);
 initToggle('togLed',toggleLed);
 initToggle('togLock',toggleLock);
-initToggle('togMqtt',toggleMqtt);
-initToggle('togCountdown',toggleCountdown);
 
 function saveWifi(){
-  post('/wifi','ssid='+enc(document.getElementById('wifiSsid').value)+'&pass='+enc(document.getElementById('wifiPass').value),function(e){
+  var ssid=document.getElementById('wifiSsid').value;
+  var pass=document.getElementById('wifiPass').value;
+  post('/wifi/config','1 '+enc(ssid)+' '+enc(pass),function(e){
     toast(e?'Error':'Saved. Rebooting...');
   });
 }
 function scanWifi(){
   document.getElementById('wifiScanResult').textContent='Scanning...';
-  api('/wifi/scan',function(e,d){
+  post('/wifi/scan','',function(e){
     if(e){document.getElementById('wifiScanResult').textContent='Scan failed';return;}
-    try{
-      var j=JSON.parse(d);
-      var h='';
-      (j.networks||[]).forEach(function(n){
-        h+='<div class="toggle-row" style="cursor:pointer" onclick="document.getElementById(\'wifiSsid\').value=\''+esc(n.ssid)+'\'">';
-        h+='<span>'+esc(n.ssid)+'</span>';
-        h+='<span style="color:var(--fg-dim)">'+n.rssi+' dBm</span></div>';
+    setTimeout(function(){
+      api('/wifi/scan',function(e2,d){
+        if(e2){document.getElementById('wifiScanResult').textContent='No results';return;}
+        var lines=d.split('\n');
+        var h='';
+        lines.forEach(function(line){
+          if(!line.trim())return;
+          var parts=line.trim().split(' ');
+          if(parts.length>=2){
+            h+='<div class="toggle-row" style="cursor:pointer" onclick="document.getElementById(\'wifiSsid\').value=\''+esc(parts[0])+'\'">';
+            h+='<span>'+esc(parts[0])+'</span>';
+            h+='<span style="color:var(--fg-dim)">'+parts[1]+' dBm</span></div>';
+          }
+        });
+        document.getElementById('wifiScanResult').innerHTML=h||'No networks found';
       });
-      document.getElementById('wifiScanResult').innerHTML=h||'No networks found';
-    }catch(ex){}
+    },2000);
   });
 }
+
 function saveMqtt(){
-  var p='host='+enc(document.getElementById('mqttHost').value);
-  p+='&port='+document.getElementById('mqttPort').value;
-  p+='&period='+document.getElementById('mqttPeriod').value;
-  p+='&user='+enc(document.getElementById('mqttUser').value);
-  p+='&pass='+enc(document.getElementById('mqttPass').value);
-  p+='&topic='+enc(document.getElementById('mqttTopic').value);
-  p+='&base_topic='+enc(document.getElementById('mqttBaseTopic').value);
-  post('/mqtt',p,function(e){toast(e?'Error':'MQTT Saved');});
+  var h=document.getElementById('mqttHost').value;
+  var p=document.getElementById('mqttPort').value;
+  var u=document.getElementById('mqttUser').value;
+  var pw=document.getElementById('mqttPass').value;
+  post('/mqtt/config',h+' '+p+' '+enc(u)+' '+enc(pw),function(e){toast(e?'Error':'MQTT Saved');});
 }
-function saveCountdown(){
-  var p='action='+document.getElementById('cntAction').value;
-  p+='&hour='+document.getElementById('cntHour').value;
-  p+='&minute='+document.getElementById('cntMin').value;
-  post('/countdown',p,function(e){toast(e?'Error':'Countdown Saved');});
-}
-function saveSettings(){
-  post('/settings','name='+enc(document.getElementById('setName').value)+'&click='+document.getElementById('setClick').value,function(e){toast(e?'Error':'Saved');});
+function saveDeviceName(){
+  post('/deviceName',document.getElementById('setName').value,function(e){toast(e?'Error':'Saved');});
 }
 function rebootDevice(){if(confirm('Reboot device?'))post('/reboot','',function(){});}
-function factoryReset(){if(confirm('Factory reset? All settings will be lost!'))post('/factory_reset','',function(){});}
-function delTask(i){if(confirm('Delete task?'))post('/task/delete','index='+i,function(){fetchTasks();});}
+function delTask(ts){if(confirm('Delete task?'))del('/task/'+ts,function(){fetchTasks();});}
 function openAddTask(){toast('Use MQTT or API to add tasks');}
-function openAddSocket(){toast('Use MQTT or API to add sockets');}
-function editSocket(i){toast('Edit socket '+i);}
 
 /* ── Utilities ── */
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function enc(s){return encodeURIComponent(s);}
-function pad2(n){return n<10?'0'+n:''+n;}
 
 function toast(msg){
   var t=document.createElement('div');
