@@ -42,3 +42,4 @@ void TaskLock(void);
 void TaskUnlock(void);
 void TaskModuleInit(void);
 void RebuildTaskList(void);
+void ClearAllTasks(void);

@@ -741,6 +741,16 @@ static int HttpDelTask(httpd_request_t *req) {
     return err;
 }
 
+static int HttpClearTasks(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    TaskLock();
+    ClearAllTasks();
+    TaskUnlock();
+    send_http("OK", 2, exit, &err);
+    exit:
+    return err;
+}
+
 static int LedStatus(httpd_request_t *req) {
     OSStatus err = kNoErr;
     int buf_size = 97;
@@ -846,6 +856,7 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/reboot",           HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetRebootSystem,   NULL, NULL},
         {"/mqtt/report/freq", HTTPD_HDR_DEFORT, 0,                             HttpGetMqttReportFreq, HttpSetMqttReportFreq, NULL, NULL},
         {"/log",              HTTPD_HDR_DEFORT, 0,                             HttpGetLog,       NULL,                       NULL, NULL},
+        {"/task/clear",       HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpClearTasks,        NULL, NULL},
         {"/task",             HTTPD_HDR_DEFORT, APP_HTTP_FLAGS_NO_EXACT_MATCH, HttpGetTasks,          HttpAddTask,           NULL, HttpDelTask},
         {"/ota",              HTTPD_HDR_DEFORT, 0,                             Otastatus,             OtaStart,              NULL, NULL},
         {"/led",              HTTPD_HDR_DEFORT, 0,                             LedStatus,             LedSetEnabled,         NULL, NULL},

@@ -126,7 +126,7 @@ bool AddTaskWeek(pTimedTask task)
 
 bool AddTask(pTimedTask task)
 {
-    if (task->weekday == 0 || task->weekday == 8)
+    if (IS_LOOP_TASK(task->weekday) || task->weekday == 0 || task->weekday == 8)
         return AddTaskSingle(task);
     return AddTaskWeek(task);
 }
@@ -138,7 +138,7 @@ bool DelFirstTask()
         pTimedTask tmp = user_config->task_top;
         user_config->task_top = user_config->task_top->next;
         user_config->task_count--;
-        if (tmp->weekday == 0)
+        if (IS_LOOP_TASK(tmp->weekday) || tmp->weekday == 0)
         {
             tmp->on_use = false;
         }
@@ -156,6 +156,19 @@ bool DelFirstTask()
         return true;
     }
     return false;
+}
+
+void ClearAllTasks()
+{
+    pTimedTask tsk = user_config->task_top;
+    while (tsk) {
+        pTimedTask next = tsk->next;
+        tsk->on_use = false;
+        tsk = next;
+    }
+    user_config->task_top = NULL;
+    user_config->task_count = 0;
+    mico_system_context_update(sys_config);
 }
 
 bool DelTask(int time)
