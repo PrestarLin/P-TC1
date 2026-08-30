@@ -83,5 +83,3 @@ extern int AppHttpdStart(void);
 
 extern int AppHttpdStop();
 
-static int HttpSetWifiStatic(httpd_request_t *req);
-
