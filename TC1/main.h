@@ -28,7 +28,7 @@
 
 #define ZTC1_NAME "TC1-%s"
 
-#define USER_CONFIG_VERSION 10
+#define USER_CONFIG_VERSION 11
 #define SETTING_MQTT_STRING_LENGTH_MAX 32 //必须4字节对齐。
 
 /* 用户配置在 flash 上的固定落地大小（字节）。

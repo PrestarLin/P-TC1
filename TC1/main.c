@@ -160,6 +160,11 @@ bool user_config_migrate(void) {
         user_config->p_count_1_day_ago = v10->p_count_1_day_ago;
         user_config->power_led_enabled = v10->power_led_enabled;
         memcpy(user_config->timed_tasks, v10->timed_tasks, sizeof(user_config->timed_tasks));
+        user_config->ip_mode = 0;
+        memset(user_config->static_ip, 0, sizeof(user_config->static_ip));
+        memset(user_config->static_mask, 0, sizeof(user_config->static_mask));
+        memset(user_config->static_gateway, 0, sizeof(user_config->static_gateway));
+        memset(user_config->static_dns, 0, sizeof(user_config->static_dns));
         user_config->version = USER_CONFIG_VERSION;
 
         /* 迁移后写回 flash（含固定 CRC），此后布局即为最新。 */
