@@ -59,7 +59,7 @@ static bool is_handlers_registered;
 const struct httpd_wsgi_call g_app_handlers[];
 char power_info_json[2048] = {0};
 char up_time[32] = "00:00:00";
-#define CHUNK_SIZE 512  // 每次发送 512 字节，避免 buffer 太大
+#define CHUNK_SIZE 1024  // 匹配SDK HTTPD_SEND_BODY_DATA_MAX_LEN，减少send调用次数
 #define OTA_BUFFER_SIZE 512
 #define MAX_OTA_SIZE 1024*1024
 
@@ -426,8 +426,8 @@ static int HttpGetPowerInfo(httpd_request_t *req) {
             user_config->p_count_1_day_ago, user_config->p_count_2_days_ago, childLockEnabled,
             sys_config->micoSystemConfig.name, short_click_config);
     send_http(power_info_json, strlen(power_info_json), exit, &err);
-    if (socket_names) free(socket_names);
     exit:
+    if (socket_names) free(socket_names);
     return err;
 }
 
@@ -521,13 +521,12 @@ static int HttpGetWifiScan(httpd_request_t *req) {
     if (scaned && wifi_ret) {
         scaned = false;
         send_http(wifi_ret, strlen(wifi_ret), exit, &err);
-        free(wifi_ret);
-        wifi_ret = NULL;
     } else {
         send_http("NO", 2, exit, &err);
     }
 
     exit:
+    if (wifi_ret) { free(wifi_ret); wifi_ret = NULL; }
     return err;
 }
 

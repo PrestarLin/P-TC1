@@ -137,6 +137,7 @@ int httpd_send(int conn, const char *buf, int len)
     int num;
     struct timeval t;
     fd_set writefds;
+    int idle_retries = 0;
 
     t.tv_sec = 0;
     t.tv_usec = 200*1000;
@@ -160,6 +161,13 @@ int httpd_send(int conn, const char *buf, int len)
             }
             len -= num;
             buf += num;
+            idle_retries = 0;
+        }
+        else {
+            if (++idle_retries > 50) {
+                httpd_d("send() timeout: %d", conn);
+                return -kInProgressErr;
+            }
         }
     } while (len > 0);
 
