@@ -174,7 +174,7 @@ typedef struct
     char night_mode_enabled;    // 0=off, 1=on
     int  night_mode_start;      // minutes since midnight (0-1439)
     int  night_mode_end;        // minutes since midnight (0-1439)
-    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 80]; // 定长补齐，必须保持为最后一个字段
+    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 77 - (sizeof(struct TimedTask) - sizeof(TimedTask_v10_t)) * MAX_TASK_NUM]; // 定长补齐，必须保持为最后一个字段
 } user_config_t;
 
 #if defined(__GNUC__)

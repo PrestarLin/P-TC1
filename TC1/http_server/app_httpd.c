@@ -190,8 +190,8 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             user_config->power_led_enabled, 0L, socket_names, childLockEnabled,
             sys_config->micoSystemConfig.name, short_click_config,
             user_config->night_mode_enabled,
-            user_config->night_mode_start / 60, user_config->night_mode_start % 60,
-            user_config->night_mode_end / 60, user_config->night_mode_end % 60);
+            user_config->night_mode_start,
+            user_config->night_mode_end);
 
     OSStatus err = kNoErr;
     send_http(tc1_status, strlen(tc1_status), exit, &err);
@@ -938,6 +938,12 @@ static int HttpSetNightMode(httpd_request_t *req) {
     user_config->night_mode_start = (start_h * 60 + start_m) % 1440;
     user_config->night_mode_end = (end_h * 60 + end_m) % 1440;
     mico_system_context_update(sys_config);
+
+    if (user_config->night_mode_enabled) {
+        CheckNightMode();
+    } else {
+        UserLedSet(user_config->power_led_enabled);
+    }
 
     send_http("OK", 2, exit, &err);
     exit:
