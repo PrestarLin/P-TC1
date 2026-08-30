@@ -62,6 +62,7 @@
     'ip':'%s',\
     'mask':'%s',\
     'gateway':'%s',\
+    'mac':'%s',\
 	'reportFreq':'%d',\
     'ledEnabled':%d,\
     'up_time':%ld,\

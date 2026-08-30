@@ -51,10 +51,7 @@
     <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
     <span data-i18n="nav_schedule">Schedule</span>
   </div>
-  <div class="nav-item" data-page="timer" style="display:none">
-    <svg viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0012 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-    <span data-i18n="nav_countdown">Countdown</span>
-  </div>
+
   <div class="nav-item" data-page="network">
     <svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 00-6 0zm-4-4l2 2a7.074 7.074 0 0110 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
     <span data-i18n="nav_network">Network</span>
@@ -126,7 +123,6 @@
       <div class="card-head" data-i18n="device_info">Device Info</div>
       <div class="card-body" style="font-size:var(--text-sm)">
         <div class="toggle-row"><span class="toggle-label" data-i18n="firmware">Firmware</span><span id="infoFw" style="color:var(--fg-muted)">--</span></div>
-        <div class="toggle-row"><span class="toggle-label">SDK</span><span id="infoSdk" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">WiFi</span><span id="infoWifi" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">IP</span><span id="infoIp" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">MAC</span><span id="infoMac" style="color:var(--fg-muted)">--</span></div>
@@ -162,10 +158,7 @@
             <div class="kpi-value yellow" id="pMonth">--</div>
             <div class="kpi-label" data-i18n="total_wh">Total (Wh)</div>
           </div>
-          <div class="kpi">
-            <div class="kpi-value" id="pYear">--</div>
-            <div class="kpi-label">Year (kWh)</div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -217,40 +210,7 @@
     </div>
   </div>
 
-  <!-- Countdown Page -->
-  <div class="page" id="page-timer">
-    <div class="card">
-      <div class="card-head">Countdown</div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Action</label>
-          <select class="form-select" id="cntAction">
-            <option value="0">Power Off</option>
-            <option value="1">Power On</option>
-            <option value="2">Toggle</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Hours</label>
-            <input class="form-input" id="cntHour" type="number" min="0" max="23" value="0">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Minutes</label>
-            <input class="form-input" id="cntMin" type="number" min="0" max="59" value="0">
-          </div>
-        </div>
-        <div class="toggle-row mt-3">
-          <span class="toggle-label">Countdown Active</span>
-          <div class="toggle-track" id="togCountdown" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
-        </div>
-        <div id="cntRemain" class="mt-3" style="font-size:var(--text-sm);color:var(--fg-muted);display:none">
-          Remaining: <span id="cntRemainVal"></span>
-        </div>
-        <button class="btn btn-primary btn-block mt-4" onclick="saveCountdown()">Save</button>
-      </div>
-    </div>
-  </div>
+
 
   <!-- Network Page -->
   <div class="page" id="page-network">
@@ -345,7 +305,6 @@
         <span data-i18n="system_log">System Log</span>
         <div class="btn-group">
           <button class="btn btn-ghost btn-sm" onclick="fetchLog()" data-i18n="btn_refresh">Refresh</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearLog()" data-i18n="btn_clear">Clear</button>
         </div>
       </div>
       <div class="card-body" style="padding:0">
@@ -438,6 +397,7 @@ function fetchStatus(){
     document.getElementById('infoFw').textContent=j.version||'--';
     document.getElementById('infoIp').textContent=j.ip||'--';
     document.getElementById('infoWifi').textContent=j.station_ssid||'--';
+    document.getElementById('infoMac').textContent=j.mac||'--';
     document.getElementById('mqttHost').value=j.mqtt_addr||'';
     document.getElementById('mqttPort').value=j.mqtt_port||1883;
     document.getElementById('mqttUser').value=j.mqtt_usr||'';
@@ -611,7 +571,6 @@ function renderTasks(){
   });
   h+='</tbody></table>';el.innerHTML=h;
 }
-function openAddTask(){}
 
 /* ── Log ── */
 function fetchLog(){
@@ -620,9 +579,6 @@ function fetchLog(){
     document.getElementById('logBox').innerHTML='<pre>'+esc(d)+'</pre>';
     var box=document.getElementById('logBox');box.scrollTop=box.scrollHeight;
   });
-}
-function clearLog(){
-  document.getElementById('logBox').innerHTML='<pre>Log cleared</pre>';
 }
 
 /* ── OTA ── */
@@ -767,7 +723,6 @@ function saveDeviceName(){
 }
 function rebootDevice(){if(confirm('Reboot device?'))post('/reboot','',function(){});}
 function delTask(ts){if(confirm('Delete task?'))del('/task/'+ts,function(){fetchTasks();});}
-function openAddTask(){toast('Use MQTT or API to add tasks');}
 
 /* ── Utilities ── */
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
@@ -778,7 +733,7 @@ var i18nData={
   en:{
     connecting:'Connecting...',offline:'Offline',online:'Online',
     nav_control:'Control',nav_status:'Status',nav_sockets:'Sockets',nav_power:'Power',
-    nav_management:'Management',nav_schedule:'Schedule',nav_countdown:'Countdown',
+    nav_management:'Management',nav_schedule:'Schedule',
     nav_network:'Network',nav_log:'Log',nav_settings:'Settings',
     kpi_power:'Power (W)',kpi_voltage:'Voltage (V)',kpi_current:'Current (mA)',kpi_uptime:'Uptime',kpi_energy:'Energy (kWh)',
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
@@ -791,13 +746,13 @@ var i18nData={
     firmware_update:'Firmware Update',current:'Current',select_firmware:'Select Firmware (.ota.bin)',
     online_ota_url:'Online OTA URL',local_ota:'Local OTA',
     btn_scan:'Scan',btn_save_reboot:'Save & Reboot',btn_save_mqtt:'Save MQTT',btn_save_freq:'Save Freq',
-    btn_refresh:'Refresh',btn_clear:'Clear',btn_start_online_ota:'Start Online OTA',btn_start_upload:'Start Upload',
+    btn_refresh:'Refresh',btn_start_online_ota:'Start Online OTA',btn_start_upload:'Start Upload',
     system_log:'System Log'
   },
   zh:{
     connecting:'连接中...',offline:'离线',online:'在线',
     nav_control:'控制',nav_status:'状态',nav_sockets:'插座',nav_power:'功率',
-    nav_management:'管理',nav_schedule:'定时',nav_countdown:'倒计时',
+    nav_management:'管理',nav_schedule:'定时',
     nav_network:'网络',nav_log:'日志',nav_settings:'设置',
     kpi_power:'功率 (W)',kpi_voltage:'电压 (V)',kpi_current:'电流 (mA)',kpi_uptime:'运行时间',kpi_energy:'能耗 (kWh)',
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
@@ -810,7 +765,7 @@ var i18nData={
     firmware_update:'固件升级',current:'当前版本',select_firmware:'选择固件 (.ota.bin)',
     online_ota_url:'在线OTA地址',local_ota:'本地升级',
     btn_scan:'扫描',btn_save_reboot:'保存并重启',btn_save_mqtt:'保存MQTT',btn_save_freq:'保存间隔',
-    btn_refresh:'刷新',btn_clear:'清除',btn_start_online_ota:'开始在线升级',btn_start_upload:'开始上传',
+    btn_refresh:'刷新',btn_start_online_ota:'开始在线升级',btn_start_upload:'开始上传',
     system_log:'系统日志'
   }
 };

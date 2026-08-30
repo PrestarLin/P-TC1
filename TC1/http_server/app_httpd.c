@@ -183,7 +183,7 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             sys_config->micoSystemConfig.ssid, sys_config->micoSystemConfig.user_key,
             user_config->ap_name, user_config->ap_key, MQTT_SERVER, MQTT_SERVER_PORT,
             MQTT_SERVER_USR, MQTT_SERVER_PWD,
-            VERSION, ip_status.ip, ip_status.mask, ip_status.gateway, user_config->mqtt_report_freq,
+            VERSION, ip_status.ip, ip_status.mask, ip_status.gateway, str_mac, user_config->mqtt_report_freq,
             user_config->power_led_enabled, 0L, socket_names, childLockEnabled,
             sys_config->micoSystemConfig.name, short_click_config);
 
