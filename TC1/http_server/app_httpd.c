@@ -226,8 +226,10 @@ static int HttpSetSocketName(httpd_request_t *req) {
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
     int index;
-    char name[64];
-    sscanf(buf, "%d %63s", &index, name);
+    char name[64] = {0};
+    if (sscanf(buf, "%d %63s", &index, name) < 2 || name[0] == '\0') {
+        snprintf(name, sizeof(name), "Socket %d", index + 1);
+    }
     if (index < 0 || index >= SOCKET_NUM) { free(buf); return kParamErr; }
     strncpy(user_config->socket_names[index], name, sizeof(user_config->socket_names[index]) - 1);
     user_config->socket_names[index][sizeof(user_config->socket_names[index]) - 1] = '\0';

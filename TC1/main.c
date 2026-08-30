@@ -224,6 +224,12 @@ int application_start(void) {
         sprintf(sys_config->micoSystemConfig.name, ZTC1_NAME, str_mac + 8);
     }
 
+    for (i = 0; i < SOCKET_NUM; i++) {
+        if (user_config->socket_names[i][0] == '\0') {
+            snprintf(user_config->socket_names[i], SOCKET_NAME_LENGTH, "Socket %d", i + 1);
+        }
+    }
+
     tc1_log("device name:%s",
             sys_config->micoSystemConfig.name);tc1_log(
             "mqtt_ip:%s", user_config->mqtt_ip);tc1_log("mqtt_port:%d",
