@@ -141,7 +141,6 @@ bool user_config_migrate(void) {
     if (old_version >= 1 && old_version <= 10) {
         /* 从冻结的 v10 布局投影到当前布局. */
         user_config_v10_t *v10 = (user_config_v10_t *) user_config;
-        /* v10 与当前布局目前字段一致，先复制全部字段，避免同名字段错位。 */
         snprintf(user_config->mqtt_ip, SETTING_MQTT_STRING_LENGTH_MAX, "%s", v10->mqtt_ip);
         user_config->mqtt_port = v10->mqtt_port;
         user_config->mqtt_report_freq = v10->mqtt_report_freq;
@@ -155,11 +154,20 @@ bool user_config_migrate(void) {
         memcpy(user_config->ap_name, v10->ap_name, sizeof(user_config->ap_name));
         memcpy(user_config->ap_key, v10->ap_key, sizeof(user_config->ap_key));
         user_config->task_count = v10->task_count;
-        user_config->task_top = v10->task_top;
         user_config->p_count_2_days_ago = v10->p_count_2_days_ago;
         user_config->p_count_1_day_ago = v10->p_count_1_day_ago;
         user_config->power_led_enabled = v10->power_led_enabled;
-        memcpy(user_config->timed_tasks, v10->timed_tasks, sizeof(user_config->timed_tasks));
+        /* 逐任务复制：v10 的 TimedTask_v10_t 与当前 TimedTask 大小不同 */
+        for (int i = 0; i < v10->task_count && i < MAX_TASK_NUM; i++) {
+            user_config->timed_tasks[i].on_use = v10->timed_tasks[i].on_use;
+            user_config->timed_tasks[i].prs_time = v10->timed_tasks[i].prs_time;
+            user_config->timed_tasks[i].operation = v10->timed_tasks[i].operation;
+            user_config->timed_tasks[i].on = v10->timed_tasks[i].on;
+            user_config->timed_tasks[i].weekday = v10->timed_tasks[i].weekday;
+            user_config->timed_tasks[i].loop_end = 0;
+            user_config->timed_tasks[i].next = NULL;
+        }
+        user_config->task_top = NULL;
         user_config->ip_mode = 0;
         memset(user_config->static_ip, 0, sizeof(user_config->static_ip));
         memset(user_config->static_mask, 0, sizeof(user_config->static_mask));
@@ -174,6 +182,17 @@ bool user_config_migrate(void) {
 
     if (old_version == 11) {
         user_config_v11_t *v11 = (user_config_v11_t *) user_config;
+        /* 逐任务复制：v11 的 TimedTask_v10_t 与当前 TimedTask 大小不同 */
+        for (int i = 0; i < v11->task_count && i < MAX_TASK_NUM; i++) {
+            user_config->timed_tasks[i].on_use = v11->timed_tasks[i].on_use;
+            user_config->timed_tasks[i].prs_time = v11->timed_tasks[i].prs_time;
+            user_config->timed_tasks[i].operation = v11->timed_tasks[i].operation;
+            user_config->timed_tasks[i].on = v11->timed_tasks[i].on;
+            user_config->timed_tasks[i].weekday = v11->timed_tasks[i].weekday;
+            user_config->timed_tasks[i].loop_end = 0;
+            user_config->timed_tasks[i].next = NULL;
+        }
+        user_config->task_top = NULL;
         user_config->night_mode_enabled = 0;
         user_config->night_mode_start = 23 * 60;  /* 23:00 */
         user_config->night_mode_end = 7 * 60;     /* 07:00 */

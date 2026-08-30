@@ -62,6 +62,17 @@
 
 #define MAX_TASK_NUM 64
 
+/* 冻结：TimedTask v10 布局（无 loop_end 字段，与版本 10 发布时一致） */
+typedef struct TimedTask_v10
+{
+    bool on_use;
+    time_t prs_time;
+    int operation;
+    int on;
+    int weekday;
+    struct TimedTask_v10 *next;
+} TimedTask_v10_t;
+
 /* ===================== 配置布局迁移机制 =====================
  * 目的：布局变更不再清空用户配置。
  *
@@ -100,8 +111,8 @@ typedef struct
     int p_count_2_days_ago;
     int p_count_1_day_ago;
     int power_led_enabled;
-    pTimedTask task_top;
-    struct TimedTask timed_tasks[MAX_TASK_NUM];
+    TimedTask_v10_t *task_top;
+    TimedTask_v10_t timed_tasks[MAX_TASK_NUM];
 } user_config_v10_t;
 
 /* 冻结：版本 11 布局（v10 + static IP 字段） */
@@ -124,8 +135,8 @@ typedef struct
     int p_count_2_days_ago;
     int p_count_1_day_ago;
     int power_led_enabled;
-    pTimedTask task_top;
-    struct TimedTask timed_tasks[MAX_TASK_NUM];
+    TimedTask_v10_t *task_top;
+    TimedTask_v10_t timed_tasks[MAX_TASK_NUM];
     char ip_mode;
     char static_ip[16];
     char static_mask[16];
@@ -163,7 +174,7 @@ typedef struct
     char night_mode_enabled;    // 0=off, 1=on
     int  night_mode_start;      // minutes since midnight (0-1439)
     int  night_mode_end;        // minutes since midnight (0-1439)
-    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 77]; // 定长补齐，必须保持为最后一个字段
+    char reserved[USER_CONFIG_STRUCT_CAP - sizeof(user_config_v10_t) - 80]; // 定长补齐，必须保持为最后一个字段
 } user_config_t;
 
 #if defined(__GNUC__)

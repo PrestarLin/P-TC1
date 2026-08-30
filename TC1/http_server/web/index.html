@@ -176,6 +176,14 @@
               <option value="loop">Loop</option>
             </select>
           </div>
+          <div class="form-group" id="loopStartGroup" style="display:none">
+            <label class="form-label" data-i18n="loop_start_time">Start Time</label>
+            <input class="form-input" id="loopStartTime" type="time" value="08:00">
+          </div>
+          <div class="form-group" id="loopEndGroup" style="display:none">
+            <label class="form-label" data-i18n="loop_end_time">End Time</label>
+            <input class="form-input" id="loopEndTime" type="time" value="22:00">
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -222,16 +230,6 @@
         </div>
         <!-- Loop task fields -->
         <div id="loopFields" style="display:none">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" data-i18n="loop_start_time">Start Time</label>
-              <input class="form-input" id="loopStartTime" type="time" value="08:00">
-            </div>
-            <div class="form-group">
-              <label class="form-label" data-i18n="loop_end_time">End Time</label>
-              <input class="form-input" id="loopEndTime" type="time" value="22:00">
-            </div>
-          </div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" data-i18n="loop_duration">On Duration (min)</label>
@@ -680,6 +678,8 @@ function toggleLoopFields(){
   var isLoop=document.getElementById('taskType').value==='loop';
   document.getElementById('loopFields').style.display=isLoop?'block':'none';
   document.getElementById('scheduleFields').style.display=isLoop?'none':'block';
+  document.getElementById('loopStartGroup').style.display=isLoop?'block':'none';
+  document.getElementById('loopEndGroup').style.display=isLoop?'block':'none';
 }
 function addTask(){
   var socket=parseInt(document.getElementById('taskSocket').value);
