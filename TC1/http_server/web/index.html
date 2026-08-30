@@ -401,6 +401,22 @@
       <div class="card-head" style="color:var(--danger)">Danger Zone</div>
       <div class="card-body">
         <button class="btn btn-danger" onclick="rebootDevice()">Reboot</button>
+        <button class="btn btn-danger" onclick="showFactoryReset()" style="margin-left:8px">Factory Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="factoryResetModal" style="display:none">
+    <div class="modal-box">
+      <div class="modal-title">Factory Reset</div>
+      <div class="modal-body">
+        <p>This will erase all settings and reboot. Keep the following:</p>
+        <label class="check-row"><input type="checkbox" id="frKeepWifi" checked> WiFi Info</label>
+        <label class="check-row"><input type="checkbox" id="frKeepMqtt" checked> MQTT Info</label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('factoryResetModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="doFactoryReset()">Confirm Reset</button>
       </div>
     </div>
   </div>
@@ -857,6 +873,18 @@ function saveDeviceName(){
   post('/deviceName',document.getElementById('setName').value,function(e){toast(e?'Error':'Saved');});
 }
 function rebootDevice(){if(confirm('Reboot device?'))post('/reboot','',function(){});}
+function showFactoryReset(){document.getElementById('factoryResetModal').style.display='flex';}
+function closeModal(id){document.getElementById(id).style.display='none';}
+function doFactoryReset(){
+  var keep=0;
+  if(document.getElementById('frKeepWifi').checked)keep|=1;
+  if(document.getElementById('frKeepMqtt').checked)keep|=2;
+  closeModal('factoryResetModal');
+  post('/factory-reset',''+keep,function(e,r){
+    if(e||r!=='OK'){toast('Failed');return;}
+    toast('Resetting...');setTimeout(function(){location.reload();},15000);
+  });
+}
 function delTask(ts){if(confirm('Delete task?'))del('/task/'+ts,function(){fetchTasks();});}
 function clearAllTasks(){if(confirm('Clear ALL tasks?'))post('/task/clear','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('All tasks cleared');fetchTasks();});}
 

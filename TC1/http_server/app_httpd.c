@@ -554,6 +554,62 @@ static int HttpSetRebootSystem(httpd_request_t *req) {
     return err;
 }
 
+static int HttpFactoryReset(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+    char buf[8] = {0};
+    err = httpd_get_data(req, buf, sizeof(buf));
+    require_noerr(err, exit);
+
+    int keep = 0;
+    sscanf(buf, "%d", &keep);
+
+    /* keep bit0=WiFi, bit1=MQTT */
+    char saved_ap_name[32] = {0};
+    char saved_ap_key[32] = {0};
+    char saved_mqtt_ip[SETTING_MQTT_STRING_LENGTH_MAX] = {0};
+    int   saved_mqtt_port = 0;
+    char saved_mqtt_user[SETTING_MQTT_STRING_LENGTH_MAX] = {0};
+    char saved_mqtt_pass[SETTING_MQTT_STRING_LENGTH_MAX] = {0};
+
+    if (keep & 1) {
+        memcpy(saved_ap_name, user_config->ap_name, sizeof(saved_ap_name));
+        memcpy(saved_ap_key, user_config->ap_key, sizeof(saved_ap_key));
+    }
+    if (keep & 2) {
+        memcpy(saved_mqtt_ip, user_config->mqtt_ip, sizeof(saved_mqtt_ip));
+        saved_mqtt_port = user_config->mqtt_port;
+        memcpy(saved_mqtt_user, user_config->mqtt_user, sizeof(saved_mqtt_user));
+        memcpy(saved_mqtt_pass, user_config->mqtt_password, sizeof(saved_mqtt_pass));
+    }
+
+    memset(user_config, 0, sizeof(user_config_t));
+    user_config->version = USER_CONFIG_VERSION;
+    user_config->power_led_enabled = 1;
+
+    if (keep & 1) {
+        memcpy(user_config->ap_name, saved_ap_name, sizeof(saved_ap_name));
+        memcpy(user_config->ap_key, saved_ap_key, sizeof(saved_ap_key));
+    }
+    if (keep & 2) {
+        memcpy(user_config->mqtt_ip, saved_mqtt_ip, sizeof(saved_mqtt_ip));
+        user_config->mqtt_port = saved_mqtt_port;
+        memcpy(user_config->mqtt_user, saved_mqtt_user, sizeof(saved_mqtt_user));
+        memcpy(user_config->mqtt_password, saved_mqtt_pass, sizeof(saved_mqtt_pass));
+    }
+
+    for (int i = 0; i < SOCKET_NUM; i++) {
+        snprintf(user_config->socket_names[i], SOCKET_NAME_LENGTH, "Socket %d", i + 1);
+    }
+
+    mico_system_context_update(sys_config);
+    send_http("OK", 2, exit, &err);
+    mico_rtos_thread_sleep(1);
+    MicoSystemReboot();
+
+    exit:
+    return err;
+}
+
 static int HttpSetWifiStatic(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
@@ -854,6 +910,7 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/wifi/static",      HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpSetWifiStatic,     NULL, NULL},
         {"/mqtt/config",      HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetMqttConfig,     NULL, NULL},
         {"/reboot",           HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetRebootSystem,   NULL, NULL},
+        {"/factory-reset",    HTTPD_HDR_DEFORT, 0, NULL,                                              HttpFactoryReset,      NULL, NULL},
         {"/mqtt/report/freq", HTTPD_HDR_DEFORT, 0,                             HttpGetMqttReportFreq, HttpSetMqttReportFreq, NULL, NULL},
         {"/log",              HTTPD_HDR_DEFORT, 0,                             HttpGetLog,       NULL,                       NULL, NULL},
         {"/task/clear",       HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpClearTasks,        NULL, NULL},
