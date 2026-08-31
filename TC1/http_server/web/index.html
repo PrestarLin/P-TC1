@@ -406,13 +406,13 @@
   <!-- Settings Page -->
   <div class="page" id="page-settings">
     <div class="card mb-4">
-      <div class="card-head">Device Settings</div>
+      <div class="card-head" data-i18n="device_settings">Device Settings</div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">Device Name</label>
+          <label class="form-label" data-i18n="device_name">Device Name</label>
           <input class="form-input" id="setName" placeholder="TC1 Plug">
         </div>
-        <button class="btn btn-primary btn-block" onclick="saveDeviceName()">Save Name</button>
+        <button class="btn btn-primary btn-block" onclick="saveDeviceName()" data-i18n="save_name">Save Name</button>
       </div>
     </div>
     <div class="card mb-4">
@@ -452,25 +452,25 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-head" style="color:var(--danger)">Danger Zone</div>
+      <div class="card-head" style="color:var(--danger)" data-i18n="danger_zone">Danger Zone</div>
       <div class="card-body">
-        <button class="btn btn-danger" onclick="rebootDevice()">Reboot</button>
-        <button class="btn btn-danger" onclick="showFactoryReset()" style="margin-left:8px">Factory Reset</button>
+        <button class="btn btn-danger" onclick="rebootDevice()" data-i18n="reboot">Reboot</button>
+        <button class="btn btn-danger" onclick="showFactoryReset()" style="margin-left:8px" data-i18n="factory_reset">Factory Reset</button>
       </div>
     </div>
   </div>
 
   <div class="modal-mask" id="factoryResetModal" style="display:none">
     <div class="modal-box">
-      <div class="modal-title">Factory Reset</div>
+      <div class="modal-title" data-i18n="factory_reset">Factory Reset</div>
       <div class="modal-body">
-        <p>This will erase all settings and reboot. Keep the following:</p>
-        <label class="check-row"><input type="checkbox" id="frKeepWifi" checked> WiFi Info</label>
-        <label class="check-row"><input type="checkbox" id="frKeepMqtt" checked> MQTT Info</label>
+        <p data-i18n="factory_reset_hint">This will erase all settings and reboot. Keep the following:</p>
+        <label class="check-row"><input type="checkbox" id="frKeepWifi" checked> <span data-i18n="wifi_info">WiFi Info</span></label>
+        <label class="check-row"><input type="checkbox" id="frKeepMqtt" checked> <span data-i18n="mqtt_info">MQTT Info</span></label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal('factoryResetModal')">Cancel</button>
-        <button class="btn btn-danger" onclick="doFactoryReset()">Confirm Reset</button>
+        <button class="btn btn-ghost" onclick="closeModal('factoryResetModal')" data-i18n="cancel">Cancel</button>
+        <button class="btn btn-danger" onclick="doFactoryReset()" data-i18n="confirm_reset">Confirm Reset</button>
       </div>
     </div>
   </div>
@@ -967,6 +967,20 @@ function loadNightMode(){
   }
 }
 var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Reboot','9':'Config WiFi','10':'Factory Reset','11':'Child Lock','12':'Restart HTTP','15':'None'};
+var funcNamesZH={'Unassigned':'未设置','All Sockets':'全部插座','Socket 1':'插座 1','Socket 2':'插座 2','Socket 3':'插座 3','Socket 4':'插座 4','Socket 5':'插座 5','Socket 6':'插座 6','LED':'指示灯','Reboot':'重启','Config WiFi':'配置WiFi','Factory Reset':'恢复出厂','Child Lock':'童锁','Restart HTTP':'重启HTTP服务','None':'无'};
+function btnFuncName(f){
+  var n=btnFuncMap[f]||'Unknown';
+  if(curLang==='zh'&&funcNamesZH[n])n=funcNamesZH[n];
+  return n;
+}
+function longPressLabel(sec){
+  var t=(i18nData[curLang]||i18nData.en).long_press_secs||'Long Press {s}s';
+  return t.replace('{s}',sec);
+}
+function T(k){
+  var d=i18nData[curLang]||i18nData.en;
+  return d[k]!==undefined?d[k]:k;
+}
 var usedSecs=[];
 function fetchButtonConfig(){
   api('/buttonEvents',function(e,d){
@@ -983,10 +997,9 @@ function fetchButtonConfig(){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
       var longFunc=parseInt(funcs[1]);
-      var funcName=btnFuncMap[longFunc.toString()];
-      if(!funcName)funcName='Unknown';
+      var funcName=btnFuncName(longFunc.toString());
       h+='<div class="form-row">';
-      h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
+      h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">'+longPressLabel(sec)+'</label></div>';
       h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+funcName+'" disabled></div>';
       h+='</div>';
     });
@@ -996,25 +1009,27 @@ function fetchButtonConfig(){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
       var longFunc=parseInt(funcs[1]);
-      if(longFunc!==-1 && longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
+      var sec=parseInt(key);
+      /* 隐藏出厂默认的范围槽位(5-9s 配网、10-14s 恢复出厂)，避免默认任务重复展示 */
+      var isFactoryDefault=(sec>=5&&sec<=9&&longFunc===9)||(sec>=10&&sec<=14&&longFunc===10);
+      if(longFunc!==-1 && longFunc!==15 && !isFactoryDefault && defaultSecs.indexOf(sec)===-1){
         hasEvent=true;
-        var sec=parseInt(key);
         usedSecs.push(sec);
         h+='<div class="form-row" id="btnEvt'+sec+'">';
-        h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
+        h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">'+longPressLabel(sec)+'</label></div>';
         h+='<div class="form-group" style="flex:1">';
         h+='<select class="form-select" onchange="saveButtonConfig('+sec+',this.value)">';
         Object.keys(btnFuncMap).forEach(function(f){
           var selected=parseInt(f)===longFunc?'selected':'';
-          h+='<option value="'+f+'"'+selected+'>'+btnFuncMap[f]+'</option>';
+          h+='<option value="'+f+'"'+selected+'>'+btnFuncName(f)+'</option>';
         });
         h+='</select></div>';
-        h+='<div class="form-group" style="flex:0 0 auto"><button class="btn btn-danger" onclick="removeButtonEvent('+sec+')">Delete</button></div>';
+        h+='<div class="form-group" style="flex:0 0 auto"><button class="btn btn-danger" onclick="removeButtonEvent('+sec+')" data-i18n="delete">Delete</button></div>';
         h+='</div>';
       }
     });
     if(!hasEvent){
-      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)">No custom events</div>';
+      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)" data-i18n="no_custom_events">No custom events</div>';
     }
     el.innerHTML=h;
     applyLang();
@@ -1023,53 +1038,54 @@ function fetchButtonConfig(){
 function showAddButtonEvent(){
   var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
   html+='<div class="modal-box">';
-  html+='<div class="modal-title">Add Button Event</div>';
+  html+='<div class="modal-title" data-i18n="add_btn_event">Add Button Event</div>';
   html+='<div class="modal-body">';
-  html+='<div class="form-group"><label class="form-label">Press Duration (1-30 seconds)</label>';
+  html+='<div class="form-group"><label class="form-label" data-i18n="press_duration">Press Duration (1-30 seconds)</label>';
   html+='<input class="form-input" id="btnEvtSec" type="number" min="1" max="30" value="3"></div>';
-  html+='<div class="form-group"><label class="form-label">Action</label>';
+  html+='<div class="form-group"><label class="form-label" data-i18n="action">Action</label>';
   html+='<select class="form-select" id="btnEvtFunc">';
   Object.keys(btnFuncMap).forEach(function(f){
-    html+='<option value="'+f+'">'+btnFuncMap[f]+'</option>';
+    html+='<option value="'+f+'">'+btnFuncName(f)+'</option>';
   });
   html+='</select></div>';
   html+='</div>';
   html+='<div class="modal-footer">';
-  html+='<button class="btn btn-ghost" onclick="closeModal(\'addBtnEvtModal\')">Cancel</button>';
-  html+='<button class="btn btn-primary" onclick="addButtonEvent()">Add</button>';
+  html+='<button class="btn btn-ghost" onclick="closeModal(\'addBtnEvtModal\')" data-i18n="cancel">Cancel</button>';
+  html+='<button class="btn btn-primary" onclick="addButtonEvent()" data-i18n="add">Add</button>';
   html+='</div></div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
+  applyLang();
 }
 function addButtonEvent(){
   var sec=parseInt(document.getElementById('btnEvtSec').value);
-  if(sec<1||sec>30){toast('Invalid duration');return;}
-  if(usedSecs.indexOf(sec)!==-1){toast('Duration already used');return;}
+  if(sec<1||sec>30){toast(T('toast_invalid_duration'));return;}
+  if(usedSecs.indexOf(sec)!==-1){toast(T('toast_duration_used'));return;}
   var func=parseInt(document.getElementById('btnEvtFunc').value);
   closeModal('addBtnEvtModal');
-  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');fetchButtonConfig();});
+  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?T('toast_error'):T('toast_saved'));fetchButtonConfig();});
 }
 function removeButtonEvent(sec){
-  if(confirm('Remove this event?')){
+  if(confirm(T('confirm_delete_event'))){
     usedSecs=usedSecs.filter(function(s){return s!==sec;});
-    post('/buttonEvents',sec+' 15 1',function(e){toast(e?'Error':'Removed');fetchButtonConfig();});
+    post('/buttonEvents',sec+' 15 1',function(e){toast(e?T('toast_error'):T('toast_removed'));fetchButtonConfig();});
   }
 }
 function clearAllButtonEvents(){
-  if(!confirm('Clear all custom events?'))return;
+  if(!confirm(T('confirm_clear_all')))return;
   var defaultSecs=[5,10];
   var toClear=usedSecs.filter(function(s){return defaultSecs.indexOf(s)===-1;});
-  if(!toClear.length){toast('No custom events to clear');return;}
+  if(!toClear.length){toast(T('toast_no_custom'));return;}
   var i=0;
   function clearNext(){
-    if(i>=toClear.length){fetchButtonConfig();toast('All custom events cleared');return;}
+    if(i>=toClear.length){fetchButtonConfig();toast(T('toast_cleared_all'));return;}
     post('/buttonEvents',toClear[i]+' 15 1',function(){i++;clearNext();});
   }
   clearNext();
 }
 function saveButtonConfig(sec,func){
-  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');});
+  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?T('toast_error'):T('toast_saved'));});
 }
-function rebootDevice(){if(confirm('Reboot device?'))post('/reboot','',function(){});}
+function rebootDevice(){if(confirm(T('confirm_reboot')))post('/reboot','',function(){});}
 function showFactoryReset(){document.getElementById('factoryResetModal').style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
 function doFactoryReset(){
@@ -1078,8 +1094,8 @@ function doFactoryReset(){
   if(document.getElementById('frKeepMqtt').checked)keep|=2;
   closeModal('factoryResetModal');
   post('/factory-reset',''+keep,function(e,r){
-    if(e||r!=='OK'){toast('Failed');return;}
-    toast('Resetting...');setTimeout(function(){location.reload();},15000);
+    if(e||r!=='OK'){toast(T('toast_failed'));return;}
+    toast(T('toast_resetting'));setTimeout(function(){location.reload();},15000);
   });
 }
 function delTask(ts){if(confirm('Delete task?'))del('/task/'+ts,function(){fetchTasks();});}
@@ -1108,6 +1124,18 @@ var i18nData={
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
     btn_config:'Button Configuration',btn_long_sec:'Long Press',btn_add:'+ Add',
+    device_settings:'Device Settings',device_name:'Device Name',save_name:'Save Name',
+    danger_zone:'Danger Zone',reboot:'Reboot',factory_reset:'Factory Reset',
+    factory_reset_hint:'This will erase all settings and reboot. Keep the following:',
+    wifi_info:'WiFi Info',mqtt_info:'MQTT Info',cancel:'Cancel',confirm_reset:'Confirm Reset',
+    delete:'Delete',no_custom_events:'No custom events',
+    add_btn_event:'Add Button Event',press_duration:'Press Duration (1-30 seconds)',action:'Action',add:'Add',
+    long_press_secs:'Long Press {s}s',
+    confirm_delete_event:'Remove this event?',confirm_clear_all:'Clear all custom events?',confirm_reboot:'Reboot device?',
+    toast_invalid_duration:'Invalid duration',toast_duration_used:'Duration already used',
+    toast_saved:'Saved',toast_error:'Error',toast_removed:'Removed',
+    toast_cleared_all:'All custom events cleared',toast_no_custom:'No custom events to clear',
+    toast_failed:'Failed',toast_resetting:'Resetting...',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
     broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
@@ -1132,6 +1160,18 @@ var i18nData={
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
     btn_config:'按键配置',btn_long_sec:'长按',btn_add:'+ 添加',
+    device_settings:'设备设置',device_name:'设备名称',save_name:'保存名称',
+    danger_zone:'危险操作',reboot:'重启',factory_reset:'恢复出厂',
+    factory_reset_hint:'将清除所有设置并重启，请保留以下内容：',
+    wifi_info:'WiFi 信息',mqtt_info:'MQTT 信息',cancel:'取消',confirm_reset:'确认恢复出厂',
+    delete:'删除',no_custom_events:'暂无自定义事件',
+    add_btn_event:'添加按键事件',press_duration:'按键时长 (1-30 秒)',action:'动作',add:'添加',
+    long_press_secs:'长按 {s}秒',
+    confirm_delete_event:'确定删除该事件？',confirm_clear_all:'确定清空所有自定义事件？',confirm_reboot:'确定重启设备？',
+    toast_invalid_duration:'时长无效',toast_duration_used:'该时长已被使用',
+    toast_saved:'已保存',toast_error:'错误',toast_removed:'已删除',
+    toast_cleared_all:'已清空全部自定义事件',toast_no_custom:'没有可清空的自定义事件',
+    toast_failed:'操作失败',toast_resetting:'正在恢复出厂...',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',
     broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',
