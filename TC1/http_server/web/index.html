@@ -751,7 +751,7 @@ function renderTasks(){
     }else if(wk===127)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
-    var devMap={7:'All Sockets',8:'LED',9:'Child Lock'};
+    var devMap={0:'All Sockets',7:'LED',11:'Child Lock'};
     var sockStr=devMap[t.operation]||('Socket '+t.operation);
     var act=t.on===-1?'Toggle':(t.on?'On':'Off');
     var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
