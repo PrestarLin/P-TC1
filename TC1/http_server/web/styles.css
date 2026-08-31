@@ -372,6 +372,7 @@ ul, ol { list-style: none; }
   outline: none;
 }
 .form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-input:disabled { opacity: .5; cursor: not-allowed; background: var(--bg-dim); }
 .form-select { cursor: pointer; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%2394A3B8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

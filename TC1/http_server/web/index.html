@@ -886,7 +886,7 @@ function toggleLock(on){post('/childLock',on?'1':'0',function(e){if(!e)fetchPowe
 initToggle('togMaster',toggleMaster);
 initToggle('togLed',toggleLed);
 initToggle('togLock',toggleLock);
-initToggle('nightModeTog',function(on){nightModeOn=on;saveNightMode();});
+initToggle('nightModeTog',function(on){nightModeOn=on;document.getElementById('nightStart').disabled=on;document.getElementById('nightEnd').disabled=on;saveNightMode();});
 
 function saveWifi(){
   var ssid=document.getElementById('wifiSsid').value;
@@ -951,6 +951,8 @@ function loadNightMode(){
   var nm=S.nightMode||{};
   nightModeOn=!!nm.enabled;
   setToggle('nightModeTog',nightModeOn);
+  document.getElementById('nightStart').disabled=nightModeOn;
+  document.getElementById('nightEnd').disabled=nightModeOn;
   if(nm.start_h!=null){
     document.getElementById('nightStart').value=String(nm.start_h).padStart(2,'0')+':'+String(nm.start_m).padStart(2,'0');
   }
