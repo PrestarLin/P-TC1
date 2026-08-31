@@ -45,6 +45,7 @@ static void OtaServerStatusHandler(OTA_STATE_E state, float progress)
             sprintf(str, "{\"mac\":\"%s\",\"ota_progress\":100}", str_mac);
             break;
         case OTA_FAIL:
+            ota_progress = -2;
             ota_log("ota server daemons failed");
             sprintf(str, "{\"mac\":\"%s\",\"ota_progress\":-1}", str_mac);
             break;
