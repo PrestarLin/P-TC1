@@ -81,6 +81,14 @@
         <div class="kpi-label" data-i18n="kpi_power">Power (W)</div>
       </div>
       <div class="kpi">
+        <div class="kpi-value yellow" id="kToday">--</div>
+        <div class="kpi-label" data-i18n="kpi_today">Today (kWh)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value blue" id="kSockOn">--</div>
+        <div class="kpi-label" data-i18n="kpi_sock_on">Sockets On</div>
+      </div>
+      <div class="kpi">
         <div class="kpi-value" id="kUptime">--</div>
         <div class="kpi-label" data-i18n="kpi_uptime">Uptime</div>
       </div>
@@ -574,6 +582,9 @@ function fetchPower(){
     document.getElementById('kPower').textContent=latest.toFixed(1);
     document.getElementById('chartLive').textContent=latest.toFixed(1)+' W';
     document.getElementById('kUptime').textContent=j.up_time||'--';
+    var wToday=(17.1*(j.p_count-j.p_count_1_day_ago))/1000/36000;
+    if(wToday<0)wToday=0;
+    document.getElementById('kToday').textContent=wToday.toFixed(3);
 
     setToggle('togMaster',j.total_switch_on===1);
     setToggle('togLed',j.led_enabled===1);
@@ -581,6 +592,9 @@ function fetchPower(){
 
     var sockArr=(j.sockets||'').split(',').filter(function(s){return s!=='';}).map(Number);
     S.sockets=sockArr;
+    var onCount=0;
+    for(var si=0;si<sockArr.length;si++)if(sockArr[si]===1)onCount++;
+    document.getElementById('kSockOn').textContent=onCount+'/'+sockArr.length;
     S.socketNames=(j.socketNames||'').split(',');
     updateTaskSocketOptions();
     S.deviceName=j.deviceName||'';
@@ -1187,7 +1201,7 @@ var i18nData={
     nav_control:'Control',nav_status:'Status',nav_sockets:'Sockets',nav_power:'Power',
     nav_management:'Management',nav_tasks:'Tasks',
     nav_network:'Network',nav_log:'Log',nav_settings:'Settings',
-    kpi_power:'Power (W)',kpi_uptime:'Uptime',
+    kpi_power:'Power (W)',kpi_today:'Today (kWh)',kpi_sock_on:'Sockets On',kpi_uptime:'Uptime',
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
@@ -1223,7 +1237,7 @@ var i18nData={
     nav_control:'控制',nav_status:'状态',nav_sockets:'插座',nav_power:'功率',
     nav_management:'管理',nav_tasks:'任务',
     nav_network:'网络',nav_log:'日志',nav_settings:'设置',
-    kpi_power:'功率 (W)',kpi_uptime:'运行时间',
+    kpi_power:'功率 (W)',kpi_today:'今日用电 (kWh)',kpi_sock_on:'开启插座',kpi_uptime:'运行时间',
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
