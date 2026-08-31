@@ -460,7 +460,8 @@ static void KeyTimeoutHandler(void *arg) {
             mico_rtos_stop_timer(&click_end_timer);
             mico_rtos_start_timer(&click_end_timer);
         } else {
-            KeyEventHandler(key_time/10,true);
+            /* 四舍五入到最近秒数，避免长按时间略短/略长导致事件落空 */
+            KeyEventHandler((key_time + 5) / 10, true);
         }
 
         mico_rtos_stop_timer(&user_key_timer);
@@ -474,7 +475,7 @@ static void KeyFallingIrqHandler(void *arg) {
 void KeyInit(void) {
     MicoGpioInitialize(Button, INPUT_PULL_UP);
     mico_rtos_init_timer(&user_key_timer, 100, KeyTimeoutHandler, NULL);
-    mico_rtos_init_timer(&click_end_timer, 400, ClickEndTimeoutHandler, NULL);
+    mico_rtos_init_timer(&click_end_timer, 500, ClickEndTimeoutHandler, NULL);
     MicoGpioEnableIRQ(Button, IRQ_TRIGGER_FALLING_EDGE, KeyFallingIrqHandler, NULL);
 
 }
