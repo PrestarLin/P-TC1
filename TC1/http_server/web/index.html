@@ -440,7 +440,13 @@
       </div>
     </div>
     <div class="card mb-4">
-      <div class="card-head" data-i18n="btn_config">Button Configuration</div>
+      <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+        <span data-i18n="btn_config">Button Configuration</span>
+        <div>
+          <button class="btn btn-primary" onclick="showAddButtonEvent()" data-i18n="btn_add">+ Add</button>
+          <button class="btn btn-danger" onclick="clearAllButtonEvents()" data-i18n="btn_clear_all">Clear All</button>
+        </div>
+      </div>
       <div class="card-body" id="btnConfigBody">
         <div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="loading">Loading...</div>
       </div>
@@ -961,6 +967,7 @@ function loadNightMode(){
   }
 }
 var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Reboot','9':'Config WiFi','10':'Factory Reset','11':'Child Lock','12':'Restart HTTP','15':'None'};
+var usedSecs=[];
 function fetchButtonConfig(){
   api('/buttonEvents',function(e,d){
     if(e)return;
@@ -1005,17 +1012,12 @@ function fetchButtonConfig(){
       }
     });
     if(!hasEvent){
-      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)">No custom events</div>';
+      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)" data-i18n="no_custom_events">No custom events</div>';
     }
-    h+='<div class="form-row" style="margin-top:12px">';
-    h+='<button class="btn btn-primary" onclick="showAddButtonEvent()">+ Add Event</button>';
-    h+='<button class="btn btn-danger" style="margin-left:8px" onclick="clearAllButtonEvents()">Clear All</button>';
-    h+='</div>';
     el.innerHTML=h;
     applyLang();
   });
 }
-var usedSecs=[];
 function showAddButtonEvent(){
   var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
   html+='<div class="modal-box">';
@@ -1103,6 +1105,7 @@ var i18nData={
     loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
     no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
+    btn_add:'+ Add',no_custom_events:'No custom events',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
     btn_config:'Button Configuration',btn_long_sec:'Long Press',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
@@ -1127,6 +1130,7 @@ var i18nData={
     loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
     no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
+    btn_add:'+ 添加',no_custom_events:'暂无自定义事件',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
     btn_config:'按键配置',btn_long_sec:'长按',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
