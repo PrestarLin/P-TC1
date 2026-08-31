@@ -758,7 +758,11 @@ function renderTasks(){
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
     var devMap={0:'All Sockets',7:'LED',11:'Child Lock'};
-    var sockStr=devMap[t.operation]||('Socket '+t.operation);
+    var sockStr=devMap[t.operation];
+    if(!sockStr){
+      if(t.operation>=1&&t.operation<=6&&S.socketNames[t.operation-1])sockStr=S.socketNames[t.operation-1];
+      else sockStr='Socket '+t.operation;
+    }
     var act=t.on===-1?'Toggle':(t.on?'On':'Off');
     var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
     return '<tr><td>'+ts+'</td><td>'+sockStr+'</td><td>'+act+'</td><td>'+rStr+'</td>'
@@ -881,7 +885,11 @@ function renameSocket(i){
   if(newName===null||newName===oldName)return;
   S.socketNames[i]=newName;
   post('/socketNames',i+' '+newName,function(e){
-    if(!e){var el=document.getElementById('sockName'+i);if(el)el.textContent=newName;}
+    if(!e){
+      var el=document.getElementById('sockName'+i);if(el)el.textContent=newName;
+      updateTaskSocketOptions();
+      if(S.page==='schedule')fetchTasks();
+    }
     else toast('Rename failed');
   });
 }
@@ -1036,6 +1044,7 @@ function fetchButtonConfig(){
   });
 }
 function showAddButtonEvent(){
+  var old=document.getElementById('addBtnEvtModal');if(old)old.remove();
   var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
   html+='<div class="modal-box">';
   html+='<div class="modal-title" data-i18n="add_btn_event">Add Button Event</div>';
@@ -1087,7 +1096,7 @@ function saveButtonConfig(sec,func){
 }
 function rebootDevice(){if(confirm(T('confirm_reboot')))post('/reboot','',function(){});}
 function showFactoryReset(){document.getElementById('factoryResetModal').style.display='flex';}
-function closeModal(id){document.getElementById(id).style.display='none';}
+function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}
 function doFactoryReset(){
   var keep=0;
   if(document.getElementById('frKeepWifi').checked)keep|=1;
