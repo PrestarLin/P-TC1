@@ -81,14 +81,6 @@
         <div class="kpi-label" data-i18n="kpi_power">Power (W)</div>
       </div>
       <div class="kpi">
-        <div class="kpi-value blue" id="kVoltage">--</div>
-        <div class="kpi-label" data-i18n="kpi_voltage">Voltage (V)</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-value yellow" id="kCurrent">--</div>
-        <div class="kpi-label" data-i18n="kpi_current">Current (mA)</div>
-      </div>
-      <div class="kpi">
         <div class="kpi-value" id="kUptime">--</div>
         <div class="kpi-label" data-i18n="kpi_uptime">Uptime</div>
       </div>
@@ -582,8 +574,6 @@ function fetchPower(){
     document.getElementById('kPower').textContent=latest.toFixed(1);
     document.getElementById('chartLive').textContent=latest.toFixed(1)+' W';
     document.getElementById('kUptime').textContent=j.up_time||'--';
-    document.getElementById('kVoltage').textContent='--';
-    document.getElementById('kCurrent').textContent='--';
 
     setToggle('togMaster',j.total_switch_on===1);
     setToggle('togLed',j.led_enabled===1);
@@ -1123,7 +1113,7 @@ var i18nData={
     nav_control:'Control',nav_status:'Status',nav_sockets:'Sockets',nav_power:'Power',
     nav_management:'Management',nav_tasks:'Tasks',
     nav_network:'Network',nav_log:'Log',nav_settings:'Settings',
-    kpi_power:'Power (W)',kpi_voltage:'Voltage (V)',kpi_current:'Current (mA)',kpi_uptime:'Uptime',
+    kpi_power:'Power (W)',kpi_uptime:'Uptime',
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
     device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
@@ -1159,7 +1149,7 @@ var i18nData={
     nav_control:'控制',nav_status:'状态',nav_sockets:'插座',nav_power:'功率',
     nav_management:'管理',nav_tasks:'任务',
     nav_network:'网络',nav_log:'日志',nav_settings:'设置',
-    kpi_power:'功率 (W)',kpi_voltage:'电压 (V)',kpi_current:'电流 (mA)',kpi_uptime:'运行时间',
+    kpi_power:'功率 (W)',kpi_uptime:'运行时间',
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
     device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
