@@ -303,6 +303,15 @@ static int HttpSetOTAFile(httpd_request_t *req)
     bool upload_ok = false;
     mico_logic_partition_t *ota_partition = NULL;
 
+    /* OTA 并发保护: 防止浏览器关闭后立即重试导致冲突 */
+    if (ota_progress >= 0 && ota_progress < 100) {
+        http_log("[OTA] skip, already in progress[%d]", ota_progress);
+        httpd_send_all_header(req, HTTP_RES_409, 12, HTTP_CONTENT_PLAIN_TEXT_STR);
+        httpd_send_body(req->sock, (const unsigned char*)"BUSY", 4);
+        return kNoErr;
+    }
+    ota_progress = 0;
+
     /* OTA 防呆保护: 只有完整收到、大小一致且镜像头合法的固件才会切换并重启。
      * 上传中途断电 / 浏览器被关闭 / 连接断开 / 传错文件时一律放弃:
      * 清空被动分区、不切换、不重启, 旧固件继续运行, 不会变砖。 */
@@ -375,6 +384,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
         /* 失败: 清空被动分区, 不切换、不重启, 旧固件继续运行 */
         tc1_log("[OTA] upload aborted, old firmware keeps running");
         MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
+        ota_progress = -2;
         httpd_send_all_header(req, HTTP_RES_400, 10, HTTP_CONTENT_PLAIN_TEXT_STR);
         httpd_send_body(req->sock, (const unsigned char*)"OTA FAILED", 10);
         goto exit;
