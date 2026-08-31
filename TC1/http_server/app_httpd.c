@@ -258,6 +258,15 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     int longPress;
     sscanf(buf, "%d %d %d", &index, &func, &longPress);
     if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
+    
+    // Safety底线：固定功能不允许修改
+    if (func == REBOOT_SYSTEM || func == CONFIG_WIFI || func == RESET_SYSTEM) {
+        http_log("Blocked: safety function %d cannot be modified", func);
+        free(buf);
+        send_http("BLOCKED", 7, exit, &err);
+        return err;
+    }
+    
     if (longPress == 1) {
         set_key_map(user_config->user,index, get_short_func(user_config->user[index]), (func == -1 || func == NO_FUNCTION) ? NO_FUNCTION : func);
     } else {
