@@ -21,7 +21,10 @@
 #endif
 #define STR_(x) #x
 #define STR(x) STR_(x)
-#define VERSION "v4.1.3-" STR(COMMIT_HASH)
+#ifndef VERSION_STRING
+#define VERSION_STRING "v4.1.3"
+#endif
+#define VERSION VERSION_STRING "-" STR(COMMIT_HASH)
 
 #define TYPE 1
 #define TYPE_NAME "TC1"
