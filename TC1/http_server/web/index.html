@@ -1014,17 +1014,12 @@ function fetchButtonConfig(){
 }
 var usedSecs=[];
 function showAddButtonEvent(){
-  var availSecs=[1,2,3,4,5,6,7,8,9,10,12,15,20,25,30];
-  availSecs=availSecs.filter(function(s){return usedSecs.indexOf(s)===-1;});
-  if(!availSecs.length){toast('All time slots used');return;}
   var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
   html+='<div class="modal-box">';
   html+='<div class="modal-title">Add Button Event</div>';
   html+='<div class="modal-body">';
-  html+='<div class="form-group"><label class="form-label">Press Duration (seconds)</label>';
-  html+='<select class="form-select" id="btnEvtSec">';
-  availSecs.forEach(function(s){html+='<option value="'+s+'">'+s+'s</option>';});
-  html+='</select></div>';
+  html+='<div class="form-group"><label class="form-label">Press Duration (1-30 seconds)</label>';
+  html+='<input class="form-input" id="btnEvtSec" type="number" min="1" max="30" value="3"></div>';
   html+='<div class="form-group"><label class="form-label">Action</label>';
   html+='<select class="form-select" id="btnEvtFunc">';
   Object.keys(btnFuncMap).forEach(function(f){
@@ -1040,6 +1035,8 @@ function showAddButtonEvent(){
 }
 function addButtonEvent(){
   var sec=parseInt(document.getElementById('btnEvtSec').value);
+  if(sec<1||sec>30){toast('Invalid duration');return;}
+  if(usedSecs.indexOf(sec)!==-1){toast('Duration already used');return;}
   var func=parseInt(document.getElementById('btnEvtFunc').value);
   closeModal('addBtnEvtModal');
   post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');fetchButtonConfig();});
