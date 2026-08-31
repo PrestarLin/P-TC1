@@ -7,6 +7,27 @@
 
 volatile int ota_progress = -2;
 
+/* MK3031 固件镜像以 kernel 的 img_hdr 开头: "MRVL" + 0x2e9cf17b */
+#define OTA_IMG_MAGIC_STR 0x4C56524D  /* 'MRVL' (little-endian) */
+#define OTA_IMG_MAGIC_SIG 0x2E9CF17B
+
+/* 校验 OTA_TEMP(被动分区) 中固件镜像头是否合法, 防止把错误/损坏的文件切换为活动固件 */
+int OtaImageHeaderValid(void)
+{
+    uint8_t hdr[8] = { 0 };
+    uint32_t offset = 0;
+    uint32_t magic_str;
+    uint32_t magic_sig;
+
+    if (MicoFlashRead(MICO_PARTITION_OTA_TEMP, &offset, hdr, sizeof(hdr)) != kNoErr)
+        return 0;
+
+    magic_str = (uint32_t)hdr[0] | ((uint32_t)hdr[1] << 8) | ((uint32_t)hdr[2] << 16) | ((uint32_t)hdr[3] << 24);
+    magic_sig = (uint32_t)hdr[4] | ((uint32_t)hdr[5] << 8) | ((uint32_t)hdr[6] << 16) | ((uint32_t)hdr[7] << 24);
+
+    return (magic_str == OTA_IMG_MAGIC_STR && magic_sig == OTA_IMG_MAGIC_SIG) ? 1 : 0;
+}
+
 static void OtaServerStatusHandler(OTA_STATE_E state, float progress)
 {
     char str[64] = { 0 };

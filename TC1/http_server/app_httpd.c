@@ -289,87 +289,112 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
 }
 
 #define OTA_BUF_SIZE 5120
+#define OTA_MIN_SIZE 32768
 
 static int HttpSetOTAFile(httpd_request_t *req)
 {
     tc1_log("[OTA] hdr_parsed=%d, remaining=%d, body_nbytes=%d, req.chunked=%d",
         req->hdr_parsed, req->remaining_bytes, req->body_nbytes, req->chunked);
     OSStatus err = kNoErr;
-
     int total = 0;
     int ret = 0;
-
-    // req->chunked = 1;
-
-    int total1 = req->remaining_bytes;
-    char *buffer = malloc(OTA_BUF_SIZE);
-    if (!buffer) return kNoMemoryErr;
+    char *buffer = NULL;
     uint32_t offset = 0;
+    bool upload_ok = false;
+    mico_logic_partition_t *ota_partition = NULL;
 
-    mico_logic_partition_t* ota_partition = MicoFlashGetInfo(MICO_PARTITION_OTA_TEMP);
+    /* OTA 防呆保护: 只有完整收到、大小一致且镜像头合法的固件才会切换并重启。
+     * 上传中途断电 / 浏览器被关闭 / 连接断开 / 传错文件时一律放弃:
+     * 清空被动分区、不切换、不重启, 旧固件继续运行, 不会变砖。 */
+
+    buffer = malloc(OTA_BUF_SIZE);
+    require_action(buffer, exit, err = kNoMemoryErr);
+
+    ota_partition = MicoFlashGetInfo(MICO_PARTITION_OTA_TEMP);
+    require_action(ota_partition, exit, err = kUnsupportedErr);
+
     MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
+
     CRC16_Context crc_context;
     CRC16_Init(&crc_context);
-    // 灏濊瘯璇诲彇鍏ㄩ儴 POST 鏁版嵁
-    while (1) {
-        ret = httpd_get_data2(req, buffer,OTA_BUF_SIZE);
 
-        // ret = httpd_recv(req->sock, buffer, 128, 0);
-        total += ret;
-        // req->remaining_bytes -= ret;
+    while (1) {
+        ret = httpd_get_data2(req, buffer, OTA_BUF_SIZE);
 
         if (ret > 0) {
-            CRC16_Update(&crc_context, buffer, ret);
-            err = MicoFlashWrite(MICO_PARTITION_OTA_TEMP, &offset, (uint8_t *)buffer, ret);
+            total += ret;
+            if ((uint32_t)total > ota_partition->partition_length) {
+                tc1_log("[OTA] file too large: %d > partition %d", total, ota_partition->partition_length);
+                err = kSizeErr;
+                break;
+            }
+            CRC16_Update(&crc_context, (uint8_t*)buffer, ret);
+            err = MicoFlashWrite(MICO_PARTITION_OTA_TEMP, &offset, (uint8_t*)buffer, ret);
             require_noerr_quiet(err, exit);
-            tc1_log("[OTA] 鏈璇诲彇 %d 瀛楄妭锛岀疮璁?%d 瀛楄妭", ret, total);
-        }
 
-        if (ret == 0 || req->remaining_bytes <= 0) {
-            // 璇诲彇瀹屾瘯
-            tc1_log("[OTA] 鏁版嵁璇诲彇瀹屾垚, 鎬昏 %d 瀛楄妭", total);
+            if (req->body_nbytes > 0 && total >= req->body_nbytes) {
+                upload_ok = true;   /* Content-Length 已收满 */
+                break;
+            }
+        } else if (ret == 0) {
+            /* 对端关闭连接(浏览器被关闭/断网): 没收满 Content-Length 即为截断,
+             * 无 Content-Length 的请求一律视为非法, 不接受无法校验完整性的上传 */
+            tc1_log("[OTA] connection closed early: got %d of %d bytes", total, req->body_nbytes);
+            err = kConnectionErr;
             break;
-        } else if (ret < 0) {
-            tc1_log("[OTA] 鏁版嵁璇诲彇澶辫触, ret=%d", ret);
+        } else {
+            /* ret < 0: socket 错误 */
+            tc1_log("[OTA] read error ret=%d, got %d bytes", ret, total);
             err = kConnectionErr;
             break;
         }
-        
-        mico_rtos_thread_msleep(100);
 
-        // tc1_log("[OTA] %x", buffer);
-        // tc1_log("[OTA] hdr_parsed=%d, remaining=%d, body_nbytes=%d",
-        // req->hdr_parsed, req->remaining_bytes, req->body_nbytes);
+        mico_rtos_thread_msleep(100);
     }
-        // if (buffer) free(buffer);
+
+    /* 校验 1: 接收字节数必须与 Content-Length 一致, 且不小于最小固件尺寸 */
+    if (err == kNoErr && upload_ok) {
+        if (req->body_nbytes > 0 && total != req->body_nbytes) {
+            tc1_log("[OTA] size mismatch: got %d, expected %d", total, req->body_nbytes);
+            err = kSizeErr;
+        } else if (total < OTA_MIN_SIZE) {
+            tc1_log("[OTA] file too small: %d bytes", total);
+            err = kSizeErr;
+        }
+    }
+
+    /* 校验 2: 固件镜像头 (MRVL + magic_sig), 防止上传了错误的文件 */
+    if (err == kNoErr && upload_ok) {
+        if (!OtaImageHeaderValid()) {
+            tc1_log("[OTA] invalid image magic");
+            err = kParamErr;
+        }
+    }
+
+    if (err != kNoErr) {
+        /* 失败: 清空被动分区, 不切换、不重启, 旧固件继续运行 */
+        tc1_log("[OTA] upload aborted, old firmware keeps running");
+        MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
+        httpd_send_all_header(req, HTTP_RES_400, 10, HTTP_CONTENT_PLAIN_TEXT_STR);
+        httpd_send_body(req->sock, (const unsigned char*)"OTA FAILED", 10);
+        goto exit;
+    }
+
     uint16_t crc16;
     CRC16_Final(&crc_context, &crc16);
-
 
     err = mico_ota_switch_to_new_fw(total, crc16);
     tc1_log("[OTA] mico_ota_switch_to_new_fw err=%d", err);
     require_noerr(err, exit);
 
     char resp[128];
-    snprintf(resp, sizeof(resp), "OK, total: %d bytes, req %d  %d", total, req->body_nbytes, total1);
+    snprintf(resp, sizeof(resp), "OK, total: %d bytes", total);
     send_http(resp, strlen(resp), exit, &err);
 
     mico_system_power_perform(mico_system_context_get(), eState_Software_Reset);
 exit:
     if (buffer) free(buffer);
     return err;
-
-    // ota_file_req = req;
-
-    // OSStatus err = kNoErr;
-    // err = mico_rtos_create_thread(NULL, MICO_APPLICATION_PRIORITY, "OtaFileThread", OtaFileThread, 0x1000, 0);
-    // char buf[16] = {0};
-    // sprintf(buf, "%d", sizeof(ota_file_req));
-    // send_http(buf, strlen(buf), exit, &err);
-
-    // exit:
-    // if (buf) free(buf);
-    // return err;
 }
 
 static int HttpSetDeviceName(httpd_request_t *req) {

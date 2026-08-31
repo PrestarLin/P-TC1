@@ -997,8 +997,12 @@ function startOta(){
         document.getElementById('otaStatus').textContent='Uploading: '+pct+'%';
       }
     };
-    x.onload=function(){document.getElementById('otaStatus').textContent=x.status===200?'Upload complete, rebooting...':'Error: '+x.status;};
-    x.onerror=function(){document.getElementById('otaStatus').textContent='Upload failed';};
+    x.onload=function(){
+      var r=x.responseText||'';
+      if(x.status===200&&r.indexOf('OK')===0){document.getElementById('otaStatus').textContent='Upload complete, rebooting...';}
+      else{document.getElementById('otaStatus').textContent='Upload failed: '+((r&&r.length<80)?r:('HTTP '+x.status));}
+    };
+    x.onerror=function(){document.getElementById('otaStatus').textContent='Upload failed (connection lost, device unchanged)';};
     document.getElementById('otaBtn').disabled=true;document.getElementById('otaStatus').textContent='Uploading...';
     x.send(e.target.result);
   };

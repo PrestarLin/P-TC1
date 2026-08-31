@@ -33,6 +33,7 @@
 #include "HTTPUtils.h"
 #include "SocketUtils.h"
 #include "ota_server.h"
+#include "user_ota.h"
 #include "url.h"
 #include "http_server/web_log.h"
 
@@ -311,6 +312,12 @@ static void OtaServerThread(mico_thread_arg_t arg)
         if (ota_server_context->download_state.download_len == ota_server_context->download_state.download_begin_pos)
         {
             if(httpHeader->statusCode != 200){
+                OtaServerProgressSet(OTA_FAIL);
+                goto DELETE;
+            }
+            /* OTA 防呆: 下载完成后校验固件镜像头, 防止切换了错误/损坏的文件 */
+            if (!OtaImageHeaderValid()){
+                ota_log("OTA image magic check failed, keep old firmware");
                 OtaServerProgressSet(OTA_FAIL);
                 goto DELETE;
             }
