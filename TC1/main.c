@@ -47,7 +47,13 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     userConfigDefault->p_count_1_day_ago = 0;
     userConfigDefault->power_led_enabled = 1;
     userConfigDefault->version = USER_CONFIG_VERSION;
-    set_key_map(userConfigDefault->user,1, SWITCH_ALL_SOCKETS, NO_FUNCTION);
+    /* 出厂按键配置直接写入 reserved(全字节功能码)。
+     * 注意: 本回调可能在 mico_system_context_init 内部被调用(配置损坏/擦除时),
+     * 此时全局 user_config 仍为 NULL, 不能使用 set_key_map/RESERVED_CFG(它们依赖全局
+     * user_config), 必须通过回调参数 user_config_data(userConfigDefault) 访问配置。 */
+    reserved_cfg_t *reserved = (reserved_cfg_t *)userConfigDefault->reserved;
+    reserved->key_short[1] = SWITCH_ALL_SOCKETS;
+    reserved->key_long[1]  = KEY_NONE;
     for (int i = 2; i < 32; i++) {
         int longFunc = NO_FUNCTION;
         //出厂设置，长按5秒开启配网模式，长按10秒恢复出厂设置
@@ -56,8 +62,10 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
         } else if (i >= 10 && i< 15) {
             longFunc = RESET_SYSTEM;
         }
-        set_key_map(userConfigDefault->user,i, NO_FUNCTION, longFunc);
+        reserved->key_short[i] = KEY_NONE;
+        reserved->key_long[i]  = (longFunc == NO_FUNCTION) ? KEY_NONE : longFunc;
     }
+    reserved->key_init = KEY_CFG_MAGIC;
 
     for (int i = 0; i < SOCKET_NUM; i++) {
         userConfigDefault->socket_status[i] = 1;
@@ -66,7 +74,6 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     for (int i = 0; i < MAX_TASK_NUM; i++) {
         userConfigDefault->timed_tasks[i].on_use = false;
     }
-    RESERVED_CFG->key_init = KEY_CFG_MAGIC;  // 出厂默认已直接写入全字节按键配置
     mico_system_context_update(sys_config);
 }
 
