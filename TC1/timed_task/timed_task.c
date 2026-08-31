@@ -112,15 +112,30 @@ bool AddTaskSingle(pTimedTask task)
     return false;
 }
 
+/* 计算 day_mask(Sun=bit0..Sat=bit6) 中下一个匹配时刻(严格晚于 from, 当日时刻为 hhmm 秒)。
+ * include_today=true 时, 今天若匹配且时刻未过则可用(用于新建任务)。 */
+static time_t FindNextMatchTime(int day_mask, time_t from, int hhmm, bool include_today)
+{
+    time_t base = from - from % day_sec;
+    int today = ((int)(from / day_sec) + 4) % 7 + 1;   // 1=Sun..7=Sat, 1970-01-01=周四
+    for (int d = 0; d < 14; d++)
+    {
+        int wd = ((today - 1 + d) % 7) + 1;
+        if (day_mask & (1 << (wd - 1)))
+        {
+            time_t cand = base + d * day_sec + hhmm;
+            if (cand > from && (include_today || d > 0))
+                return cand;
+        }
+    }
+    return from + 7 * day_sec;
+}
+
 bool AddTaskWeek(pTimedTask task)
 {
     time_t now = time(NULL);
-    int today_weekday = (now / day_sec + 3) % 7 + 1;
-    int next_day = task->weekday - today_weekday;
-    bool next_day_is_today = next_day == 0 && task->prs_time % day_sec > now % day_sec;
-    next_day = next_day > 0 || next_day_is_today ? next_day : next_day + 7;
-    task->prs_time = (now - now % day_sec) + (next_day * day_sec) + task->prs_time % day_sec;
-
+    int hhmm = (int)(task->prs_time % day_sec);   // 保留用户设置的时分
+    task->prs_time = FindNextMatchTime(task->weekday, now, hhmm, true);
     return AddTaskSingle(task);
 }
 
@@ -149,7 +164,7 @@ bool DelFirstTask()
         }
         else
         {
-            tmp->prs_time += 7 * day_sec;
+            tmp->prs_time = FindNextMatchTime(tmp->weekday, time(NULL), (int)(tmp->prs_time % day_sec), false);
             AddTask(tmp);
         }
         mico_system_context_update(sys_config);

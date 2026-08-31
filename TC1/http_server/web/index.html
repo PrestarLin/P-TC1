@@ -912,7 +912,8 @@ function renderTasks(){
       else sockStr='Socket '+t.operation;
     }
     var act=t.on===-1?'Toggle':(t.on?'On':'Off');
-    var ts=t.prs_time?t.prs_time.split(' ')[1]:'--:--';
+    var ts='--:--';
+    if(t.timestamp){var dd=new Date(t.timestamp*1000);ts=(dd.getHours()<10?'0':'')+dd.getHours()+':'+(dd.getMinutes()<10?'0':'')+dd.getMinutes();}
     return '<tr><td>'+ts+'</td><td>'+sockStr+'</td><td>'+act+'</td><td>'+rStr+'</td>'
       +'<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
   }
