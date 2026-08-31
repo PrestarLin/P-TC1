@@ -306,9 +306,8 @@ static int HttpSetOTAFile(httpd_request_t *req)
     /* OTA 并发保护: 防止浏览器关闭后立即重试导致冲突 */
     if (ota_progress >= 0 && ota_progress < 100) {
         http_log("[OTA] skip, already in progress[%d]", ota_progress);
-        httpd_send_all_header(req, HTTP_RES_400, 12, HTTP_CONTENT_PLAIN_TEXT_STR);
-        httpd_send_body(req->sock, (const unsigned char*)"BUSY", 4);
-        return kNoErr;
+        send_http("BUSY", 4, exit, &err);
+        return err;
     }
     ota_progress = 0;
 
