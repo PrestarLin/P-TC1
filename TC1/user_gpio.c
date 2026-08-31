@@ -475,7 +475,7 @@ static void KeyFallingIrqHandler(void *arg) {
 void KeyInit(void) {
     MicoGpioInitialize(Button, INPUT_PULL_UP);
     mico_rtos_init_timer(&user_key_timer, 100, KeyTimeoutHandler, NULL);
-    mico_rtos_init_timer(&click_end_timer, 500, ClickEndTimeoutHandler, NULL);
+    mico_rtos_init_timer(&click_end_timer, 800, ClickEndTimeoutHandler, NULL);
     MicoGpioEnableIRQ(Button, IRQ_TRIGGER_FALLING_EDGE, KeyFallingIrqHandler, NULL);
 
 }
