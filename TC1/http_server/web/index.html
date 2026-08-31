@@ -982,12 +982,10 @@ function fetchButtonConfig(){
       if(!cfg)return;
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
-      var longFunc=parseInt(funcs[1]);
-      var funcName=btnFuncMap[longFunc];
-      if(!funcName)funcName='Unknown('+longFunc+')';
+      var longFunc=funcs[1];
       h+='<div class="form-row">';
       h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
-      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+funcName+'" disabled></div>';
+      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+btnFuncMap[longFunc]+'" disabled></div>';
       h+='</div>';
     });
     h+='<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
@@ -995,7 +993,7 @@ function fetchButtonConfig(){
     arr.forEach(function(cfg,i){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
-      var longFunc=parseInt(funcs[1]);
+      var longFunc=funcs[1];
       if(longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
         hasEvent=true;
         var sec=parseInt(key);
@@ -1014,7 +1012,7 @@ function fetchButtonConfig(){
       }
     });
     if(!hasEvent){
-      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)" data-i18n="no_custom_events">No custom events</div>';
+      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)">No custom events</div>';
     }
     el.innerHTML=h;
     applyLang();
@@ -1057,15 +1055,14 @@ function removeButtonEvent(sec){
 function clearAllButtonEvents(){
   if(!confirm('Clear all custom events?'))return;
   var defaultSecs=[5,10];
-  var promises=[];
-  usedSecs.forEach(function(sec){
-    if(defaultSecs.indexOf(sec)===-1){
-      promises.push(new Promise(function(resolve){
-        post('/buttonEvents',sec+' 15 1',function(){resolve();});
-      }));
-    }
-  });
-  Promise.all(promises).then(function(){fetchButtonConfig();toast('All custom events cleared');});
+  var toClear=usedSecs.filter(function(s){return defaultSecs.indexOf(s)===-1;});
+  if(!toClear.length){toast('No custom events to clear');return;}
+  var i=0;
+  function clearNext(){
+    if(i>=toClear.length){fetchButtonConfig();toast('All custom events cleared');return;}
+    post('/buttonEvents',toClear[i]+' 15 1',function(){i++;clearNext();});
+  }
+  clearNext();
 }
 function saveButtonConfig(sec,func){
   post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');});
@@ -1107,9 +1104,8 @@ var i18nData={
     loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
     no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
-    btn_add:'+ Add',no_custom_events:'No custom events',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
-    btn_config:'Button Configuration',btn_long_sec:'Long Press',
+    btn_config:'Button Configuration',btn_long_sec:'Long Press',btn_add:'+ Add',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
     broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
@@ -1132,9 +1128,8 @@ var i18nData={
     loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
     no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
-    btn_add:'+ 添加',no_custom_events:'暂无自定义事件',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
-    btn_config:'按键配置',btn_long_sec:'长按',
+    btn_config:'按键配置',btn_long_sec:'长按',btn_add:'+ 添加',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',
     broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',
