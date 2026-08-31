@@ -197,15 +197,15 @@
           <div class="form-group">
             <label class="form-label" data-i18n="task_device">Device</label>
             <select class="form-select" id="taskSocket">
-              <option value="7">All Sockets</option>
+              <option value="0">All Sockets</option>
               <option value="1">Socket 1</option>
               <option value="2">Socket 2</option>
               <option value="3">Socket 3</option>
               <option value="4">Socket 4</option>
               <option value="5">Socket 5</option>
               <option value="6">Socket 6</option>
-              <option value="8">LED</option>
-              <option value="9">Child Lock</option>
+              <option value="7">LED</option>
+              <option value="11">Child Lock</option>
             </select>
           </div>
           <div class="form-group">
@@ -567,11 +567,11 @@ function fetchPower(){
   post('/power',S.powerIdx.toString(),function(e,d){
     if(e){
       document.getElementById('connDot').classList.add('offline');
-      document.getElementById('connText').textContent='Offline';
+      document.getElementById('connText').textContent=(i18nData[curLang]||i18nData.en).offline;
       return;
     }
     document.getElementById('connDot').classList.remove('offline');
-    document.getElementById('connText').textContent='Online';
+    document.getElementById('connText').textContent=(i18nData[curLang]||i18nData.en).online;
     var j=p(d);if(!j)return;
 
     S.powerIdx=j.idx+1;
@@ -996,7 +996,7 @@ function fetchButtonConfig(){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
       var longFunc=parseInt(funcs[1]);
-      if(longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
+      if(longFunc!==-1 && longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
         hasEvent=true;
         var sec=parseInt(key);
         usedSecs.push(sec);
@@ -1146,6 +1146,7 @@ var curLang=localStorage.getItem('lang')||'en';
 function applyLang(){
   var dict=i18nData[curLang]||i18nData.en;
   document.querySelectorAll('[data-i18n]').forEach(function(el){
+    if(el.id==='connText')return;
     var key=el.getAttribute('data-i18n');
     if(dict[key])el.textContent=dict[key];
   });
@@ -1162,7 +1163,7 @@ applyLang();
 fetchStatus();
 fetchPower();
 setInterval(function(){
-  if(S.page==='status'||S.page==='sockets'||S.page==='power')fetchPower();
+  if(S.page==='status'||S.page==='sockets'||S.page==='power'||S.page==='settings')fetchPower();
   if(S.page==='ota')fetchOtaStatus();
 },3000);
 </script>
