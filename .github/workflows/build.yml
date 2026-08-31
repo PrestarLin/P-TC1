@@ -35,13 +35,19 @@ jobs:
           ln -sf /usr/bin/$t mico-os/MiCoder/cmd/Linux64/$t
         done
 
-    - name: Get version
+    - name: Get version and auto-increment
       id: version
       run: |
         version_file=".version"
         if [ ! -f $version_file ]; then echo "v1.0.0" > $version_file; fi
         ver=$(cat $version_file)
-        echo "version=$ver" >> $GITHUB_OUTPUT
+        major=$(echo $ver | cut -d. -f1 | sed 's/v//')
+        minor=$(echo $ver | cut -d. -f2)
+        patch=$(echo $ver | cut -d. -f3)
+        patch=$((patch + 1))
+        new_ver="v${major}.${minor}.${patch}"
+        echo $new_ver > $version_file
+        echo "version=$new_ver" >> $GITHUB_OUTPUT
 
     - name: Generate web assets
       run: |
