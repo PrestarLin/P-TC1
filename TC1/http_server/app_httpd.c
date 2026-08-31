@@ -191,7 +191,11 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             sys_config->micoSystemConfig.name, short_click_config,
             user_config->night_mode_enabled,
             user_config->night_mode_start,
-            user_config->night_mode_end);
+            user_config->night_mode_end,
+            UserMqttIsConnect() ? 1 : 0,
+            RssiGet(),
+            WIFI_OFFLINE_CFG->wifi_offline_delay,
+            WIFI_OFFLINE_CFG->wifi_offline_action);
 
     OSStatus err = kNoErr;
     send_http(tc1_status, strlen(tc1_status), exit, &err);
@@ -655,6 +659,33 @@ static int HttpSetWifiStatic(httpd_request_t *req) {
     return err;
 }
 
+static int HttpSetWifiOffline(httpd_request_t *req) {
+    OSStatus err = kNoErr;
+
+    int buf_size = 32;
+    char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
+
+    err = httpd_get_data(req, buf, buf_size);
+    require_noerr(err, exit);
+
+    int delay = 0, action = 0;
+    sscanf(buf, "%d %d", &delay, &action);
+    if (delay < 0) delay = 0;
+    if (delay > 3600) delay = 3600;
+    if (action != 0 && action != 1) action = 0;
+    WIFI_OFFLINE_CFG->wifi_offline_delay = delay;
+    WIFI_OFFLINE_CFG->wifi_offline_action = action;
+    http_log("wifi offline action saved: delay=%ds action=%d", delay, action);
+    mico_system_context_update(sys_config);
+
+    send_http("OK", 2, exit, &err);
+
+    exit:
+    if (buf) free(buf);
+    return err;
+}
+
 static int HttpSetMqttConfig(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
@@ -969,6 +1000,7 @@ const struct httpd_wsgi_call g_app_handlers[] = {
         {"/wifi/config",      HTTPD_HDR_DEFORT, 0,                             HttpGetWifiConfig,     HttpSetWifiConfig,     NULL, NULL},
         {"/wifi/scan",        HTTPD_HDR_DEFORT, 0,                             HttpGetWifiScan,       HttpSetWifiScan,       NULL, NULL},
         {"/wifi/static",      HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpSetWifiStatic,     NULL, NULL},
+        {"/wifi/offline",     HTTPD_HDR_DEFORT, 0,                             NULL,                  HttpSetWifiOffline,    NULL, NULL},
         {"/mqtt/config",      HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetMqttConfig,     NULL, NULL},
         {"/reboot",           HTTPD_HDR_DEFORT, 0, NULL,                                              HttpSetRebootSystem,   NULL, NULL},
         {"/factory-reset",    HTTPD_HDR_DEFORT, 0, NULL,                                              HttpFactoryReset,      NULL, NULL},

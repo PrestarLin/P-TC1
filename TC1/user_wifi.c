@@ -5,10 +5,13 @@
 #include "user_gpio.h"
 #include "http_server/web_log.h"
 #include "mqtt_server/user_mqtt_client.h"
+#include <time.h>
 
 char wifi_status = WIFI_STATE_NOCONNECT;
 
 mico_timer_t wifi_led_timer;
+mico_timer_t wifi_offline_timer;
+static uint32_t wifi_offline_start_s = 0;
 IpStatus ip_status = { 0, ZZ_AP_LOCAL_IP, ZZ_AP_LOCAL_IP, ZZ_AP_NET_MASK };
 
 //wifi已连接获取到IP地址回调
@@ -28,6 +31,8 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
 {
     if (status == NOTIFY_STATION_UP) //wifi连接成功
     {
+        mico_rtos_stop_timer(&wifi_offline_timer);
+        wifi_offline_start_s = 0;
         //user_config->last_wifi_status = status;
         sys_config->micoSystemConfig.reserved = status;
         mico_system_context_update(sys_config);
@@ -47,18 +52,58 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
         sys_config->micoSystemConfig.reserved = status;
         mico_system_context_update(sys_config);
 
-        ApInit(false); //打开AP
-
         wifi_status = WIFI_STATE_NOCONNECT;
         if (!mico_rtos_is_timer_running(&wifi_led_timer))
         {
             mico_rtos_start_timer(&wifi_led_timer);
+        }
+
+        int offline_delay = WIFI_OFFLINE_CFG->wifi_offline_delay;
+        if (offline_delay > 0) {
+            /* 延迟指定秒数后仍未恢复，再执行离线动作 */
+            wifi_offline_start_s = (uint32_t)time(NULL);
+            if (!mico_rtos_is_timer_running(&wifi_offline_timer)) {
+                mico_rtos_start_timer(&wifi_offline_timer);
+            }
+        } else {
+            /* 默认行为：立即开启AP */
+            ApInit(true);
         }
     }
     else if (status == NOTIFY_AP_UP)
     {
         ip_status.mode = 0;
     }
+}
+
+/* WiFi 断开延迟动作：每秒检查，断开满 delay 秒未恢复则执行动作 */
+static void WifiOfflineTimerHandler(void *arg)
+{
+    if (wifi_offline_start_s == 0) {
+        mico_rtos_stop_timer(&wifi_offline_timer);
+        return;
+    }
+    uint32_t now = (uint32_t)time(NULL);
+    if (now - wifi_offline_start_s >= (uint32_t)WIFI_OFFLINE_CFG->wifi_offline_delay) {
+        mico_rtos_stop_timer(&wifi_offline_timer);
+        wifi_offline_start_s = 0;
+        wifi_log("WARNGIN: wifi offline action[%d]", WIFI_OFFLINE_CFG->wifi_offline_action);
+        if (WIFI_OFFLINE_CFG->wifi_offline_action == 1) {
+            MicoSystemReboot();
+        } else {
+            ApInit(true);
+        }
+    }
+}
+
+/* 获取当前连接 WiFi 的信号强度(dBm)，未连接返回0 */
+int RssiGet(void)
+{
+    LinkStatusTypeDef ls;
+    if (micoWlanGetLinkStatus(&ls) == kNoErr && ls.is_connected == 1) {
+        return (int)ls.rssi;
+    }
+    return 0;
 }
 
 bool scaned = false;
@@ -184,6 +229,8 @@ void WifiInit(void)
 {
     //wifi状态下led闪烁定时器初始化
     mico_rtos_init_timer(&wifi_led_timer, 100, (void*)WifiLedTimerCallback, NULL);
+    //wifi断开延迟动作定时器(1秒周期)
+    mico_rtos_init_timer(&wifi_offline_timer, 1000, (void*)WifiOfflineTimerHandler, NULL);
     //wifi已连接获取到IP地址 回调
     mico_system_notify_register(mico_notify_DHCP_COMPLETED, (void*)WifiGetIpCallback, NULL);
     //wifi连接状态改变回调

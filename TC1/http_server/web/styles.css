@@ -123,10 +123,11 @@ ul, ol { list-style: none; }
 }
 .header-brand svg { width: 22px; height: 22px; fill: var(--accent); }
 .header-status {
-  display: flex; align-items: center; gap: var(--sp-1);
+  display: flex; align-items: center; gap: var(--sp-2);
   font-size: var(--text-xs); color: var(--fg-muted);
   margin-left: auto;
 }
+.status-chip { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .status-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent);
@@ -134,6 +135,15 @@ ul, ol { list-style: none; }
   animation: pulse 2s ease-in-out infinite;
 }
 .status-dot.offline { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.status-dot.warn { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+.ap-banner {
+  display: flex; align-items: center; gap: var(--sp-2);
+  background: var(--warning-dim); color: var(--warning);
+  border: 1px solid var(--warning); border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3); font-size: var(--text-sm);
+  margin-bottom: var(--sp-4);
+}
+.form-hint { font-size: var(--text-xs); color: var(--fg-dim); margin-top: var(--sp-2); }
 @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.5; } }
 
 /* ── Sidebar ── */
@@ -492,6 +502,7 @@ ul, ol { list-style: none; }
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .grid-2 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
+  #wifiText, #mqttText { display: none; }
 }
 
 /* ── Scrollbar ── */

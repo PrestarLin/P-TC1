@@ -182,6 +182,16 @@ _Static_assert(sizeof(user_config_t) == USER_CONFIG_STRUCT_CAP,
                "user_config_t must stay exactly USER_CONFIG_STRUCT_CAP bytes (fixed on-disk size)");
 #endif
 
+/* WiFi 断开延迟动作设置：复用 reserved 前部字节(布局不变，随配置持久化)。
+ * wifi_offline_delay>0 时，断开 WiFi delay 秒未恢复则执行 wifi_offline_action；
+ * delay=0 表示默认行为(断开立即开启 AP)。 */
+typedef struct {
+    int  wifi_offline_delay;   // 秒
+    char wifi_offline_action;  // 0=开启AP, 1=重启
+    char _pad[3];
+} wifi_offline_config_t;
+#define WIFI_OFFLINE_CFG ((wifi_offline_config_t *)user_config->reserved)
+
 extern char rtc_init;
 extern uint32_t total_time;
 extern char str_mac[16];

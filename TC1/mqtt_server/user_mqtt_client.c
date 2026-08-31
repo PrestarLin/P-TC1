@@ -25,6 +25,7 @@
 #include "MQTTClient.h"
 #include "user_gpio.h"
 #include "user_power.h"
+#include "user_wifi.h"
 #include "user_mqtt_client.h"
 
 typedef struct {
@@ -90,6 +91,7 @@ void UserMqttTimerFunc(void *arg) {
                 break;
             case 7:
                 UserMqttHassAutoPower();
+                UserMqttHassAutoRssi();
                 break;
             default:
                 mico_stop_timer(&timer_handle);
@@ -831,6 +833,33 @@ void UserMqttHassAutoPower(void) {
 char topic_buf[128] = {0};
 char send_buf[128] = {0};
 
+void UserMqttHassAutoRssi(void) {
+    char *send_buf = malloc(600);
+    char *topic_buf = malloc(128);
+    if (send_buf != NULL && topic_buf != NULL) {
+        sprintf(topic_buf, "homeassistant/sensor/%s/rssi/config", str_mac);
+        sprintf(send_buf,
+                "{\"name\":\"WiFi信号强度\","
+                "\"uniq_id\":\"tc1_%s_rssi\","
+                "\"object_id\":\"tc1_%s_rssi\","
+                "\"state_topic\":\"homeassistant/sensor/%s/rssi/state\","
+                "\"unit_of_measurement\":\"dBm\","
+                "\"device_class\":\"signal_strength\","
+                "\"entity_category\":\"diagnostic\","
+                "\"icon\":\"mdi:wifi\","
+                "\"value_template\":\"{{ value_json.rssi }}\","
+                "\"device\":{"
+                "\"identifiers\":[\"tc1_%s\"],"
+                "\"name\":\"%s\","
+                "\"model\":\"TC1\","
+                "\"manufacturer\":\"PHICOMM\"}}",
+                str_mac,str_mac, str_mac, str_mac,sys_config->micoSystemConfig.name);
+        UserMqttSendTopic(topic_buf, send_buf, 1);
+    }
+    if (send_buf) free(send_buf);
+    if (topic_buf) free(topic_buf);
+}
+
 extern void UserMqttHassPower(void) {
     sprintf(topic_buf, "homeassistant/sensor/%s/power/state", str_mac);
     sprintf(send_buf, "{\"power\":\"%.3f\"}", real_time_power / 10);
@@ -872,6 +901,10 @@ extern void UserMqttHassPower(void) {
                                                                             user_config->p_count_1_day_ago -
                                                                             user_config->p_count_2_days_ago))) /
                                                                   1000 / 36000);
+    UserMqttSendTopic(topic_buf, send_buf, 0);
+
+    sprintf(topic_buf, "homeassistant/sensor/%s/rssi/state", str_mac);
+    sprintf(send_buf, "{\"rssi\":%d}", RssiGet());
     UserMqttSendTopic(topic_buf, send_buf, 0);
 }
 

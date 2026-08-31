@@ -25,9 +25,10 @@
     <span>TC1</span>
   </div>
   <div class="header-status">
+    <span class="status-chip"><span class="status-dot" id="wifiDot"></span><span id="wifiText">WiFi --</span></span>
+    <span class="status-chip"><span class="status-dot" id="mqttDot"></span><span id="mqttText">MQTT --</span></span>
+    <span class="status-chip"><span class="status-dot" id="connDot"></span><span id="connText" data-i18n="connecting">Connecting...</span></span>
     <button class="btn-ghost" id="langToggle" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:4px" onclick="toggleLang()">中/EN</button>
-    <span class="status-dot" id="connDot"></span>
-    <span id="connText" data-i18n="connecting">Connecting...</span>
   </div>
 </header>
 
@@ -75,6 +76,7 @@
 
   <!-- Status Page -->
   <div class="page active" id="page-status">
+    <div class="ap-banner" id="apBanner" style="display:none" data-i18n="ap_banner">当前为热点模式，请连接热点访问本设备</div>
     <div class="kpi-row" id="kpiRow">
       <div class="kpi">
         <div class="kpi-value green" id="kPower">--</div>
@@ -206,6 +208,8 @@
               <option value="6">Socket 6</option>
               <option value="7">LED</option>
               <option value="11">Child Lock</option>
+              <option value="8">Reboot</option>
+              <option value="12">Restart HTTP</option>
             </select>
           </div>
           <div class="form-group">
@@ -320,6 +324,24 @@
           </div>
         </div>
         <button class="btn btn-primary btn-block" onclick="saveStaticIp()" data-i18n="btn_save_static">Save IP Config</button>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-head" data-i18n="wifi_offline">WiFi Offline Action</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label" data-i18n="wifi_offline_delay_label">Delay after disconnect (seconds)</label>
+          <input class="form-input" id="wifiOfflineDelay" type="number" min="0" max="3600" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="wifi_offline_action_label">Action</label>
+          <select class="form-select" id="wifiOfflineAction">
+            <option value="0" data-i18n="wifi_offline_ap">Open AP Mode</option>
+            <option value="1" data-i18n="wifi_offline_reboot">Reboot</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="saveWifiOffline()" data-i18n="btn_save_wifi_offline">Save</button>
+        <div class="form-hint" data-i18n="wifi_offline_hint">0 = disconnect immediately opens AP (default)</div>
       </div>
     </div>
     <div class="card">
@@ -534,10 +556,48 @@ function initToggle(id,cb){
 function setToggle(id,on){var el=document.getElementById(id);if(el){if(on)el.classList.add('on');else el.classList.remove('on');}}
 
 /* ── GET /status → device info, wifi, mqtt config ── */
+function updateStatusIndicators(j){
+  var dict=i18nData[curLang]||i18nData.en;
+  var wifiDot=document.getElementById('wifiDot'),wifiT=document.getElementById('wifiText');
+  if(wifiDot&&wifiT){
+    if(j.mode===0){
+      wifiDot.className='status-dot warn';
+      wifiT.textContent=(dict.wifi_ap||'AP')+(j.ap_ssid?' '+j.ap_ssid:'');
+    }else if(j.station_ssid){
+      wifiDot.className='status-dot';
+      wifiT.textContent=(dict.wifi_on||'WiFi')+(j.rssi?' '+j.rssi+'dBm':'');
+    }else{
+      wifiDot.className='status-dot offline';
+      wifiT.textContent=dict.wifi_off||'WiFi Off';
+    }
+  }
+  var mqttDot=document.getElementById('mqttDot'),mqttT=document.getElementById('mqttText');
+  if(mqttDot&&mqttT){
+    if(j.mqtt_connected===1){
+      mqttDot.className='status-dot';
+      mqttT.textContent=dict.mqtt_on||'MQTT';
+    }else{
+      mqttDot.className='status-dot offline';
+      mqttT.textContent=dict.mqtt_off||'MQTT Off';
+    }
+  }
+  if(j.mode!==undefined){
+    var b=document.getElementById('apBanner');
+    if(b)b.style.display=j.mode===0?'flex':'none';
+  }
+}
+function fetchHeaderStatus(){
+  api('/status',function(e,d){
+    if(e)return;
+    var j=p(d);if(!j)return;
+    updateStatusIndicators(j);
+  });
+}
 function fetchStatus(){
   api('/status',function(e,d){
     if(e)return;
     var j=p(d);if(!j)return;
+    updateStatusIndicators(j);
     document.getElementById('infoFw').textContent=j.version||'--';
     document.getElementById('infoIp').textContent=j.ip||'--';
     document.getElementById('infoWifi').textContent=j.station_ssid||'--';
@@ -547,6 +607,10 @@ function fetchStatus(){
     document.getElementById('mqttUser').value=j.mqtt_usr||'';
     document.getElementById('mqttFreq').value=j.reportFreq||2;
     document.getElementById('wifiSsid').value=j.station_ssid||'';
+    if(j.wifi_offline_delay!==undefined){
+      document.getElementById('wifiOfflineDelay').value=j.wifi_offline_delay;
+      document.getElementById('wifiOfflineAction').value=j.wifi_offline_action;
+    }
     if(j.ip_mode!==undefined){
       setToggle('togStaticIp',j.ip_mode===1);
       document.getElementById('staticIpFields').style.display=j.ip_mode===1?'':'none';
@@ -830,7 +894,7 @@ function renderTasks(){
     }else if(wk===127||wk===8)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
-    var devMap={0:'All Sockets',7:'LED',11:'Child Lock'};
+    var devMap={0:'All Sockets',7:'LED',8:'Reboot',11:'Child Lock',12:'Restart HTTP'};
     var sockStr=devMap[t.operation];
     if(!sockStr){
       if(t.operation>=1&&t.operation<=6&&S.socketNames[t.operation-1])sockStr=S.socketNames[t.operation-1];
@@ -943,6 +1007,12 @@ function saveStaticIp(){
   post('/wifi/static',mode+' '+ip+' '+mask+' '+gw+' '+dns,function(e){
     toast(e?'Error':'IP config saved. Reboot to apply.');
   });
+}
+function saveWifiOffline(){
+  var delay=parseInt(document.getElementById('wifiOfflineDelay').value)||0;
+  var action=parseInt(document.getElementById('wifiOfflineAction').value)||0;
+  if(delay<0)delay=0;
+  post('/wifi/offline',delay+' '+action,function(e){toast(e?T('toast_error'):T('toast_saved'));});
 }
 
 /* ── Actions ── */
@@ -1284,6 +1354,11 @@ var i18nData={
     toast_cleared_all:'All custom events cleared',toast_no_custom:'No custom events to clear',
     toast_failed:'Failed',toast_resetting:'Resetting...',
     wifi_config:'WiFi Configuration',password:'Password',mqtt_config:'MQTT Configuration',
+    wifi_on:'WiFi',wifi_off:'WiFi Off',wifi_ap:'AP',mqtt_on:'MQTT',mqtt_off:'MQTT Off',
+    ap_banner:'Current AP mode: connect to the hotspot to access this device',
+    wifi_offline:'WiFi Offline Action',wifi_offline_delay_label:'Delay after disconnect (seconds)',
+    wifi_offline_action_label:'Action',wifi_offline_ap:'Open AP Mode',wifi_offline_reboot:'Reboot',
+    btn_save_wifi_offline:'Save',wifi_offline_hint:'0 = disconnect immediately opens AP (default)',
     ip_config:'IP Configuration',use_static_ip:'Static IP',netmask:'Netmask',gateway:'Gateway',
     broker_host:'Broker Host',port:'Port',report_freq:'Report Freq (s)',username:'Username',
     firmware_update:'Firmware Update',current:'Current',select_firmware:'Select Firmware (.ota.bin)',
@@ -1322,6 +1397,11 @@ var i18nData={
     toast_cleared_all:'已清空全部自定义事件',toast_no_custom:'没有可清空的自定义事件',
     toast_failed:'操作失败',toast_resetting:'正在恢复出厂...',
     wifi_config:'WiFi 配置',password:'密码',mqtt_config:'MQTT 配置',
+    wifi_on:'WiFi',wifi_off:'WiFi 离线',wifi_ap:'热点',mqtt_on:'MQTT',mqtt_off:'MQTT 离线',
+    ap_banner:'当前为热点模式，请连接热点访问本设备',
+    wifi_offline:'WiFi 断开设置',wifi_offline_delay_label:'断开后延迟秒数',
+    wifi_offline_action_label:'动作',wifi_offline_ap:'开启 AP 模式',wifi_offline_reboot:'重启',
+    btn_save_wifi_offline:'保存',wifi_offline_hint:'0 = 断开立即开启AP（默认）',
     ip_config:'IP 配置',use_static_ip:'静态 IP',netmask:'子网掩码',gateway:'网关',
     broker_host:'服务器地址',port:'端口',report_freq:'上报间隔 (s)',username:'用户名',
     firmware_update:'固件升级',current:'当前版本',select_firmware:'选择固件 (.ota.bin)',
@@ -1354,6 +1434,7 @@ fetchPower();
 setInterval(function(){
   if(S.page==='status'||S.page==='sockets'||S.page==='power'||S.page==='settings')fetchPower();
   if(S.page==='ota')fetchOtaStatus();
+  fetchHeaderStatus();
 },3000);
 </script>
 </body>

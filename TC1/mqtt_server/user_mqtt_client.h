@@ -42,6 +42,8 @@ extern void UserMqttHassPower(void);
 
 extern void UserMqttHassAutoPower(void);
 
+extern void UserMqttHassAutoRssi(void);
+
 extern void UserMqttHassAutoLed(void);
 
 extern void UserMqttHassAutoChildLock(void);
