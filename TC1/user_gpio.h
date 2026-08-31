@@ -5,6 +5,7 @@
 #include "micokit_ext.h"
 
 #define NO_FUNCTION 0x0F
+#define KEY_NONE 0xFF
 #define SWITCH_ALL_SOCKETS 0
 #define SWITCH_SOCKET_1 1
 #define SWITCH_SOCKET_2 2
@@ -18,6 +19,14 @@
 #define RESET_SYSTEM 10
 #define SWITCH_CHILD_LOCK_ENABLE 11
 #define REBOOT_HTTP 12
+#define SWITCH_ALL_ON 13
+#define SWITCH_ALL_OFF 14
+#define SWITCH_SOCKET_ON(i)  (18 + 2*(i))   /* i=1..6 -> 20,22,24,26,28,30 */
+#define SWITCH_SOCKET_OFF(i) (19 + 2*(i))   /* i=1..6 -> 21,23,25,27,29,31 */
+#define SWITCH_LED_ON 32
+#define SWITCH_LED_OFF 33
+#define SWITCH_CHILD_LOCK_ON 34
+#define SWITCH_CHILD_LOCK_OFF 35
 
 extern char socket_status[32];
 
@@ -34,5 +43,6 @@ char get_short_func(char val);
 char get_long_func(char val);
 char *get_func_name(char func_code);
 void StartLedBlink(uint8_t times);
+void ButtonConfigInit(void);
 
 #endif

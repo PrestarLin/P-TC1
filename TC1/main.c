@@ -66,6 +66,7 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     for (int i = 0; i < MAX_TASK_NUM; i++) {
         userConfigDefault->timed_tasks[i].on_use = false;
     }
+    RESERVED_CFG->key_init = KEY_CFG_MAGIC;  // 出厂默认已直接写入全字节按键配置
     mico_system_context_update(sys_config);
 }
 
@@ -302,15 +303,21 @@ int application_start(void) {
 
     childLockEnabled = user_config->child_lock;
 
+    /* 旧固件升级：把 user[] nibble 编码解包到全字节按键功能码(仅首次) */
+    ButtonConfigInit();
+    if (RESERVED_CFG->key_init != KEY_CFG_MAGIC) {
+        mico_system_context_update(sys_config);
+    }
+
     /* 5s/10s 长按为受保护出厂任务(配网/恢复出厂)，强制回写为出厂值，
      * 修复旧固件(可任意改5s/10s)残留的非法配置导致默认任务显示与按键行为错误 */
     bool heal_key = false;
-    if (get_long_func(user_config->user[5]) != CONFIG_WIFI) {
-        set_key_map(user_config->user, 5, get_short_func(user_config->user[5]), CONFIG_WIFI);
+    if (get_long_func(RESERVED_CFG->key_long[5]) != CONFIG_WIFI) {
+        set_key_map(user_config->user, 5, RESERVED_CFG->key_short[5], CONFIG_WIFI);
         heal_key = true;
     }
-    if (get_long_func(user_config->user[10]) != RESET_SYSTEM) {
-        set_key_map(user_config->user, 10, get_short_func(user_config->user[10]), RESET_SYSTEM);
+    if (get_long_func(RESERVED_CFG->key_long[10]) != RESET_SYSTEM) {
+        set_key_map(user_config->user, 10, RESERVED_CFG->key_short[10], RESET_SYSTEM);
         heal_key = true;
     }
     if (heal_key) {

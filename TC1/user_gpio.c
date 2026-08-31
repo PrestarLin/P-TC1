@@ -34,6 +34,10 @@ char* get_func_name(char func_code) {
     switch (func_code) {
         case SWITCH_ALL_SOCKETS:
             return "Toggle All Sockets";
+        case SWITCH_ALL_ON:
+            return "All Sockets On";
+        case SWITCH_ALL_OFF:
+            return "All Sockets Off";
         case SWITCH_SOCKET_1:
         case SWITCH_SOCKET_2:
         case SWITCH_SOCKET_3:
@@ -45,6 +49,10 @@ char* get_func_name(char func_code) {
             return buffer;
         case SWITCH_LED_ENABLE:
             return "Toggle LED";
+        case SWITCH_LED_ON:
+            return "LED On";
+        case SWITCH_LED_OFF:
+            return "LED Off";
         case REBOOT_SYSTEM:
             return "Reboot";
         case REBOOT_HTTP:
@@ -55,8 +63,13 @@ char* get_func_name(char func_code) {
             return "Factory Reset";
         case SWITCH_CHILD_LOCK_ENABLE:
             return "Toggle ChildLick";
+        case SWITCH_CHILD_LOCK_ON:
+            return "Child Lock On";
+        case SWITCH_CHILD_LOCK_OFF:
+            return "Child Lock Off";
         case -1:
         case NO_FUNCTION:
+        case KEY_NONE:
             return "Unassigned";
         default:
             return "Unknown";
@@ -68,17 +81,19 @@ char* get_func_name(char func_code) {
 /// \param short_func 功能码 在user_gpio.h中定义了
 /// \param long_func 功能码 在user_gpio.h中定义了
 void set_key_map(char user[],int index, char short_func, char long_func) {
-    user[index] = ((long_func & 0x0F) << 4) | (short_func & 0x0F);
+    (void)user;
+    RESERVED_CFG->key_short[index] = (short_func == NO_FUNCTION) ? KEY_NONE : short_func;
+    RESERVED_CFG->key_long[index]  = (long_func == NO_FUNCTION)  ? KEY_NONE : long_func;
 }
 
 char get_short_func(char val) {
-    char func = val & 0x0F;
-    return (func == NO_FUNCTION) ? -1 : func;  // -1 表示未配置
+    char func = val;
+    return (func == NO_FUNCTION || func == KEY_NONE) ? -1 : func;  // -1 表示未配置
 }
 
 char get_long_func(char val) {
-    char func = (val >> 4) & 0x0F;
-    return (func == NO_FUNCTION) ? -1 : func;  // -1 表示未配置
+    char func = val;
+    return (func == NO_FUNCTION || func == KEY_NONE) ? -1 : func;  // -1 表示未配置
 }
 
 
@@ -100,8 +115,8 @@ char *GetButtonClickConfig() {
     len += snprintf(btn_click_config + len, max_len - len, "[");
 
     for (int i = 1; i <= 30; i++) {
-        char short_func = get_short_func(user_config->user[i]);
-        char long_func  = get_long_func(user_config->user[i]);
+        char short_func = get_short_func(RESERVED_CFG->key_short[i]);
+        char long_func  = get_long_func(RESERVED_CFG->key_long[i]);
 //    key_log("WARNGIN:KEY func %d %d %d", i,short_func,long_func);
 
         snprintf(temp, sizeof(temp), "{'%d':[%d,%d]}%s", i, short_func, long_func, (i != 30) ? "," : "");
@@ -112,6 +127,20 @@ char *GetButtonClickConfig() {
     snprintf(btn_click_config + len, max_len - len, "]");
 
     return btn_click_config;
+}
+
+/* 首次运行(旧固件升级)：把旧 user[] nibble 编码解包到全字节按键功能码 */
+void ButtonConfigInit(void) {
+    if (RESERVED_CFG->key_init == KEY_CFG_MAGIC) return;
+    for (int i = 0; i < maxNameLen; i++) {
+        char old = user_config->user[i];
+        char s = old & 0x0F;
+        char l = (old >> 4) & 0x0F;
+        RESERVED_CFG->key_short[i] = (s == NO_FUNCTION) ? KEY_NONE : s;
+        RESERVED_CFG->key_long[i]  = (l == NO_FUNCTION)  ? KEY_NONE : l;
+    }
+    RESERVED_CFG->key_init = KEY_CFG_MAGIC;
+    tc1_log("WARNGIN: ButtonConfigInit unpack legacy key config");
 }
 
 void SetSocketStatus(char *socket_status) {
@@ -173,9 +202,23 @@ static void KeyEventHandler(int num, boolean longPress) {
             num > 1 ? (longPress ? "seconds" : "times") : (longPress ? "second" : "time"));
     if (num > 30 || num <= 0)
         return;
-    int function = !longPress ? get_short_func(user_config->user[num]) : get_long_func(
-            user_config->user[num]);
+    int function = !longPress ? get_short_func(RESERVED_CFG->key_short[num]) : get_long_func(
+            RESERVED_CFG->key_long[num]);
             boolean showLog= childLockEnabled==0;
+
+    /* 单插座 开/关 (20..31) */
+    if (function >= SWITCH_SOCKET_ON(1) && function <= SWITCH_SOCKET_OFF(6)) {
+        if (childLockEnabled) return;
+        int idx = (function - SWITCH_SOCKET_ON(1)) / 2;
+        int on  = ((function - SWITCH_SOCKET_ON(1)) % 2 == 0) ? Relay_ON : Relay_OFF;
+        UserRelaySet(idx, on);
+        UserMqttSendSocketState(idx);
+        UserMqttSendTotalSocketState();
+        mico_system_context_update(sys_config);
+        key_log("WARNGIN:%s", get_func_name(function));
+        return;
+    }
+
     switch (function) {
         case SWITCH_ALL_SOCKETS:
          if (childLockEnabled)
@@ -190,6 +233,22 @@ static void KeyEventHandler(int num, boolean longPress) {
                 UserMqttSendSocketState(i);
             }
             UserMqttSendTotalSocketState();
+            break;
+        case SWITCH_ALL_ON:
+            if (childLockEnabled)
+                break;
+            UserRelaySetAll(Relay_ON);
+            for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
+            UserMqttSendTotalSocketState();
+            mico_system_context_update(sys_config);
+            break;
+        case SWITCH_ALL_OFF:
+            if (childLockEnabled)
+                break;
+            UserRelaySetAll(Relay_OFF);
+            for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
+            UserMqttSendTotalSocketState();
+            mico_system_context_update(sys_config);
             break;
         case SWITCH_SOCKET_1:
         case SWITCH_SOCKET_2:
@@ -216,10 +275,40 @@ static void KeyEventHandler(int num, boolean longPress) {
             UserMqttSendLedState();
             mico_system_context_update(sys_config);
             break;
+        case SWITCH_LED_ON:
+            if (childLockEnabled)
+                break;
+            MQTT_LED_ENABLED = 1;
+            if (RelayOut()) UserLedSet(1); else UserLedSet(0);
+            UserMqttSendLedState();
+            mico_system_context_update(sys_config);
+            break;
+        case SWITCH_LED_OFF:
+            if (childLockEnabled)
+                break;
+            MQTT_LED_ENABLED = 0;
+            UserLedSet(0);
+            UserMqttSendLedState();
+            mico_system_context_update(sys_config);
+            break;
         case SWITCH_CHILD_LOCK_ENABLE:
             showLog=true;
             user_config->child_lock = user_config->child_lock == 0 ? 1 : 0;
             childLockEnabled = user_config->child_lock;
+            mico_system_context_update(sys_config);
+            UserMqttSendChildLockState();
+            break;
+        case SWITCH_CHILD_LOCK_ON:
+            showLog=true;
+            user_config->child_lock = 1;
+            childLockEnabled = 1;
+            mico_system_context_update(sys_config);
+            UserMqttSendChildLockState();
+            break;
+        case SWITCH_CHILD_LOCK_OFF:
+            showLog=true;
+            user_config->child_lock = 0;
+            childLockEnabled = 0;
             mico_system_context_update(sys_config);
             UserMqttSendChildLockState();
             break;

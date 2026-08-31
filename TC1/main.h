@@ -182,15 +182,21 @@ _Static_assert(sizeof(user_config_t) == USER_CONFIG_STRUCT_CAP,
                "user_config_t must stay exactly USER_CONFIG_STRUCT_CAP bytes (fixed on-disk size)");
 #endif
 
-/* WiFi 断开延迟动作设置：复用 reserved 前部字节(布局不变，随配置持久化)。
- * wifi_offline_delay>0 时，断开 WiFi delay 秒未恢复则执行 wifi_offline_action；
- * delay=0 表示默认行为(断开立即开启 AP)。 */
+/* reserved 前部字节按需复用(布局不变，随配置持久化)。
+ * 1) WiFi 断开延迟动作: delay>0 时断开 delay 秒未恢复执行 action；0=断开立即开启AP。
+ * 2) 按键功能码(全字节): 取代旧 4 位 nibble 编码，支持 开/关/切换；
+ *    旧固件升级时由 key_init!=MAGIC 触发从 user[] nibble 解包一次。 */
+#define KEY_CFG_MAGIC 0x5A
 typedef struct {
-    int  wifi_offline_delay;   // 秒
-    char wifi_offline_action;  // 0=开启AP, 1=重启
-    char _pad[3];
-} wifi_offline_config_t;
-#define WIFI_OFFLINE_CFG ((wifi_offline_config_t *)user_config->reserved)
+    int  wifi_offline_delay;   // offset 0
+    char wifi_offline_action;  // offset 4, 0=开启AP, 1=重启
+    char _pad[3];              // offset 5
+    char key_short[32];        // offset 8, 点按x次功能码
+    char key_long[32];         // offset 40, 长按x秒功能码
+    char key_init;             // offset 72
+    char _pad2[3];
+} reserved_cfg_t;
+#define RESERVED_CFG ((reserved_cfg_t *)user_config->reserved)
 
 extern char rtc_init;
 extern uint32_t total_time;

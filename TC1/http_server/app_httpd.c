@@ -1,4 +1,4 @@
-/**
+﻿/**
  ******************************************************************************
  * @file    app_https.c
  * @author  QQ DING
@@ -59,7 +59,7 @@ static bool is_handlers_registered;
 const struct httpd_wsgi_call g_app_handlers[];
 char power_info_json[2048] = {0};
 char up_time[32] = "00:00:00";
-#define CHUNK_SIZE 1024  // 匹配SDK HTTPD_SEND_BODY_DATA_MAX_LEN，减少send调用次数
+#define CHUNK_SIZE 1024  // 鍖归厤SDK HTTPD_SEND_BODY_DATA_MAX_LEN锛屽噺灏憇end璋冪敤娆℃暟
 #define OTA_BUFFER_SIZE 512
 #define MAX_OTA_SIZE 1024*1024
 
@@ -194,8 +194,8 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             user_config->night_mode_end,
             UserMqttIsConnect() ? 1 : 0,
             RssiGet(),
-            WIFI_OFFLINE_CFG->wifi_offline_delay,
-            WIFI_OFFLINE_CFG->wifi_offline_action);
+            RESERVED_CFG->wifi_offline_delay,
+            RESERVED_CFG->wifi_offline_action);
 
     OSStatus err = kNoErr;
     send_http(tc1_status, strlen(tc1_status), exit, &err);
@@ -263,7 +263,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     sscanf(buf, "%d %d %d", &index, &func, &longPress);
     if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
     
-    // Safety底线：默认任务(5秒配网、10秒恢复出厂)不允许修改
+    // Safety搴曠嚎锛氶粯璁や换鍔?5绉掗厤缃戙€?0绉掓仮澶嶅嚭鍘?涓嶅厑璁镐慨鏀?
     if ((index == 5 && longPress == 1) || (index == 10 && longPress == 1)) {
         http_log("Blocked: default task at %ds cannot be modified", index);
         free(buf);
@@ -271,12 +271,14 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
         return err;
     }
     
+    if (func == -1 || func == NO_FUNCTION) func = KEY_NONE;  // 未设置/无
+
     if (longPress == 1) {
-        set_key_map(user_config->user,index, get_short_func(user_config->user[index]), (func == -1 || func == NO_FUNCTION) ? NO_FUNCTION : func);
+        set_key_map(user_config->user,index, RESERVED_CFG->key_short[index], func);
     } else {
-        set_key_map(user_config->user,index, (func == -1 || func == NO_FUNCTION) ? NO_FUNCTION : func, get_long_func(user_config->user[index]));
+        set_key_map(user_config->user,index, func, RESERVED_CFG->key_long[index]);
     }
-    key_log("WARNGIN:set KEY func %d %d %d", index,get_short_func(user_config->user[index]),get_long_func(user_config->user[index]));
+    key_log("WARNGIN:set KEY func %d short[%d] long[%d]", index, RESERVED_CFG->key_short[index], RESERVED_CFG->key_long[index]);
     mico_system_context_update(sys_config);
 
     send_http("OK", 2, exit, &err);
@@ -308,7 +310,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
     MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
     CRC16_Context crc_context;
     CRC16_Init(&crc_context);
-    // 尝试读取全部 POST 数据
+    // 灏濊瘯璇诲彇鍏ㄩ儴 POST 鏁版嵁
     while (1) {
         ret = httpd_get_data2(req, buffer,OTA_BUF_SIZE);
 
@@ -320,15 +322,15 @@ static int HttpSetOTAFile(httpd_request_t *req)
             CRC16_Update(&crc_context, buffer, ret);
             err = MicoFlashWrite(MICO_PARTITION_OTA_TEMP, &offset, (uint8_t *)buffer, ret);
             require_noerr_quiet(err, exit);
-            tc1_log("[OTA] 本次读取 %d 字节，累计 %d 字节", ret, total);
+            tc1_log("[OTA] 鏈璇诲彇 %d 瀛楄妭锛岀疮璁?%d 瀛楄妭", ret, total);
         }
 
         if (ret == 0 || req->remaining_bytes <= 0) {
-            // 读取完毕
-            tc1_log("[OTA] 数据读取完成, 总计 %d 字节", total);
+            // 璇诲彇瀹屾瘯
+            tc1_log("[OTA] 鏁版嵁璇诲彇瀹屾垚, 鎬昏 %d 瀛楄妭", total);
             break;
         } else if (ret < 0) {
-            tc1_log("[OTA] 数据读取失败, ret=%d", ret);
+            tc1_log("[OTA] 鏁版嵁璇诲彇澶辫触, ret=%d", ret);
             err = kConnectionErr;
             break;
         }
@@ -421,7 +423,7 @@ static int HttpGetPowerInfo(httpd_request_t *req) {
     int idx = 0;
     sscanf(buf, "%d", &idx);
 
-    //计算系统运行时间
+    //璁＄畻绯荤粺杩愯鏃堕棿
     mico_time_t past_ms = 0;
     mico_time_get_time(&past_ms);
     int past = past_ms / 1000;
@@ -461,7 +463,7 @@ static int HttpGetWifiConfig(httpd_request_t *req) {
 }
 
 
-// 单个十六进制字符转数字（安全）
+// 鍗曚釜鍗佸叚杩涘埗瀛楃杞暟瀛楋紙瀹夊叏锛?
 static int hex_char_to_int(char c) {
     if ('0' <= c && c <= '9') return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
@@ -469,7 +471,7 @@ static int hex_char_to_int(char c) {
     return -1;
 }
 
-// 健壮版 URL 解码函数
+// 鍋ュ．鐗?URL 瑙ｇ爜鍑芥暟
 void url_decode(const char *src, char *dest, size_t max_len) {
     size_t i = 0;
     while (*src && i < max_len - 1) {
@@ -483,7 +485,7 @@ void url_decode(const char *src, char *dest, size_t max_len) {
                     continue;
                 }
             }
-            // 非法编码，跳过 %
+            // 闈炴硶缂栫爜锛岃烦杩?%
             src++;
         } else if (*src == '+') {
             dest[i++] = ' ';
@@ -674,8 +676,8 @@ static int HttpSetWifiOffline(httpd_request_t *req) {
     if (delay < 0) delay = 0;
     if (delay > 3600) delay = 3600;
     if (action != 0 && action != 1) action = 0;
-    WIFI_OFFLINE_CFG->wifi_offline_delay = delay;
-    WIFI_OFFLINE_CFG->wifi_offline_action = action;
+    RESERVED_CFG->wifi_offline_delay = delay;
+    RESERVED_CFG->wifi_offline_action = action;
     http_log("wifi offline action saved: delay=%ds action=%d", delay, action);
     mico_system_context_update(sys_config);
 
@@ -796,7 +798,7 @@ static int HttpAddTask(httpd_request_t *req) {
                     &task->weekday, &loop_dur, &loop_int, &loop_end);
     http_log("AddTask buf[%s] re[%d]", buf, re);
 
-    /* 如果传了循环参数，编码到 weekday */
+    /* 濡傛灉浼犱簡寰幆鍙傛暟锛岀紪鐮佸埌 weekday */
     if (re >= 6 && loop_dur > 0) {
         task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int);
         task->loop_end = loop_end;

@@ -1,4 +1,4 @@
-#include "user_wifi.h"
+﻿#include "user_wifi.h"
 
 #include "main.h"
 #include "mico_socket.h"
@@ -14,7 +14,7 @@ mico_timer_t wifi_offline_timer;
 static uint32_t wifi_offline_start_s = 0;
 IpStatus ip_status = { 0, ZZ_AP_LOCAL_IP, ZZ_AP_LOCAL_IP, ZZ_AP_NET_MASK };
 
-//wifi已连接获取到IP地址回调
+//wifi宸茶繛鎺ヨ幏鍙栧埌IP鍦板潃鍥炶皟
 static void WifiGetIpCallback(IPStatusTypedef *pnet, void * arg)
 {
     strcpy(ip_status.ip, pnet->ip);
@@ -26,10 +26,10 @@ static void WifiGetIpCallback(IPStatusTypedef *pnet, void * arg)
     //UserFunctionCmdReceived(1,"{\"cmd\":\"device report\"}");
 }
 
-//wifi连接状态改变回调
+//wifi杩炴帴鐘舵€佹敼鍙樺洖璋?
 static void WifiStatusCallback(WiFiEvent status, void* arg)
 {
-    if (status == NOTIFY_STATION_UP) //wifi连接成功
+    if (status == NOTIFY_STATION_UP) //wifi杩炴帴鎴愬姛
     {
         mico_rtos_stop_timer(&wifi_offline_timer);
         wifi_offline_start_s = 0;
@@ -37,7 +37,7 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
         sys_config->micoSystemConfig.reserved = status;
         mico_system_context_update(sys_config);
 
-        OSStatus status = micoWlanSuspendSoftAP(); //关闭AP
+        OSStatus status = micoWlanSuspendSoftAP(); //鍏抽棴AP
         if (status != kNoErr)
         {
             wifi_log("close ap error[%d]", status);
@@ -46,7 +46,7 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
         ip_status.mode = 1;
         //wifi_status = WIFI_STATE_CONNECTED;
     }
-    else if (status == NOTIFY_STATION_DOWN) //wifi断开
+    else if (status == NOTIFY_STATION_DOWN) //wifi鏂紑
     {
         //user_config->last_wifi_status = status;
         sys_config->micoSystemConfig.reserved = status;
@@ -58,15 +58,15 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
             mico_rtos_start_timer(&wifi_led_timer);
         }
 
-        int offline_delay = WIFI_OFFLINE_CFG->wifi_offline_delay;
+        int offline_delay = RESERVED_CFG->wifi_offline_delay;
         if (offline_delay > 0) {
-            /* 延迟指定秒数后仍未恢复，再执行离线动作 */
+            /* 寤惰繜鎸囧畾绉掓暟鍚庝粛鏈仮澶嶏紝鍐嶆墽琛岀绾垮姩浣?*/
             wifi_offline_start_s = (uint32_t)time(NULL);
             if (!mico_rtos_is_timer_running(&wifi_offline_timer)) {
                 mico_rtos_start_timer(&wifi_offline_timer);
             }
         } else {
-            /* 默认行为：立即开启AP */
+            /* 榛樿琛屼负锛氱珛鍗冲紑鍚疉P */
             ApInit(true);
         }
     }
@@ -76,7 +76,7 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
     }
 }
 
-/* WiFi 断开延迟动作：每秒检查，断开满 delay 秒未恢复则执行动作 */
+/* WiFi 鏂紑寤惰繜鍔ㄤ綔锛氭瘡绉掓鏌ワ紝鏂紑婊?delay 绉掓湭鎭㈠鍒欐墽琛屽姩浣?*/
 static void WifiOfflineTimerHandler(void *arg)
 {
     if (wifi_offline_start_s == 0) {
@@ -84,11 +84,11 @@ static void WifiOfflineTimerHandler(void *arg)
         return;
     }
     uint32_t now = (uint32_t)time(NULL);
-    if (now - wifi_offline_start_s >= (uint32_t)WIFI_OFFLINE_CFG->wifi_offline_delay) {
+    if (now - wifi_offline_start_s >= (uint32_t)RESERVED_CFG->wifi_offline_delay) {
         mico_rtos_stop_timer(&wifi_offline_timer);
         wifi_offline_start_s = 0;
-        wifi_log("WARNGIN: wifi offline action[%d]", WIFI_OFFLINE_CFG->wifi_offline_action);
-        if (WIFI_OFFLINE_CFG->wifi_offline_action == 1) {
+        wifi_log("WARNGIN: wifi offline action[%d]", RESERVED_CFG->wifi_offline_action);
+        if (RESERVED_CFG->wifi_offline_action == 1) {
             MicoSystemReboot();
         } else {
             ApInit(true);
@@ -96,7 +96,7 @@ static void WifiOfflineTimerHandler(void *arg)
     }
 }
 
-/* 获取当前连接 WiFi 的信号强度(dBm)，未连接返回0 */
+/* 鑾峰彇褰撳墠杩炴帴 WiFi 鐨勪俊鍙峰己搴?dBm)锛屾湭杩炴帴杩斿洖0 */
 int RssiGet(void)
 {
     LinkStatusTypeDef ls;
@@ -108,7 +108,7 @@ int RssiGet(void)
 
 bool scaned = false;
 char* wifi_ret = NULL;
-//wifi扫描结果回调
+//wifi鎵弿缁撴灉鍥炶皟
 void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
 {
     int count = (int)scan_ret->ApNum;
@@ -140,7 +140,7 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
             ap->ssid, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], ap->security);
         */
         char* ssid = scan_ret->ApList[i].ssid;
-        //排除隐藏的wifi和SSID带'或"的我wifi
+        //鎺掗櫎闅愯棌鐨剋ifi鍜孲SID甯?鎴?鐨勬垜wifi
         if (ssid[0] == 0 || strstr(ssid, "'") || strstr(ssid, "\"")) continue;
         sprintf(tmp1, "'%s',", ssid);
         tmp1 += (strlen(ssid) + 3);
@@ -158,7 +158,7 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
 }
 
 
-//100ms定时器回调
+//100ms瀹氭椂鍣ㄥ洖璋?
 static void WifiLedTimerCallback(void* arg)
 {
     static unsigned int num = 0;
@@ -195,7 +195,7 @@ static void WifiLedTimerCallback(void* arg)
 void WifiConnect(char* wifi_ssid, char* wifi_key)
 {
     wifi_log("WifiConnect wifi_ssid[%s] wifi_key[******]", wifi_ssid);
-    //wifi配置初始化
+    //wifi閰嶇疆鍒濆鍖?
     network_InitTypeDef_st wNetConfig;
 
     memset(&wNetConfig, 0, sizeof(network_InitTypeDef_st));
@@ -217,7 +217,7 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
     micoWlanStart(&wNetConfig);
 
-    //保存wifi及密码到Flash
+    //淇濆瓨wifi鍙婂瘑鐮佸埌Flash
     snprintf(sys_config->micoSystemConfig.ssid, sizeof(sys_config->micoSystemConfig.ssid), "%s", wifi_ssid);
     snprintf(sys_config->micoSystemConfig.user_key, sizeof(sys_config->micoSystemConfig.user_key), "%s", wifi_key);
     sys_config->micoSystemConfig.user_keyLength = strlen(wifi_key);
@@ -227,19 +227,19 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
 void WifiInit(void)
 {
-    //wifi状态下led闪烁定时器初始化
+    //wifi鐘舵€佷笅led闂儊瀹氭椂鍣ㄥ垵濮嬪寲
     mico_rtos_init_timer(&wifi_led_timer, 100, (void*)WifiLedTimerCallback, NULL);
-    //wifi断开延迟动作定时器(1秒周期)
+    //wifi鏂紑寤惰繜鍔ㄤ綔瀹氭椂鍣?1绉掑懆鏈?
     mico_rtos_init_timer(&wifi_offline_timer, 1000, (void*)WifiOfflineTimerHandler, NULL);
-    //wifi已连接获取到IP地址 回调
+    //wifi宸茶繛鎺ヨ幏鍙栧埌IP鍦板潃 鍥炶皟
     mico_system_notify_register(mico_notify_DHCP_COMPLETED, (void*)WifiGetIpCallback, NULL);
-    //wifi连接状态改变回调
+    //wifi杩炴帴鐘舵€佹敼鍙樺洖璋?
     mico_system_notify_register(mico_notify_WIFI_STATUS_CHANGED, (void*)WifiStatusCallback, NULL);
-    //wifi扫描结果回调
+    //wifi鎵弿缁撴灉鍥炶皟
     mico_system_notify_register(mico_notify_WIFI_SCAN_ADV_COMPLETED, (void*)WifiScanCallback, NULL);
 
     //sntp_init();
-    //启动定时器开始进行wifi连接
+    //鍚姩瀹氭椂鍣ㄥ紑濮嬭繘琛寃ifi杩炴帴
     if (!mico_rtos_is_timer_running(&wifi_led_timer)) mico_rtos_start_timer(&wifi_led_timer);
 }
 

@@ -76,6 +76,7 @@
 
   <!-- Status Page -->
   <div class="page active" id="page-status">
+    <div class="status-datetime" id="currentDateTime"></div>
     <div class="ap-banner" id="apBanner" style="display:none" data-i18n="ap_banner">当前为热点模式，请连接热点访问本设备</div>
     <div class="kpi-row" id="kpiRow">
       <div class="kpi">
@@ -1130,12 +1131,30 @@ function loadNightMode(){
     document.getElementById('nightEnd').value=String(nm.end_h).padStart(2,'0')+':'+String(nm.end_m).padStart(2,'0');
   }
 }
-var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Reboot','9':'Config WiFi','10':'Factory Reset','11':'Child Lock','12':'Restart HTTP','15':'None'};
-var funcNamesZH={'Unassigned':'未设置','All Sockets':'全部插座','Socket 1':'插座 1','Socket 2':'插座 2','Socket 3':'插座 3','Socket 4':'插座 4','Socket 5':'插座 5','Socket 6':'插座 6','LED':'指示灯','Reboot':'重启','Config WiFi':'配置WiFi','Factory Reset':'恢复出厂','Child Lock':'童锁','Restart HTTP':'重启HTTP服务','None':'无'};
+var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Reboot','9':'Config WiFi','10':'Factory Reset','11':'Child Lock','12':'Restart HTTP','13':'All Sockets On','14':'All Sockets Off','15':'None',
+'20':'Socket 1 On','21':'Socket 1 Off','22':'Socket 2 On','23':'Socket 2 Off','24':'Socket 3 On','25':'Socket 3 Off','26':'Socket 4 On','27':'Socket 4 Off','28':'Socket 5 On','29':'Socket 5 Off','30':'Socket 6 On','31':'Socket 6 Off','32':'LED On','33':'LED Off','34':'Child Lock On','35':'Child Lock Off'};
+var funcNamesZH={'Unassigned':'未设置','All Sockets':'全部插座','Socket 1':'插座 1','Socket 2':'插座 2','Socket 3':'插座 3','Socket 4':'插座 4','Socket 5':'插座 5','Socket 6':'插座 6','LED':'指示灯','Reboot':'重启','Config WiFi':'配置WiFi','Factory Reset':'恢复出厂','Child Lock':'童锁','Restart HTTP':'重启HTTP服务','None':'无',
+'All Sockets On':'全部开启','All Sockets Off':'全部关闭','LED On':'开灯','LED Off':'关灯','Child Lock On':'开启童锁','Child Lock Off':'关闭童锁'};
 function btnFuncName(f){
-  var n=btnFuncMap[f]||'Unknown';
+  f=parseInt(f);
+  var dict=i18nData[curLang]||i18nData.en;
+  if(f>=20&&f<=31){ /* 单插座开/关 */
+    var sock=Math.floor((f-20)/2)+1,isOn=(f%2===0);
+    return (S.socketNames[sock-1]||('Socket '+sock))+' '+(isOn?dict.act_on:dict.act_off);
+  }
+  if(f>=1&&f<=6){ /* 单插座切换 */
+    return (S.socketNames[f-1]||('Socket '+f))+' '+dict.act_toggle;
+  }
+  var n=btnFuncMap[f.toString()]||'Unknown';
   if(curLang==='zh'&&funcNamesZH[n])n=funcNamesZH[n];
   return n;
+}
+function devActionCode(dev,act){ /* dev:0全部 1-6插座 7指示灯 8童锁; act:0开 1关 2切换 */
+  if(dev===0)return act===0?13:(act===1?14:0);
+  if(dev>=1&&dev<=6)return act===0?(18+2*dev):(act===1?(19+2*dev):dev);
+  if(dev===7)return act===0?32:(act===1?33:7);
+  if(dev===8)return act===0?34:(act===1?35:11);
+  return 15;
 }
 function longPressLabel(sec){
   var t=(i18nData[curLang]||i18nData.en).long_press_secs||'Long Press {s}s';
@@ -1233,6 +1252,7 @@ function fetchButtonConfig(){
 }
 function showAddButtonEvent(){
   var old=document.getElementById('addBtnEvtModal');if(old)old.remove();
+  var dict=i18nData[curLang]||i18nData.en;
   var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
   html+='<div class="modal-box">';
   html+='<div class="modal-title" data-i18n="add_btn_event">Add Button Event</div>';
@@ -1244,11 +1264,18 @@ function showAddButtonEvent(){
   html+='</select></div>';
   html+='<div class="form-group"><label class="form-label" id="btnEvtSecLabel" data-i18n="press_duration">Press Duration (1-30 seconds)</label>';
   html+='<input class="form-input" id="btnEvtSec" type="number" min="1" max="30" value="3"></div>';
+  html+='<div class="form-group"><label class="form-label" data-i18n="btn_dev_label">Device</label>';
+  html+='<select class="form-select" id="btnEvtDevice">';
+  html+='<option value="0">'+dict.all_sockets+'</option>';
+  for(var i=1;i<=6;i++)html+='<option value="'+i+'">'+(S.socketNames[i-1]||('Socket '+i))+'</option>';
+  html+='<option value="7">'+dict.led+'</option>';
+  html+='<option value="8">'+dict.child_lock+'</option>';
+  html+='</select></div>';
   html+='<div class="form-group"><label class="form-label" data-i18n="action">Action</label>';
-  html+='<select class="form-select" id="btnEvtFunc">';
-  Object.keys(btnFuncMap).forEach(function(f){
-    html+='<option value="'+f+'">'+btnFuncName(f)+'</option>';
-  });
+  html+='<select class="form-select" id="btnEvtAction">';
+  html+='<option value="0">'+dict.act_on+'</option>';
+  html+='<option value="1">'+dict.act_off+'</option>';
+  html+='<option value="2">'+dict.act_toggle+'</option>';
   html+='</select></div>';
   html+='</div>';
   html+='<div class="modal-footer">';
@@ -1272,7 +1299,9 @@ function addButtonEvent(){
   if(sec<1||sec>30){toast(T('toast_invalid_duration'));return;}
   var used=type==='0'?usedClickSecs:usedSecs;
   if(used.indexOf(sec)!==-1){toast(T('toast_duration_used'));return;}
-  var func=parseInt(document.getElementById('btnEvtFunc').value);
+  var dev=parseInt(document.getElementById('btnEvtDevice').value);
+  var act=parseInt(document.getElementById('btnEvtAction').value);
+  var func=devActionCode(dev,act);
   closeModal('addBtnEvtModal');
   post('/buttonEvents',sec+' '+func+' '+type,function(e){toast(e?T('toast_error'):T('toast_saved'));fetchButtonConfig();});
 }
@@ -1333,6 +1362,7 @@ function toast(msg){var t=document.createElement('div');t.className='toast';t.te
 /* ── i18n ── */
 var i18nData={
   en:{
+    weekdays:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
     connecting:'Connecting...',offline:'Offline',online:'Online',
     nav_control:'Control',nav_status:'Status',nav_sockets:'Sockets',nav_power:'Power',
     nav_management:'Management',nav_tasks:'Tasks',
@@ -1353,6 +1383,7 @@ var i18nData={
     wifi_info:'WiFi Info',mqtt_info:'MQTT Info',cancel:'Cancel',confirm_reset:'Confirm Reset',
     delete:'Delete',no_custom_events:'No custom events',
     add_btn_event:'Add Button Event',press_duration:'Press Duration (1-30 seconds)',action:'Action',add:'Add',
+    act_on:'On',act_off:'Off',act_toggle:'Toggle',btn_dev_label:'Device',all_sockets:'All Sockets',led:'LED',
     long_press_secs:'Long Press {s}s',
     click_x_times:'Click {x}x',btn_click_section:'Click (Continuous Press)',
     event_type:'Type',btn_click_times:'Click',click_times:'Click Times (1-30)',
@@ -1376,6 +1407,7 @@ var i18nData={
     system_log:'System Log'
   },
   zh:{
+    weekdays:['周日','周一','周二','周三','周四','周五','周六'],
     connecting:'连接中...',offline:'离线',online:'在线',
     nav_control:'控制',nav_status:'状态',nav_sockets:'插座',nav_power:'功率',
     nav_management:'管理',nav_tasks:'任务',
@@ -1396,6 +1428,7 @@ var i18nData={
     wifi_info:'WiFi 信息',mqtt_info:'MQTT 信息',cancel:'取消',confirm_reset:'确认恢复出厂',
     delete:'删除',no_custom_events:'暂无自定义事件',
     add_btn_event:'添加按键事件',press_duration:'按键时长 (1-30 秒)',action:'动作',add:'添加',
+    act_on:'开',act_off:'关',act_toggle:'切换',btn_dev_label:'设备',all_sockets:'全部插座',led:'指示灯',
     long_press_secs:'长按 {s}秒',
     click_x_times:'点按 {x}次',btn_click_section:'连续点按',
     event_type:'类型',btn_click_times:'点按',click_times:'点按次数 (1-30)',
@@ -1436,14 +1469,27 @@ function applyLang(){
 function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();}
 
 /* ── Init ── */
+var _weekDays=[];
+function updateDateTime(){
+  var el=document.getElementById('currentDateTime');if(!el)return;
+  var d=new Date();
+  var dict=i18nData[curLang]||i18nData.en;
+  if(!_weekDays.length)_weekDays=dict.weekdays||['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
+  var hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
+  el.textContent=y+'-'+mo+'-'+da+'  '+_weekDays[d.getDay()]+'  '+hh+':'+mm+':'+ss;
+}
 applyLang();
+updateDateTime();
 fetchStatus();
 fetchPower();
 setInterval(function(){
   if(S.page==='status'||S.page==='sockets'||S.page==='power'||S.page==='settings')fetchPower();
   if(S.page==='ota')fetchOtaStatus();
   fetchHeaderStatus();
+  updateDateTime();
 },3000);
+setInterval(updateDateTime,1000);
 </script>
 </body>
 </html>
