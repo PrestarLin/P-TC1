@@ -373,7 +373,7 @@ char* GetTaskStr()
     {
         char buffer[26];
         struct tm* tm_info;
-        time_t prs_time = tmp_tsk->prs_time + 28800;
+        time_t prs_time = tmp_tsk->prs_time;
         tm_info = localtime(&prs_time);
         if (tm_info) {
             strftime(buffer, 26, "%m-%d %H:%M", tm_info);

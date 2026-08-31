@@ -764,7 +764,7 @@ static int HttpAddTask(httpd_request_t *req) {
     }
 
     if (task->prs_time < 1577428136 || task->prs_time > 9577428136
-        || task->operation < 0 || task->operation > 11
+        || task->operation < 0 || task->operation > 13
         || task->on < -1 || task->on > 1) { http_log("AddTask Error!");
         re = 0;
     }
