@@ -1063,11 +1063,16 @@ function longPressLabel(sec){
   var t=(i18nData[curLang]||i18nData.en).long_press_secs||'Long Press {s}s';
   return t.replace('{s}',sec);
 }
+function clickLabel(sec){
+  var t=(i18nData[curLang]||i18nData.en).click_x_times||'Click {x}x';
+  return t.replace('{x}',sec);
+}
 function T(k){
   var d=i18nData[curLang]||i18nData.en;
   return d[k]!==undefined?d[k]:k;
 }
 var usedSecs=[];
+var usedClickSecs=[];
 function fetchButtonConfig(){
   api('/buttonEvents',function(e,d){
     if(e)return;
@@ -1076,6 +1081,7 @@ function fetchButtonConfig(){
     var h='';
     var defaultSecs=[5,10];
     usedSecs=[];
+    usedClickSecs=[];
     defaultSecs.forEach(function(sec){usedSecs.push(sec);});
     defaultSecs.forEach(function(sec){
       var cfg=arr[sec-1];
@@ -1117,6 +1123,32 @@ function fetchButtonConfig(){
     if(!hasEvent){
       h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)" data-i18n="no_custom_events">No custom events</div>';
     }
+    /* 连续点按事件(短按连点x次) */
+    var clickRows='';
+    arr.forEach(function(cfg,i){
+      var key=Object.keys(cfg)[0];
+      var funcs=cfg[key];
+      var shortFunc=parseInt(funcs[0]);
+      var sec=parseInt(key);
+      if(shortFunc!==-1 && shortFunc!==15){
+        usedClickSecs.push(sec);
+        clickRows+='<div class="btn-cfg-row" id="btnClick'+sec+'">';
+        clickRows+='<div class="form-group"><label class="form-label">'+clickLabel(sec)+'</label></div>';
+        clickRows+='<div class="form-group btn-cfg-val">';
+        clickRows+='<select class="form-select" onchange="saveClickConfig('+sec+',this.value)">';
+        Object.keys(btnFuncMap).forEach(function(f){
+          var selected=parseInt(f)===shortFunc?'selected':'';
+          clickRows+='<option value="'+f+'"'+selected+'>'+btnFuncName(f)+'</option>';
+        });
+        clickRows+='</select></div>';
+        clickRows+='<div class="form-group"><button class="btn btn-danger" onclick="removeClickEvent('+sec+')" data-i18n="delete">Delete</button></div>';
+        clickRows+='</div>';
+      }
+    });
+    if(clickRows){
+      h+='<div class="btn-cfg-section-title" data-i18n="btn_click_section">Click (Continuous Press)</div>';
+      h+=clickRows;
+    }
     el.innerHTML=h;
     applyLang();
   });
@@ -1127,7 +1159,12 @@ function showAddButtonEvent(){
   html+='<div class="modal-box">';
   html+='<div class="modal-title" data-i18n="add_btn_event">Add Button Event</div>';
   html+='<div class="modal-body">';
-  html+='<div class="form-group"><label class="form-label" data-i18n="press_duration">Press Duration (1-30 seconds)</label>';
+  html+='<div class="form-group"><label class="form-label" data-i18n="event_type">Type</label>';
+  html+='<select class="form-select" id="btnEvtType" onchange="btnEvtTypeChange()">';
+  html+='<option value="1" data-i18n="btn_long_sec">Long Press</option>';
+  html+='<option value="0" data-i18n="btn_click_times">Click</option>';
+  html+='</select></div>';
+  html+='<div class="form-group"><label class="form-label" id="btnEvtSecLabel" data-i18n="press_duration">Press Duration (1-30 seconds)</label>';
   html+='<input class="form-input" id="btnEvtSec" type="number" min="1" max="30" value="3"></div>';
   html+='<div class="form-group"><label class="form-label" data-i18n="action">Action</label>';
   html+='<select class="form-select" id="btnEvtFunc">';
@@ -1143,13 +1180,23 @@ function showAddButtonEvent(){
   document.body.insertAdjacentHTML('beforeend',html);
   applyLang();
 }
+function btnEvtTypeChange(){
+  var label=document.getElementById('btnEvtSecLabel');
+  if(!label)return;
+  var t=document.getElementById('btnEvtType').value;
+  var dict=i18nData[curLang]||i18nData.en;
+  if(t==='0'){label.setAttribute('data-i18n','click_times');label.textContent=dict.click_times||'Click Times (1-30)';}
+  else{label.setAttribute('data-i18n','press_duration');label.textContent=dict.press_duration||'Press Duration (1-30 seconds)';}
+}
 function addButtonEvent(){
+  var type=document.getElementById('btnEvtType').value; /* 1=长按 0=点按 */
   var sec=parseInt(document.getElementById('btnEvtSec').value);
   if(sec<1||sec>30){toast(T('toast_invalid_duration'));return;}
-  if(usedSecs.indexOf(sec)!==-1){toast(T('toast_duration_used'));return;}
+  var used=type==='0'?usedClickSecs:usedSecs;
+  if(used.indexOf(sec)!==-1){toast(T('toast_duration_used'));return;}
   var func=parseInt(document.getElementById('btnEvtFunc').value);
   closeModal('addBtnEvtModal');
-  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?T('toast_error'):T('toast_saved'));fetchButtonConfig();});
+  post('/buttonEvents',sec+' '+func+' '+type,function(e){toast(e?T('toast_error'):T('toast_saved'));fetchButtonConfig();});
 }
 function removeButtonEvent(sec){
   if(confirm(T('confirm_delete_event'))){
@@ -1157,15 +1204,26 @@ function removeButtonEvent(sec){
     post('/buttonEvents',sec+' 15 1',function(e){toast(e?T('toast_error'):T('toast_removed'));fetchButtonConfig();});
   }
 }
+function saveClickConfig(sec,func){
+  post('/buttonEvents',sec+' '+func+' 0',function(e){toast(e?T('toast_error'):T('toast_saved'));});
+}
+function removeClickEvent(sec){
+  if(confirm(T('confirm_delete_event'))){
+    usedClickSecs=usedClickSecs.filter(function(s){return s!==sec;});
+    post('/buttonEvents',sec+' 15 0',function(e){toast(e?T('toast_error'):T('toast_removed'));fetchButtonConfig();});
+  }
+}
 function clearAllButtonEvents(){
   if(!confirm(T('confirm_clear_all')))return;
   var defaultSecs=[5,10];
-  var toClear=usedSecs.filter(function(s){return defaultSecs.indexOf(s)===-1;});
+  var toClear=[];
+  usedSecs.forEach(function(s){if(defaultSecs.indexOf(s)===-1)toClear.push([s,1]);});
+  usedClickSecs.forEach(function(s){if(s!==1)toClear.push([s,0]);});
   if(!toClear.length){toast(T('toast_no_custom'));return;}
   var i=0;
   function clearNext(){
     if(i>=toClear.length){fetchButtonConfig();toast(T('toast_cleared_all'));return;}
-    post('/buttonEvents',toClear[i]+' 15 1',function(){i++;clearNext();});
+    post('/buttonEvents',toClear[i][0]+' 15 '+toClear[i][1],function(){i++;clearNext();});
   }
   clearNext();
 }
@@ -1218,6 +1276,8 @@ var i18nData={
     delete:'Delete',no_custom_events:'No custom events',
     add_btn_event:'Add Button Event',press_duration:'Press Duration (1-30 seconds)',action:'Action',add:'Add',
     long_press_secs:'Long Press {s}s',
+    click_x_times:'Click {x}x',btn_click_section:'Click (Continuous Press)',
+    event_type:'Type',btn_click_times:'Click',click_times:'Click Times (1-30)',
     confirm_delete_event:'Remove this event?',confirm_clear_all:'Clear all custom events?',confirm_reboot:'Reboot device?',
     toast_invalid_duration:'Invalid duration',toast_duration_used:'Duration already used',
     toast_saved:'Saved',toast_error:'Error',toast_removed:'Removed',
@@ -1254,6 +1314,8 @@ var i18nData={
     delete:'删除',no_custom_events:'暂无自定义事件',
     add_btn_event:'添加按键事件',press_duration:'按键时长 (1-30 秒)',action:'动作',add:'添加',
     long_press_secs:'长按 {s}秒',
+    click_x_times:'点按 {x}次',btn_click_section:'连续点按',
+    event_type:'类型',btn_click_times:'点按',click_times:'点按次数 (1-30)',
     confirm_delete_event:'确定删除该事件？',confirm_clear_all:'确定清空所有自定义事件？',confirm_reboot:'确定重启设备？',
     toast_invalid_duration:'时长无效',toast_duration_used:'该时长已被使用',
     toast_saved:'已保存',toast_error:'错误',toast_removed:'已删除',

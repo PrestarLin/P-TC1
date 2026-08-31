@@ -387,6 +387,7 @@ ul, ol { list-style: none; }
 .btn-cfg-row .btn-cfg-val { flex: 1; min-width: 0; }
 .btn-cfg-row .form-label { margin-bottom: 0; font-size: var(--text-base); text-transform: none; letter-spacing: 0; color: var(--fg); white-space: nowrap; }
 .btn-cfg-row .form-input, .btn-cfg-row .form-select { font-size: var(--text-base); }
+.btn-cfg-section-title { font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--fg-muted); margin: var(--sp-4) 0 var(--sp-2); }
 
 /* ── Buttons ── */
 .btn {
