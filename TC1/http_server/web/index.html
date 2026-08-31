@@ -1477,8 +1477,9 @@ function updateDateTime(){
   var headerTime=document.getElementById('headerTime');
   if(!headerTime)return;
   var d=new Date();
+  var mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
   var hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
-  headerTime.textContent=hh+':'+mm+':'+ss;
+  headerTime.textContent=mo+'-'+da+' '+hh+':'+mm+':'+ss;
 }
 applyLang();
 updateDateTime();
