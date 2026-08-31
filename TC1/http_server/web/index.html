@@ -1473,13 +1473,14 @@ function applyLang(){
 function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();}
 
 /* ── Init ── */
+var _weekDays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function updateDateTime(){
   var headerTime=document.getElementById('headerTime');
   if(!headerTime)return;
   var d=new Date();
-  var mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
+  var y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
   var hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
-  headerTime.textContent=mo+'-'+da+' '+hh+':'+mm+':'+ss;
+  headerTime.textContent=y+'-'+mo+'-'+da+' '+_weekDays[d.getDay()]+' '+hh+':'+mm+':'+ss;
 }
 applyLang();
 updateDateTime();
