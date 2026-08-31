@@ -77,7 +77,6 @@
 
   <!-- Status Page -->
   <div class="page active" id="page-status">
-    <div class="status-datetime" id="currentDateTime"></div>
     <div class="ap-banner" id="apBanner" style="display:none" data-i18n="ap_banner">当前为热点模式，请连接热点访问本设备</div>
     <div class="kpi-row" id="kpiRow">
       <div class="kpi">
@@ -1474,18 +1473,12 @@ function applyLang(){
 function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();}
 
 /* ── Init ── */
-var _weekDays=[];
 function updateDateTime(){
-  var el=document.getElementById('currentDateTime');
   var headerTime=document.getElementById('headerTime');
+  if(!headerTime)return;
   var d=new Date();
-  var dict=i18nData[curLang]||i18nData.en;
-  if(!_weekDays.length)_weekDays=dict.weekdays||['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
   var hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
-  var timeStr=hh+':'+mm+':'+ss;
-  if(headerTime)headerTime.textContent=timeStr;
-  if(el)el.textContent=y+'-'+mo+'-'+da+'  '+_weekDays[d.getDay()]+'  '+timeStr;
+  headerTime.textContent=hh+':'+mm+':'+ss;
 }
 applyLang();
 updateDateTime();
