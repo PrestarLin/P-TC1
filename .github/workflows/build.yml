@@ -39,12 +39,20 @@ jobs:
       id: version
       run: |
         version_file=".version"
-        if [ ! -f $version_file ]; then echo "v1.0.0" > $version_file; fi
+        if [ ! -f $version_file ]; then echo "v4.1.0" > $version_file; fi
         ver=$(cat $version_file)
         major=$(echo $ver | cut -d. -f1 | sed 's/v//')
         minor=$(echo $ver | cut -d. -f2)
         patch=$(echo $ver | cut -d. -f3)
-        patch=$((patch + 1))
+        if [ -z "$patch" ] || [ "$patch" -eq 0 ]; then
+          patch=1
+        else
+          patch=$((patch + 1))
+        fi
+        if [ "$patch" -gt 99 ]; then
+          patch=1
+          minor=$((minor + 1))
+        fi
         new_ver="v${major}.${minor}.${patch}"
         echo $new_ver > $version_file
         echo "version=$new_ver" >> $GITHUB_OUTPUT
@@ -69,7 +77,7 @@ jobs:
         if [ "$GITHUB_REF" = "refs/heads/master" ]; then
           PREV=$(git tag -l 'v*' --sort=-creatordate | grep -v -- '-dev' | head -1 || true)
         else
-          PREV=$(git tag -l '*-dev-*' --sort=-creatordate | head -1 || true)
+          PREV=$(git tag -l 'v*' --sort=-creatordate | head -1 || true)
         fi
         if [ -n "$PREV" ]; then
           git log --oneline --no-merges "${PREV}..HEAD" | head -40 | sed 's/^/- /' > commits.txt
@@ -115,8 +123,8 @@ jobs:
       if: github.ref == 'refs/heads/dev'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.version.outputs.version }}-dev-${{ github.run_number }}
-        name: Dev Build ${{ steps.version.outputs.version }}-${{ github.run_number }}
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Dev Build ${{ steps.version.outputs.version }}
         body: |
           ## P-TC1 Development Build ${{ steps.version.outputs.version }}
 
