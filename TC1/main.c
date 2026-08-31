@@ -283,10 +283,28 @@ int application_start(void) {
 
     bool open_ap = false;
     MicoGpioInitialize((mico_gpio_t) Button, INPUT_PULL_UP);
-    if (!MicoGpioInputGet(Button)) {   //开机时按钮状态
-        tc1_log("press ap_init");
-        ApInit(true);
-        open_ap = true;
+    if (!MicoGpioInputGet(Button)) {   //开机时按住按钮
+        /* 防呆救命逻辑(绕过童锁):
+         * 松开 → 进入配网热点; 持续按住 >=10秒 → 恢复出厂设置 */
+        int held_ms = 0;
+        bool do_reset = true;
+        while (held_ms < 10000) {
+            mico_thread_msleep(100);
+            held_ms += 100;
+            if (MicoGpioInputGet(Button)) {
+                tc1_log("press ap_init");
+                ApInit(true);
+                open_ap = true;
+                do_reset = false;
+                break;
+            }
+        }
+        if (do_reset) {
+            tc1_log("press factory reset (hold 10s)");
+            mico_system_context_restore(sys_config);
+            mico_rtos_thread_sleep(1);
+            MicoSystemReboot();
+        }
     }
 
     MicoGpioInitialize((mico_gpio_t) Led, OUTPUT_PUSH_PULL);
