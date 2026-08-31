@@ -975,10 +975,10 @@ function fetchButtonConfig(){
       if(!cfg)return;
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
-      var longFunc=funcs[1];
+      var longFunc=parseInt(funcs[1]);
       h+='<div class="form-row">';
       h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
-      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+btnFuncMap[longFunc]+'" disabled></div>';
+      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+(btnFuncMap[longFunc]||('Func '+longFunc))+'" disabled></div>';
       h+='</div>';
     });
     h+='<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
@@ -986,7 +986,7 @@ function fetchButtonConfig(){
     arr.forEach(function(cfg,i){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
-      var longFunc=funcs[1];
+      var longFunc=parseInt(funcs[1]);
       if(longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
         hasEvent=true;
         var sec=parseInt(key);
@@ -1007,7 +1007,10 @@ function fetchButtonConfig(){
     if(!hasEvent){
       h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)">No custom events</div>';
     }
-    h+='<button class="btn btn-primary" style="margin-top:12px" onclick="showAddButtonEvent()">+ Add Event</button>';
+    h+='<div class="form-row" style="margin-top:12px">';
+    h+='<button class="btn btn-primary" onclick="showAddButtonEvent()">+ Add Event</button>';
+    h+='<button class="btn btn-danger" style="margin-left:8px" onclick="clearAllButtonEvents()">Clear All</button>';
+    h+='</div>';
     el.innerHTML=h;
     applyLang();
   });
@@ -1046,6 +1049,19 @@ function removeButtonEvent(sec){
     usedSecs=usedSecs.filter(function(s){return s!==sec;});
     post('/buttonEvents',sec+' 15 1',function(e){toast(e?'Error':'Removed');fetchButtonConfig();});
   }
+}
+function clearAllButtonEvents(){
+  if(!confirm('Clear all custom events?'))return;
+  var defaultSecs=[5,10];
+  var promises=[];
+  usedSecs.forEach(function(sec){
+    if(defaultSecs.indexOf(sec)===-1){
+      promises.push(new Promise(function(resolve){
+        post('/buttonEvents',sec+' 15 1',function(){resolve();});
+      }));
+    }
+  });
+  Promise.all(promises).then(function(){fetchButtonConfig();toast('All custom events cleared');});
 }
 function saveButtonConfig(sec,func){
   post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');});
