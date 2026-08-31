@@ -25,6 +25,7 @@
     <span>TC1</span>
   </div>
   <div class="header-status">
+    <span class="status-chip" id="uptimeChip" style="display:none"><span id="uptimeIcon">⏱</span><span id="uptimeText">--</span></span>
     <span class="status-chip"><span id="wifiIcon"></span><span id="wifiText">WiFi</span></span>
     <span class="status-chip"><span class="status-dot" id="mqttDot"></span><span id="mqttText">MQTT --</span></span>
     <span class="status-chip"><span class="status-dot" id="connDot"></span><span id="connText" data-i18n="connecting">Connecting...</span></span>
@@ -658,6 +659,9 @@ function fetchPower(){
     document.getElementById('kPower').textContent=latest.toFixed(1);
     document.getElementById('chartLive').textContent=latest.toFixed(1)+' W';
     document.getElementById('kUptime').textContent=j.up_time||'--';
+    var uptimeEl=document.getElementById('uptimeText');
+    var uptimeChip=document.getElementById('uptimeChip');
+    if(uptimeEl&&j.up_time){uptimeEl.textContent=j.up_time;uptimeChip.style.display='';}
     var wToday=(17.1*(j.p_count-j.p_count_1_day_ago))/1000/36000;
     if(wToday<0)wToday=0;
     document.getElementById('kToday').textContent=wToday.toFixed(3);
