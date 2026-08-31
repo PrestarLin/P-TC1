@@ -748,7 +748,7 @@ function renderTasks(){
     if(t.is_loop){
       var endStr=t.loop_end!=null?(String(Math.floor(t.loop_end/60)).padStart(2,'0')+':'+String(t.loop_end%60).padStart(2,'0')):'--:--';
       rStr=t.loop_duration+'m / '+t.loop_interval+'m  '+endStr;
-    }else if(wk===127)rStr='Daily';
+    }else if(wk===127||wk===8)rStr='Daily';
     else if(wk===0)rStr='Once';
     else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
     var devMap={0:'All Sockets',7:'LED',11:'Child Lock'};
