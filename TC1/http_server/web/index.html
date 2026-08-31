@@ -25,7 +25,7 @@
     <span>TC1</span>
   </div>
   <div class="header-status">
-    <span class="status-chip" id="uptimeChip" style="display:none"><span id="uptimeIcon">⏱</span><span id="uptimeText">--</span></span>
+    <span class="status-chip" id="headerTime" style="font-size:13px;font-weight:500">--:--</span>
     <span class="status-chip"><span id="wifiIcon"></span><span id="wifiText">WiFi</span></span>
     <span class="status-chip"><span class="status-dot" id="mqttDot"></span><span id="mqttText">MQTT --</span></span>
     <span class="status-chip"><span class="status-dot" id="connDot"></span><span id="connText" data-i18n="connecting">Connecting...</span></span>
@@ -659,9 +659,6 @@ function fetchPower(){
     document.getElementById('kPower').textContent=latest.toFixed(1);
     document.getElementById('chartLive').textContent=latest.toFixed(1)+' W';
     document.getElementById('kUptime').textContent=j.up_time||'--';
-    var uptimeEl=document.getElementById('uptimeText');
-    var uptimeChip=document.getElementById('uptimeChip');
-    if(uptimeEl&&j.up_time){uptimeEl.textContent=j.up_time;uptimeChip.style.display='';}
     var wToday=(17.1*(j.p_count-j.p_count_1_day_ago))/1000/36000;
     if(wToday<0)wToday=0;
     document.getElementById('kToday').textContent=wToday.toFixed(3);
@@ -1479,13 +1476,16 @@ function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lan
 /* ── Init ── */
 var _weekDays=[];
 function updateDateTime(){
-  var el=document.getElementById('currentDateTime');if(!el)return;
+  var el=document.getElementById('currentDateTime');
+  var headerTime=document.getElementById('headerTime');
   var d=new Date();
   var dict=i18nData[curLang]||i18nData.en;
   if(!_weekDays.length)_weekDays=dict.weekdays||['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
   var hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
-  el.textContent=y+'-'+mo+'-'+da+'  '+_weekDays[d.getDay()]+'  '+hh+':'+mm+':'+ss;
+  var timeStr=hh+':'+mm+':'+ss;
+  if(headerTime)headerTime.textContent=timeStr;
+  if(el)el.textContent=y+'-'+mo+'-'+da+'  '+_weekDays[d.getDay()]+'  '+timeStr;
 }
 applyLang();
 updateDateTime();
