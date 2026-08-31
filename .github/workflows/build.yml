@@ -63,9 +63,13 @@ jobs:
         python3 test.py > web_data.c
         cd ../..
 
+    - name: Patch version
+      run: |
+        sed -i 's/#define VERSION_STRING ".*"/#define VERSION_STRING "${{ steps.version.outputs.version }}"/' TC1/main.h
+
     - name: Build firmware
       run: |
-        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/ HOST_OS=Linux64 EXTERNAL_MiCO_GLOBAL_DEFINES="COMMIT_HASH=$(git rev-parse --short HEAD) VERSION_STRING='${{ steps.version.outputs.version }}'"
+        make -f mico-os/makefiles/Makefile TC1@MK3031@moc total SOURCE_ROOT=$PWD/ HOST_OS=Linux64 EXTERNAL_MiCO_GLOBAL_DEFINES="COMMIT_HASH=$(git rev-parse --short HEAD)"
 
     - name: Copy OTA binary
       run: |
