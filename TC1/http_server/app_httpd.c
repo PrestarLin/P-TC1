@@ -259,9 +259,9 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     sscanf(buf, "%d %d %d", &index, &func, &longPress);
     if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
     
-    // Safety底线：固定功能不允许修改
-    if (func == REBOOT_SYSTEM || func == CONFIG_WIFI || func == RESET_SYSTEM) {
-        http_log("Blocked: safety function %d cannot be modified", func);
+    // Safety底线：默认任务(5秒配网、10秒恢复出厂)不允许修改
+    if ((index == 5 && longPress == 1) || (index == 10 && longPress == 1)) {
+        http_log("Blocked: default task at %ds cannot be modified", index);
         free(buf);
         send_http("BLOCKED", 7, exit, &err);
         return err;
