@@ -485,6 +485,7 @@ navItems.forEach(function(el){
     var target=document.getElementById('page-'+p);
     if(target)target.classList.add('active');
     S.page=p;
+    if(window.innerWidth<=768)sidebar.classList.remove('open');
     if(p==='status'||p==='sockets'||p==='power'||p==='settings')fetchPower();
     if(p==='settings')fetchButtonConfig();
     if(p==='schedule')fetchTasks();
