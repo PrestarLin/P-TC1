@@ -25,7 +25,7 @@
     <span>TC1</span>
   </div>
   <div class="header-status">
-    <span class="status-chip"><span class="status-dot" id="wifiDot"></span><span id="wifiText">WiFi --</span></span>
+    <span class="status-chip"><span id="wifiIcon"></span><span id="wifiText">WiFi</span></span>
     <span class="status-chip"><span class="status-dot" id="mqttDot"></span><span id="mqttText">MQTT --</span></span>
     <span class="status-chip"><span class="status-dot" id="connDot"></span><span id="connText" data-i18n="connecting">Connecting...</span></span>
     <button class="btn-ghost" id="langToggle" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:4px" onclick="toggleLang()">中/EN</button>
@@ -556,18 +556,29 @@ function initToggle(id,cb){
 function setToggle(id,on){var el=document.getElementById(id);if(el){if(on)el.classList.add('on');else el.classList.remove('on');}}
 
 /* ── GET /status → device info, wifi, mqtt config ── */
+function wifiIcon(level){
+  var s='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">';
+  if(level>=4)s+='<path d="M3.5 10 Q12 4 20.5 10"/>';
+  if(level>=3)s+='<path d="M7 13 Q12 9 17 13"/>';
+  if(level>=2)s+='<path d="M10 15.5 Q12 13 14 15.5"/>';
+  s+='<circle cx="12" cy="17.8" r="1.6" fill="currentColor" stroke="none"/>';
+  s+='</svg>';
+  return s;
+}
 function updateStatusIndicators(j){
   var dict=i18nData[curLang]||i18nData.en;
-  var wifiDot=document.getElementById('wifiDot'),wifiT=document.getElementById('wifiText');
-  if(wifiDot&&wifiT){
+  var wifiI=document.getElementById('wifiIcon'),wifiT=document.getElementById('wifiText');
+  if(wifiI&&wifiT){
     if(j.mode===0){
-      wifiDot.className='status-dot warn';
+      wifiI.innerHTML=wifiIcon(2);wifiI.style.color='var(--warning)';
       wifiT.textContent=(dict.wifi_ap||'AP')+(j.ap_ssid?' '+j.ap_ssid:'');
     }else if(j.station_ssid){
-      wifiDot.className='status-dot';
+      var lvl=0;
+      if(j.rssi>=-55)lvl=4;else if(j.rssi>=-65)lvl=3;else if(j.rssi>=-75)lvl=2;else if(j.rssi>=-85)lvl=1;
+      wifiI.innerHTML=wifiIcon(lvl);wifiI.style.color='var(--accent)';
       wifiT.textContent=(dict.wifi_on||'WiFi')+(j.rssi?' '+j.rssi+'dBm':'');
     }else{
-      wifiDot.className='status-dot offline';
+      wifiI.innerHTML=wifiIcon(0);wifiI.style.color='var(--danger)';
       wifiT.textContent=dict.wifi_off||'WiFi Off';
     }
   }
