@@ -1000,6 +1000,7 @@ function startOta(){
     x.onload=function(){
       var r=x.responseText||'';
       if(x.status===200&&r.indexOf('OK')===0){document.getElementById('otaStatus').textContent='Upload complete, rebooting...';}
+      else if(r.indexOf('BUSY')===0){document.getElementById('otaStatus').textContent='Device busy, please retry later';}
       else{document.getElementById('otaStatus').textContent='Upload failed: '+((r&&r.length<80)?r:('HTTP '+x.status));}
     };
     x.onerror=function(){document.getElementById('otaStatus').textContent='Upload failed (connection lost, device unchanged)';};
