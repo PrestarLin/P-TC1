@@ -93,6 +93,13 @@ void RtcThread(mico_thread_arg_t arg)
             {
                 rtc_log("sntp success!");
                 rtc_init = 1;
+                /* 时钟已同步, 若开启夜间模式则用正确时间重建每日 LED 任务
+                 * (开机时 rtc_init!=1 不建, 避免 1970 基准时间导致任务乱触发)。 */
+                if (user_config->night_mode_enabled) {
+                    RemoveNightModeTasks();
+                    CreateNightModeTask(user_config->night_mode_start / 60, user_config->night_mode_start % 60, 0);
+                    CreateNightModeTask(user_config->night_mode_end / 60, user_config->night_mode_end % 60, 1);
+                }
                 break;
             }
             rtc_init = 2;

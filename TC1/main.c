@@ -46,6 +46,9 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     userConfigDefault->p_count_2_days_ago = 0;
     userConfigDefault->p_count_1_day_ago = 0;
     userConfigDefault->power_led_enabled = 1;
+    userConfigDefault->night_mode_enabled = 0;      /* 夜间模式默认关闭 */
+    userConfigDefault->night_mode_start = 23 * 60;  /* 23:00 */
+    userConfigDefault->night_mode_end = 7 * 60;     /* 07:00 */
     userConfigDefault->version = USER_CONFIG_VERSION;
     /* 出厂按键配置直接写入 reserved(全字节功能码)。
      * 注意: 本回调可能在 mico_system_context_init 内部被调用(配置损坏/擦除时),
@@ -181,6 +184,9 @@ bool user_config_migrate(void) {
         memset(user_config->static_mask, 0, sizeof(user_config->static_mask));
         memset(user_config->static_gateway, 0, sizeof(user_config->static_gateway));
         memset(user_config->static_dns, 0, sizeof(user_config->static_dns));
+        user_config->night_mode_enabled = 0;      /* 夜间模式默认关闭 */
+        user_config->night_mode_start = 23 * 60;
+        user_config->night_mode_end = 7 * 60;
         user_config->version = USER_CONFIG_VERSION;
 
         /* 迁移后写回 flash（含固定 CRC），此后布局即为最新。 */
@@ -248,11 +254,14 @@ void CreateNightModeTask(int hour, int minute, int on) {
     if (!task) { tc1_log("night mode: no free task slot"); return; }
 
     time_t now = time(NULL);
-    struct tm *t = localtime(&now);
+    /* time() 返回 UTC, 设备按北京时间(UTC+8)处理(与 web_log/RtcThread 一致):
+     * 用本地时间算目标时刻, 再转回 UTC 存 prs_time。 */
+    time_t local_now = now + 28800;
+    struct tm *t = localtime(&local_now);
     if (!t) { task->on_use = false; return; }
 
-    time_t target = now - (t->tm_hour * 3600 + t->tm_min * 60 + t->tm_sec)
-                    + (hour * 3600 + minute * 60);
+    time_t target = local_now - (t->tm_hour * 3600 + t->tm_min * 60 + t->tm_sec)
+                    + (hour * 3600 + minute * 60) - 28800;
     if (target <= now) target += 86400;
 
     task->prs_time = target;
@@ -352,15 +361,10 @@ int application_start(void) {
 
     RebuildTaskList();
 
-    if (user_config->night_mode_start == 0 && user_config->night_mode_end == 0
-        && !user_config->night_mode_enabled) {
-        user_config->night_mode_enabled = 1;
-        user_config->night_mode_start = 23 * 60;
-        user_config->night_mode_end = 7 * 60;
-        mico_system_context_update(sys_config);
-        CreateNightModeTask(23, 0, 0);
-        CreateNightModeTask(7, 0, 1);
-    }
+    /* 夜间模式默认关闭(出厂默认)。开启时其每日 LED 任务:
+     * - 随配置持久化, 开机由 RebuildTaskList 恢复;
+     * - sntp 同步后由 RtcThread 用正确时间统一重建(开机时 rtc_init!=1 不建,
+     *   避免 1970 基准算出极小 prs_time, 联网后逐条乱触发导致 LED 闪烁)。 */
 
     if (sys_config->micoSystemConfig.name[0] == 1) {
         sprintf(sys_config->micoSystemConfig.name, ZTC1_NAME, str_mac + 8);
