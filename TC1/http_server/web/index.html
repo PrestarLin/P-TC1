@@ -968,6 +968,8 @@ function fetchButtonConfig(){
     var el=document.getElementById('btnConfigBody');
     var h='';
     var defaultSecs=[5,10];
+    usedSecs=[];
+    defaultSecs.forEach(function(sec){usedSecs.push(sec);});
     defaultSecs.forEach(function(sec){
       var cfg=arr[sec-1];
       if(!cfg)return;
@@ -988,6 +990,7 @@ function fetchButtonConfig(){
       if(longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
         hasEvent=true;
         var sec=parseInt(key);
+        usedSecs.push(sec);
         h+='<div class="form-row" id="btnEvt'+sec+'">';
         h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
         h+='<div class="form-group" style="flex:1">';
@@ -1009,14 +1012,18 @@ function fetchButtonConfig(){
     applyLang();
   });
 }
+var usedSecs=[];
 function showAddButtonEvent(){
+  var availSecs=[1,2,3,4,5,6,7,8,9,10,12,15,20,25,30];
+  availSecs=availSecs.filter(function(s){return usedSecs.indexOf(s)===-1;});
+  if(!availSecs.length){toast('All time slots used');return;}
   var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
   html+='<div class="modal-box">';
   html+='<div class="modal-title">Add Button Event</div>';
   html+='<div class="modal-body">';
   html+='<div class="form-group"><label class="form-label">Press Duration (seconds)</label>';
   html+='<select class="form-select" id="btnEvtSec">';
-  for(var s=1;s<=30;s++){html+='<option value="'+s+'">'+s+'s</option>';}
+  availSecs.forEach(function(s){html+='<option value="'+s+'">'+s+'s</option>';});
   html+='</select></div>';
   html+='<div class="form-group"><label class="form-label">Action</label>';
   html+='<select class="form-select" id="btnEvtFunc">';
@@ -1039,6 +1046,7 @@ function addButtonEvent(){
 }
 function removeButtonEvent(sec){
   if(confirm('Remove this event?')){
+    usedSecs=usedSecs.filter(function(s){return s!==sec;});
     post('/buttonEvents',sec+' 15 1',function(e){toast(e?'Error':'Removed');fetchButtonConfig();});
   }
 }
