@@ -960,33 +960,74 @@ function loadNightMode(){
     document.getElementById('nightEnd').value=String(nm.end_h).padStart(2,'0')+':'+String(nm.end_m).padStart(2,'0');
   }
 }
-var btnFuncMap={'-1':'Unassigned','0':'Unassigned','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'All Sockets','8':'LED','9':'Child Lock','10':'Reboot','11':'Restart HTTP','12':'Enter AP Mode','13':'Factory Reset'};
+var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Child Lock','9':'Reboot','10':'Restart HTTP','11':'Enter AP Mode','12':'Factory Reset','15':'None'};
 function fetchButtonConfig(){
   api('/buttonEvents',function(e,d){
     if(e)return;
     var arr=p(d);if(!arr||!arr.length)return;
     var el=document.getElementById('btnConfigBody');
     var h='';
-    var durations=[3,5,10];
-    durations.forEach(function(sec){
-      var cfg=arr[sec-1];
-      if(!cfg)return;
+    var hasEvent=false;
+    arr.forEach(function(cfg,i){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
       var longFunc=funcs[1];
-      h+='<div class="form-row">';
-      h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label" data-i18n="btn_long_sec">Long Press '+sec+'s</label></div>';
-      h+='<div class="form-group" style="flex:1">';
-      h+='<select class="form-select" onchange="saveButtonConfig('+sec+',this.value)">';
-      Object.keys(btnFuncMap).forEach(function(f){
-        var selected=parseInt(f)===longFunc?'selected':'';
-        h+='<option value="'+f+'"'+selected+'>'+btnFuncMap[f]+'</option>';
-      });
-      h+='</select></div></div>';
+      if(longFunc!==15){
+        hasEvent=true;
+        var sec=parseInt(key);
+        h+='<div class="form-row" id="btnEvt'+sec+'">';
+        h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
+        h+='<div class="form-group" style="flex:1">';
+        h+='<select class="form-select" onchange="saveButtonConfig('+sec+',this.value)">';
+        Object.keys(btnFuncMap).forEach(function(f){
+          var selected=parseInt(f)===longFunc?'selected':'';
+          h+='<option value="'+f+'"'+selected+'>'+btnFuncMap[f]+'</option>';
+        });
+        h+='</select></div>';
+        h+='<div class="form-group" style="flex:0 0 auto"><button class="btn btn-danger" onclick="removeButtonEvent('+sec+')">Delete</button></div>';
+        h+='</div>';
+      }
     });
+    if(!hasEvent){
+      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)">No button events configured</div>';
+    }
+    h+='<button class="btn btn-primary" style="margin-top:12px" onclick="showAddButtonEvent()">+ Add Event</button>';
     el.innerHTML=h;
     applyLang();
   });
+}
+function showAddButtonEvent(){
+  var html='<div class="modal-mask" id="addBtnEvtModal" style="display:flex">';
+  html+='<div class="modal-box">';
+  html+='<div class="modal-title">Add Button Event</div>';
+  html+='<div class="modal-body">';
+  html+='<div class="form-group"><label class="form-label">Press Duration (seconds)</label>';
+  html+='<select class="form-select" id="btnEvtSec">';
+  for(var s=1;s<=30;s++){html+='<option value="'+s+'">'+s+'s</option>';}
+  html+='</select></div>';
+  html+='<div class="form-group"><label class="form-label">Action</label>';
+  html+='<select class="form-select" id="btnEvtFunc">';
+  Object.keys(btnFuncMap).forEach(function(f){
+    html+='<option value="'+f+'">'+btnFuncMap[f]+'</option>';
+  });
+  html+='</select></div>';
+  html+='</div>';
+  html+='<div class="modal-footer">';
+  html+='<button class="btn btn-ghost" onclick="closeModal(\'addBtnEvtModal\')">Cancel</button>';
+  html+='<button class="btn btn-primary" onclick="addButtonEvent()">Add</button>';
+  html+='</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function addButtonEvent(){
+  var sec=parseInt(document.getElementById('btnEvtSec').value);
+  var func=parseInt(document.getElementById('btnEvtFunc').value);
+  closeModal('addBtnEvtModal');
+  post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');fetchButtonConfig();});
+}
+function removeButtonEvent(sec){
+  if(confirm('Remove this event?')){
+    post('/buttonEvents',sec+' 15 1',function(e){toast(e?'Error':'Removed');fetchButtonConfig();});
+  }
 }
 function saveButtonConfig(sec,func){
   post('/buttonEvents',sec+' '+func+' 1',function(e){toast(e?'Error':'Saved');});
