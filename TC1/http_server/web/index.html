@@ -1132,10 +1132,6 @@ function loadNightMode(){
 var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Reboot','9':'Config WiFi','10':'Factory Reset','11':'Child Lock','12':'Restart HTTP','15':'None'};
 var funcNamesZH={'Unassigned':'未设置','All Sockets':'全部插座','Socket 1':'插座 1','Socket 2':'插座 2','Socket 3':'插座 3','Socket 4':'插座 4','Socket 5':'插座 5','Socket 6':'插座 6','LED':'指示灯','Reboot':'重启','Config WiFi':'配置WiFi','Factory Reset':'恢复出厂','Child Lock':'童锁','Restart HTTP':'重启HTTP服务','None':'无'};
 function btnFuncName(f){
-  if(f==='1'||f==='2'||f==='3'||f==='4'||f==='5'||f==='6'){
-    var nm=S.socketNames[parseInt(f)-1];
-    return nm?nm:('Socket '+f);
-  }
   var n=btnFuncMap[f]||'Unknown';
   if(curLang==='zh'&&funcNamesZH[n])n=funcNamesZH[n];
   return n;
@@ -1201,9 +1197,6 @@ function fetchButtonConfig(){
         h+='</div>';
       }
     });
-    if(!hasEvent){
-      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)" data-i18n="no_custom_events">No custom events</div>';
-    }
     /* 连续点按事件(短按连点x次) */
     var clickRows='';
     arr.forEach(function(cfg,i){
@@ -1229,6 +1222,9 @@ function fetchButtonConfig(){
     if(clickRows){
       h+='<div class="btn-cfg-section-title" data-i18n="btn_click_section">Click (Continuous Press)</div>';
       h+=clickRows;
+    }
+    if(!hasEvent && !clickRows){
+      h+='<div class="text-center" style="padding:16px;color:var(--fg-dim)" data-i18n="no_custom_events">No custom events</div>';
     }
     el.innerHTML=h;
     applyLang();
