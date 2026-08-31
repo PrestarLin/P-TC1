@@ -960,7 +960,7 @@ function loadNightMode(){
     document.getElementById('nightEnd').value=String(nm.end_h).padStart(2,'0')+':'+String(nm.end_m).padStart(2,'0');
   }
 }
-var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Child Lock','9':'Reboot','10':'Restart HTTP','11':'Enter AP Mode','12':'Factory Reset','15':'None'};
+var btnFuncMap={'-1':'Unassigned','0':'All Sockets','1':'Socket 1','2':'Socket 2','3':'Socket 3','4':'Socket 4','5':'Socket 5','6':'Socket 6','7':'LED','8':'Reboot','9':'Config WiFi','10':'Factory Reset','11':'Child Lock','12':'Restart HTTP','15':'None'};
 function fetchButtonConfig(){
   api('/buttonEvents',function(e,d){
     if(e)return;
