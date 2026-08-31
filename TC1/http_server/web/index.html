@@ -982,10 +982,12 @@ function fetchButtonConfig(){
       if(!cfg)return;
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
-      var longFunc=funcs[1];
+      var longFunc=parseInt(funcs[1]);
+      var funcName=btnFuncMap[longFunc.toString()];
+      if(!funcName)funcName='Unknown';
       h+='<div class="form-row">';
       h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">Long Press '+sec+'s</label></div>';
-      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+btnFuncMap[longFunc]+'" disabled></div>';
+      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+funcName+'" disabled></div>';
       h+='</div>';
     });
     h+='<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
@@ -993,7 +995,7 @@ function fetchButtonConfig(){
     arr.forEach(function(cfg,i){
       var key=Object.keys(cfg)[0];
       var funcs=cfg[key];
-      var longFunc=funcs[1];
+      var longFunc=parseInt(funcs[1]);
       if(longFunc!==15 && defaultSecs.indexOf(parseInt(key))===-1){
         hasEvent=true;
         var sec=parseInt(key);
