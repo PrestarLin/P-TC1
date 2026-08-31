@@ -381,6 +381,13 @@ ul, ol { list-style: none; }
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
 
+/* 按键配置行：标题与输入框垂直居中、更大字体、紧凑间距 */
+.btn-cfg-row { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.btn-cfg-row .form-group { margin-bottom: 0; flex: 0 0 auto; }
+.btn-cfg-row .btn-cfg-val { flex: 1; min-width: 0; }
+.btn-cfg-row .form-label { margin-bottom: 0; font-size: var(--text-base); text-transform: none; letter-spacing: 0; color: var(--fg); white-space: nowrap; }
+.btn-cfg-row .form-input, .btn-cfg-row .form-select { font-size: var(--text-base); }
+
 /* ── Buttons ── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);

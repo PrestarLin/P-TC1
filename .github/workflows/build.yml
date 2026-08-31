@@ -35,19 +35,13 @@ jobs:
           ln -sf /usr/bin/$t mico-os/MiCoder/cmd/Linux64/$t
         done
 
-    - name: Get version and auto-increment
+    - name: Get version
       id: version
       run: |
         version_file=".version"
         if [ ! -f $version_file ]; then echo "v1.0.0" > $version_file; fi
         ver=$(cat $version_file)
-        major=$(echo $ver | cut -d. -f1 | sed 's/v//')
-        minor=$(echo $ver | cut -d. -f2)
-        patch=$(echo $ver | cut -d. -f3)
-        patch=$((patch + 1))
-        new_ver="v${major}.${minor}.${patch}"
-        echo $new_ver > $version_file
-        echo "version=$new_ver" >> $GITHUB_OUTPUT
+        echo "version=$ver" >> $GITHUB_OUTPUT
 
     - name: Generate web assets
       run: |
@@ -62,6 +56,22 @@ jobs:
     - name: Copy OTA binary
       run: |
         cp ./build/TC1@MK3031@moc/binary/TC1@MK3031@moc.ota.bin ./build/TC1@MK3031@moc/binary/ota.bin
+
+    - name: Collect commit titles
+      id: commits
+      run: |
+        if [ "$GITHUB_REF" = "refs/heads/master" ]; then
+          PREV=$(git tag -l 'v*' --sort=-creatordate | grep -v -- '-dev' | head -1 || true)
+        else
+          PREV=$(git tag -l '*-dev-*' --sort=-creatordate | head -1 || true)
+        fi
+        if [ -n "$PREV" ]; then
+          git log --oneline --no-merges "${PREV}..HEAD" | head -40 | sed 's/^/- /' > commits.txt
+        else
+          git log --oneline --no-merges -20 HEAD | sed 's/^/- /' > commits.txt
+        fi
+        if [ ! -s commits.txt ]; then echo "- (无新增提交)" > commits.txt; fi
+        { echo "commits<<EOF"; cat commits.txt; echo "EOF"; } >> "$GITHUB_OUTPUT"
 
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
@@ -80,13 +90,13 @@ jobs:
         body: |
           ## P-TC1 Firmware ${{ steps.version.outputs.version }}
 
+          ### 更新内容
+          ${{ steps.commits.outputs.commits }}
+
           ### 固件文件
           - `ota.bin` - OTA 升级固件（通过Web后台OTA上传）
           - `TC1@MK3031@moc.ota.bin` - OTA 升级固件（完整包）
           - `TC1@MK3031@moc.all.bin` - 全量固件（含Bootloader，需烧录器写入）
-
-          ### 更新说明
-          自动构建版本，请查看 commits 了解具体变更。
         files: |
           build/TC1@MK3031@moc/binary/ota.bin
           build/TC1@MK3031@moc/binary/TC1@MK3031@moc.ota.bin
@@ -105,6 +115,9 @@ jobs:
           ## P-TC1 Development Build ${{ steps.version.outputs.version }}
 
           > ⚠️ 这是开发版本，可能包含未稳定功能，请谨慎使用。
+
+          ### 更新内容
+          ${{ steps.commits.outputs.commits }}
 
           ### 固件文件
           - `ota.bin` - OTA 升级固件

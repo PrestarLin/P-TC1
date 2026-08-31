@@ -1084,9 +1084,9 @@ function fetchButtonConfig(){
       var funcs=cfg[key];
       var longFunc=parseInt(funcs[1]);
       var funcName=btnFuncName(longFunc.toString());
-      h+='<div class="form-row">';
-      h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">'+longPressLabel(sec)+'</label></div>';
-      h+='<div class="form-group" style="flex:1"><input class="form-input" value="'+funcName+'" disabled></div>';
+      h+='<div class="btn-cfg-row">';
+      h+='<div class="form-group"><label class="form-label">'+longPressLabel(sec)+'</label></div>';
+      h+='<div class="form-group btn-cfg-val"><input class="form-input" value="'+funcName+'" disabled></div>';
       h+='</div>';
     });
     h+='<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
@@ -1101,16 +1101,16 @@ function fetchButtonConfig(){
       if(longFunc!==-1 && longFunc!==15 && !isFactoryDefault && defaultSecs.indexOf(sec)===-1){
         hasEvent=true;
         usedSecs.push(sec);
-        h+='<div class="form-row" id="btnEvt'+sec+'">';
-        h+='<div class="form-group" style="flex:0 0 120px"><label class="form-label">'+longPressLabel(sec)+'</label></div>';
-        h+='<div class="form-group" style="flex:1">';
+        h+='<div class="btn-cfg-row" id="btnEvt'+sec+'">';
+        h+='<div class="form-group"><label class="form-label">'+longPressLabel(sec)+'</label></div>';
+        h+='<div class="form-group btn-cfg-val">';
         h+='<select class="form-select" onchange="saveButtonConfig('+sec+',this.value)">';
         Object.keys(btnFuncMap).forEach(function(f){
           var selected=parseInt(f)===longFunc?'selected':'';
           h+='<option value="'+f+'"'+selected+'>'+btnFuncName(f)+'</option>';
         });
         h+='</select></div>';
-        h+='<div class="form-group" style="flex:0 0 auto"><button class="btn btn-danger" onclick="removeButtonEvent('+sec+')" data-i18n="delete">Delete</button></div>';
+        h+='<div class="form-group"><button class="btn btn-danger" onclick="removeButtonEvent('+sec+')" data-i18n="delete">Delete</button></div>';
         h+='</div>';
       }
     });
