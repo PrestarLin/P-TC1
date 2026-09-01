@@ -287,6 +287,7 @@ void ProcessTask()
         }
         UserMqttSendTotalSocketState();
     } else if (op == SWITCH_LED_ENABLE) {
+        MQTT_LED_ENABLED = on_val;
         if (RelayOut() && on_val) { UserLedSet(1); } else { UserLedSet(0); }
         UserMqttSendLedState();
     } else if (op == SWITCH_CHILD_LOCK_ENABLE) {
