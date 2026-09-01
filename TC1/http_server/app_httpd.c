@@ -777,7 +777,13 @@ static int HttpGetMqttReportFreq(httpd_request_t *req) {
 
 static int HttpGetLog(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    char *logs = GetLogRecord();
+    int since = 0;
+    char *p = strchr(req->filename, '?');
+    if (p) {
+        char *q = strstr(p, "since=");
+        if (q) since = atoi(q + 6);
+    }
+    char *logs = GetLogRecord(since);
     send_http(logs, strlen(logs), exit, &err);
 
     exit:

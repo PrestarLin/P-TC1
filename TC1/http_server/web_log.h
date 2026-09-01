@@ -14,7 +14,7 @@ typedef struct
 } LogRecord;
 
 void SetLogRecord(LogRecord* lr, char* log);
-char* GetLogRecord();
+char* GetLogRecord(int since);
 void WebLog(const char *M, ...);
 void LogMutexInit(void);
 

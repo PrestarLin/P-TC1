@@ -418,6 +418,7 @@
         <span data-i18n="system_log">System Log</span>
         <div class="btn-group">
           <button class="btn btn-ghost btn-sm" onclick="fetchLog()" data-i18n="btn_refresh">Refresh</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
         </div>
       </div>
       <div class="card-body" style="padding:0">
@@ -518,7 +519,7 @@ navItems.forEach(function(el){
     if(p==='status'||p==='sockets'||p==='power'||p==='settings')fetchPower();
     if(p==='settings')fetchButtonConfig();
     if(p==='schedule')fetchTasks();
-    if(p==='log')fetchLog();
+    if(p==='log')fetchLog(); else _stopLogTimer();
     if(p==='network')fetchStatus();
     if(p==='ota')fetchOtaStatus();
   });
@@ -529,6 +530,7 @@ var sidebar=document.getElementById('sidebar');
 function checkMobile(){menuBtn.style.display=window.innerWidth<=768?'flex':'none'}
 window.addEventListener('resize',checkMobile);checkMobile();
 menuBtn.addEventListener('click',function(){sidebar.classList.toggle('open')});
+window.addEventListener('pagehide',function(){_stopLogTimer();});
 
 /* ── HTTP helpers ── */
 function api(u,cb){
@@ -935,12 +937,45 @@ function renderTasks(){
 }
 
 /* ── Log ── */
+var logTimer=null;
+var logEntries=[];
+var logLastIdx=0;
 function fetchLog(){
-  api('/log',function(e,d){
-    if(e){document.getElementById('logBox').innerHTML='<pre>Error loading log</pre>';return;}
-    document.getElementById('logBox').innerHTML='<pre>'+esc(d)+'</pre>';
-    var box=document.getElementById('logBox');box.scrollTop=box.scrollHeight;
+  if(logTimer)clearInterval(logTimer);
+  // 立即加载一次
+  _fetchLogs();
+  logTimer=setInterval(_fetchLogs,2000);
+}
+function _fetchLogs(){
+  var url='/log'+(logLastIdx>0?'?since='+logLastIdx:'');
+  api(url,function(e,d){
+    if(e)return;
+    var lines=d.split('\n');
+    var newIdx=parseInt(lines[0])||0;
+    for(var i=1;i<lines.length;i++){
+      var line=lines[i];
+      if(!line||line.indexOf('FreeMem')===0)continue;
+      logEntries.push(line);
+    }
+    logLastIdx=newIdx;
+    _renderLogs();
   });
+}
+function _renderLogs(){
+  var box=document.getElementById('logBox');
+  box.innerHTML='<pre>'+esc(logEntries.join('\n'))+'</pre>';
+  box.scrollTop=box.scrollHeight;
+}
+function _stopLogTimer(){
+  if(logTimer){clearInterval(logTimer);logTimer=null;}
+}
+function stopLog(){
+  _stopLogTimer();
+}
+function clearLog(){
+  logEntries=[];
+  logLastIdx=0;
+  document.getElementById('logBox').innerHTML='<pre>Log cleared</pre>';
 }
 
 /* ── OTA ── */

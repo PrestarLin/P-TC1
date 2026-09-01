@@ -104,23 +104,20 @@ int RssiGet(void)
 
 bool scaned = false;
 char* wifi_ret = NULL;
-static mico_timer_t wifi_scan_timer;
 
 // WiFi扫描结果回调
 void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
 {
     int count = (int)scan_ret->ApNum;
-    if (count > 0)
-        wifi_log("wifi_scan_callback ApNum[%d] ApList[0](%s)", count, scan_ret->ApList[0].ssid);
 
     int i = 0;
     size_t buf_size = (size_t)count * 40 + 64;
-    wifi_ret = malloc(buf_size);
+    char* new_wifi_ret = malloc(buf_size);
     char* ssids = malloc((size_t)count * 36 + 1);
     char* secs = malloc((size_t)count * 2 + 1);
-    if (!wifi_ret || !ssids || !secs)
+    if (!new_wifi_ret || !ssids || !secs)
     {
-        free(wifi_ret); wifi_ret = NULL;
+        free(new_wifi_ret);
         free(ssids);
         free(secs);
         return;
@@ -132,7 +129,6 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
     for (; i < count; i++)
     {
         char* ssid = scan_ret->ApList[i].ssid;
-        // 排除隐藏的wifi和SSID包含'或"的我的wifi
         if (ssid[0] == 0 || strstr(ssid, "'") || strstr(ssid, "\"")) continue;
         sprintf(tmp1, "'%s',", ssid);
         tmp1 += (strlen(ssid) + 3);
@@ -142,22 +138,15 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
     if (tmp1 > ssids) *(--tmp1) = 0;
     if (tmp2 > secs) *(--tmp2) = 0;
 
-    sprintf(wifi_ret, WIFI_SCAN_RESULT_JSON, 1, ssids, secs);
+    sprintf(new_wifi_ret, WIFI_SCAN_RESULT_JSON, 1, ssids, secs);
 
-    scaned = true;
     free(ssids);
     free(secs);
-}
 
-// 30秒定时WiFi扫描回调
-static void WifiScanTimerCallback(void* arg)
-{
-    LinkStatusTypeDef LinkStatus;
-    micoWlanGetLinkStatus(&LinkStatus);
-    if (LinkStatus.is_connected == 1) {
-        wifi_log("periodic wifi scan...");
-        micoWlanStartScanAdv();
-    }
+    // 释放旧的 wifi_ret，替换为新的
+    if (wifi_ret) free(wifi_ret);
+    wifi_ret = new_wifi_ret;
+    scaned = true;
 }
 
 // 100ms定时器回调
@@ -232,9 +221,6 @@ void WifiInit(void)
     mico_rtos_init_timer(&wifi_led_timer, 100, (void*)WifiLedTimerCallback, NULL);
     // WiFi断开延迟动作定时器 1秒周期
     mico_rtos_init_timer(&wifi_offline_timer, 1000, (void*)WifiOfflineTimerHandler, NULL);
-    // 30秒定时WiFi扫描
-    mico_rtos_init_timer(&wifi_scan_timer, 30000, (void*)WifiScanTimerCallback, NULL);
-    mico_rtos_start_timer(&wifi_scan_timer);
     // WiFi已连接获取到IP地址 回调
     mico_system_notify_register(mico_notify_DHCP_COMPLETED, (void*)WifiGetIpCallback, NULL);
     // WiFi连接状态改变 回调
