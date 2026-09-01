@@ -1,0 +1,13 @@
+version: '3'
+services:
+  ota-server:
+    build: .
+    container_name: tc1-ota-server
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data:/data
+    environment:
+      - OTA_PORT=8081
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    restart: unless-stopped

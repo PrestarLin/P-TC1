@@ -388,6 +388,14 @@
         <div id="otaInfo" style="font-size:var(--text-sm);margin-bottom:16px;color:var(--fg-muted)">
           <span data-i18n="current">Current</span>: <span id="otaCurVer">--</span>
         </div>
+        <div style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:var(--text-sm);font-weight:500">Auto Update Server</span>
+            <span id="otaServerVer" style="font-size:var(--text-sm);color:var(--fg-muted)">--</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="checkUpdateBtn" onclick="checkForUpdate()">Check for Updates</button>
+          <button class="btn btn-primary btn-sm" id="startUpdateBtn" onclick="startAutoUpdate()" style="display:none">Update Now</button>
+        </div>
         <div class="form-group">
           <label class="form-label" data-i18n="online_ota_url">Online OTA URL</label>
           <input class="form-input" id="otaUrl" placeholder="http://server/firmware.bin">
@@ -1052,6 +1060,47 @@ function startOta(){
   reader.readAsArrayBuffer(file);
 }
 document.getElementById('otaFile').addEventListener('change',function(){document.getElementById('otaBtn').disabled=!this.files.length;});
+
+/* ── Auto Update Check ── */
+var OTA_SERVER='http://'+location.hostname+':8081';
+var latestVersion='';
+function checkForUpdate(){
+  var btn=document.getElementById('checkUpdateBtn');
+  btn.disabled=true;btn.textContent='Checking...';
+  document.getElementById('otaServerVer').textContent='Connecting...';
+  api('/status',function(e,d){
+    if(e){btn.disabled=false;btn.textContent='Check for Updates';document.getElementById('otaServerVer').textContent='Device offline';return;}
+    var j=p(d);var curVer=j?(j.version||''):'';
+    var x=new XMLHttpRequest();x.open('GET',OTA_SERVER+'/version',true);x.timeout=10000;
+    x.onload=function(){
+      btn.disabled=false;btn.textContent='Check for Updates';
+      if(x.status!==200){document.getElementById('otaServerVer').textContent='Server error';return;}
+      var serverVer=x.responseText.trim();
+      document.getElementById('otaServerVer').textContent='Server: '+serverVer;
+      latestVersion=serverVer;
+      if(serverVer&&curVer&&serverVer!==curVer){
+        document.getElementById('startUpdateBtn').style.display='';
+        document.getElementById('otaServerVer').innerHTML+=' <span style="color:var(--accent)">(update available)</span>';
+      }else{
+        document.getElementById('startUpdateBtn').style.display='none';
+      }
+    };
+    x.onerror=function(){btn.disabled=false;btn.textContent='Check for Updates';document.getElementById('otaServerVer').textContent='Connection failed';};
+    x.send();
+  });
+}
+function startAutoUpdate(){
+  if(!latestVersion)return;
+  if(!confirm('Update to '+latestVersion+'? Device will reboot.'))return;
+  document.getElementById('startUpdateBtn').disabled=true;
+  document.getElementById('otaStatus').textContent='Starting auto update...';
+  post('/ota',OTA_SERVER+'/firmware',function(e,r){
+    document.getElementById('startUpdateBtn').disabled=false;
+    if(e){document.getElementById('otaStatus').textContent='OTA start failed';return;}
+    document.getElementById('otaStatus').textContent='Downloading '+latestVersion+'...';
+    pollOtaProgress();
+  });
+}
 
 /* ── Static IP ── */
 initToggle('togStaticIp',function(on){
