@@ -4,7 +4,7 @@
 #define WEB_LOG_H
 
 #define LOG_NUM 50
-#define LOG_LEN 96
+#define LOG_LEN 256
 #define TIME_LEN 22
 
 typedef struct
