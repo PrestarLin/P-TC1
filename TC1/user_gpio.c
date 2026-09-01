@@ -117,7 +117,7 @@ char *GetButtonClickConfig() {
     for (int i = 1; i <= 30; i++) {
         char short_func = get_short_func(RESERVED_CFG->key_short[i]);
         char long_func  = get_long_func(RESERVED_CFG->key_long[i]);
-//    key_log("WARNGIN:KEY func %d %d %d", i,short_func,long_func);
+//    key_log("WARNING:KEY func %d %d %d", i,short_func,long_func);
 
         snprintf(temp, sizeof(temp), "{'%d':[%d,%d]}%s", i, short_func, long_func, (i != 30) ? "," : "");
         len += snprintf(btn_click_config + len, max_len - len, "%s", temp);
@@ -140,7 +140,7 @@ void ButtonConfigInit(void) {
         RESERVED_CFG->key_long[i]  = (l == NO_FUNCTION)  ? KEY_NONE : l;
     }
     RESERVED_CFG->key_init = KEY_CFG_MAGIC;
-    tc1_log("WARNGIN: ButtonConfigInit unpack legacy key config");
+    tc1_log("WARNING: ButtonConfigInit unpack legacy key config");
 }
 
 void SetSocketStatus(char *socket_status) {
@@ -198,7 +198,7 @@ void UserRelaySetAll(char y) {
         UserRelaySet(i, y);
 }
 static void KeyEventHandler(int num, boolean longPress) {
-    key_log("WARNGIN:Power key %s %d %s", !longPress ? "quick clicked" : "longPressed", num,
+    key_log("WARNING:Power key %s %d %s", !longPress ? "quick clicked" : "longPressed", num,
             num > 1 ? (longPress ? "seconds" : "times") : (longPress ? "second" : "time"));
     if (num > 30 || num <= 0)
         return;
@@ -215,7 +215,7 @@ static void KeyEventHandler(int num, boolean longPress) {
         UserMqttSendSocketState(idx);
         UserMqttSendTotalSocketState();
         mico_system_context_update(sys_config);
-        key_log("WARNGIN:%s", get_func_name(function));
+        key_log("WARNING:%s", get_func_name(function));
         return;
     }
 
@@ -343,7 +343,7 @@ static void KeyEventHandler(int num, boolean longPress) {
         default:
             break;
     }
-    key_log("WARNGIN:%s",showLog? get_func_name(function):"child lock enabled,ignore key event !");
+    key_log("WARNING:%s",showLog? get_func_name(function):"child lock enabled,ignore key event !");
 }
 
 mico_timer_t user_key_timer;

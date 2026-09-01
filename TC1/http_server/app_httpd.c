@@ -278,7 +278,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     } else {
         set_key_map(user_config->user,index, func, RESERVED_CFG->key_long[index]);
     }
-    key_log("WARNGIN:set KEY func %d short[%d] long[%d]", index, RESERVED_CFG->key_short[index], RESERVED_CFG->key_long[index]);
+    key_log("WARNING:set KEY func %d short[%d] long[%d]", index, RESERVED_CFG->key_short[index], RESERVED_CFG->key_long[index]);
     mico_system_context_update(sys_config);
 
     send_http("OK", 2, exit, &err);

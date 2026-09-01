@@ -83,7 +83,7 @@ static void WifiOfflineTimerHandler(void *arg)
     if (now - wifi_offline_start_s >= (uint32_t)RESERVED_CFG->wifi_offline_delay) {
         mico_rtos_stop_timer(&wifi_offline_timer);
         wifi_offline_start_s = 0;
-        wifi_log("WARNGIN: wifi offline action[%d]", RESERVED_CFG->wifi_offline_action);
+        wifi_log("WARNING: wifi offline action[%d]", RESERVED_CFG->wifi_offline_action);
         if (RESERVED_CFG->wifi_offline_action == 1) {
             MicoSystemReboot();
         } else {

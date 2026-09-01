@@ -90,11 +90,11 @@ void recordDailyPCount() {
     if (last_check_day != 0) {
         // 如果日期发生变化（即跨天了），则进行记录
         if (current_time->tm_mday != last_check_day) { tc1_log(
-                    "WARNGIN: pcount day changed! now day %d hour %d min %d ,lastCheck day %d",
+                    "WARNING: pcount day changed! now day %d hour %d min %d ,lastCheck day %d",
                     current_time->tm_mday, current_time->tm_hour, current_time->tm_min,
                     last_check_day);
 
-//            tc1_log("WARNGIN: pcount day changed! ");
+//            tc1_log("WARNING: pcount day changed! ");
             // 记录数据
             if (user_config->p_count_1_day_ago != 0) {
                 user_config->p_count_2_days_ago = user_config->p_count_1_day_ago;
@@ -104,12 +104,12 @@ void recordDailyPCount() {
             // 更新系统配置
             mico_system_context_update(sys_config);
 
-            tc1_log("WARNGIN: p_count record! p_count_1_day_ago:%d p_count_2_days_ago:%d",
+            tc1_log("WARNING: p_count record! p_count_1_day_ago:%d p_count_2_days_ago:%d",
                     user_config->p_count_1_day_ago, user_config->p_count_2_days_ago);
         } else {
-//        	tc1_log("WARNGIN: pcount day not changed , waiting for next run! ");
+//        	tc1_log("WARNING: pcount day not changed , waiting for next run! ");
         }
-    } else { tc1_log("WARNGIN: now day %d hour %d min %d ,lastCheck day %d", current_time->tm_mday,
+    } else { tc1_log("WARNING: now day %d hour %d min %d ,lastCheck day %d", current_time->tm_mday,
                      current_time->tm_hour, current_time->tm_min, last_check_day);
     }
     // 更新上次检查时间
@@ -117,7 +117,7 @@ void recordDailyPCount() {
 }
 
 void schedule_p_count_task(mico_thread_arg_t arg) {
-    mico_thread_sleep(20);tc1_log("WARNGIN: p_count timer thread created!");
+    mico_thread_sleep(20);tc1_log("WARNING: p_count timer thread created!");
     while (1) {
         recordDailyPCount();
         mico_thread_sleep(60);
@@ -147,7 +147,7 @@ bool user_config_migrate(void) {
         return true; // 已是当前布局
     }
 
-    tc1_log("WARNGIN: migrate user config from v%d to v%d", old_version, USER_CONFIG_VERSION);
+    tc1_log("WARNING: migrate user config from v%d to v%d", old_version, USER_CONFIG_VERSION);
 
     if (old_version >= 1 && old_version <= 10) {
         /* 从冻结的 v10 布局投影到当前布局. */
@@ -215,7 +215,7 @@ bool user_config_migrate(void) {
         return true;
     }
 
-    tc1_log("WARNGIN: unsupported config version %d, restore to default!", old_version);
+    tc1_log("WARNING: unsupported config version %d, restore to default!", old_version);
     return false;
 }
 
@@ -330,7 +330,7 @@ int application_start(void) {
     }
     MicoSysLed(0);
 
-    if (!user_config_migrate()) { tc1_log("WARNGIN: user params restored!");
+    if (!user_config_migrate()) { tc1_log("WARNING: user params restored!");
         err = mico_system_context_restore(sys_config);
         require_noerr(err, exit);
     }
@@ -355,7 +355,7 @@ int application_start(void) {
         heal_key = true;
     }
     if (heal_key) {
-        tc1_log("WARNGIN: heal protected default tasks (5s/10s)");
+        tc1_log("WARNING: heal protected default tasks (5s/10s)");
         mico_system_context_update(sys_config);
     }
 
