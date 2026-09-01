@@ -184,22 +184,22 @@ int httpd_recv(int fd, void *buf, size_t n, int flags)
     FD_ZERO( &readfds );
     FD_SET( fd, &readfds );
 
-    t.tv_sec = 0;
-    t.tv_usec = 200*1000;
+    t.tv_sec = 5;
+    t.tv_usec = 0;
 
 #ifdef CONFIG_ENABLE_HTTPS
     if (httpd_is_https_active())
 		return tls_recv(httpd_tls_handle, buf, n);
 	else
 #endif /* ENABLE_HTTPS */
-    return recv(fd, buf, n, flags);
-    select( fd + 1, &readfds, NULL, NULL, &t );
-
-    if( FD_ISSET( fd, &readfds) )
     {
-        len =  recv( fd, buf, n, flags );
+        select( fd + 1, &readfds, NULL, NULL, &t );
+        if( FD_ISSET( fd, &readfds) )
+        {
+            len = recv( fd, buf, n, flags );
+        }
+        return len;
     }
-    return len;
 }
 
 int httpd_send_hdr_from_code(int sock, int stat_code,
