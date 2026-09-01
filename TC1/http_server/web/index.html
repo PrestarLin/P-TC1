@@ -418,6 +418,7 @@
         <span data-i18n="system_log">System Log</span>
         <div class="btn-group">
           <button class="btn btn-ghost btn-sm" onclick="fetchLog()" data-i18n="btn_refresh">Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="logPauseBtn" onclick="toggleLogPause()">Pause</button>
           <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
         </div>
       </div>
@@ -940,9 +941,9 @@ function renderTasks(){
 var logTimer=null;
 var logEntries=[];
 var logLastIdx=0;
+var logPaused=false;
 function fetchLog(){
   if(logTimer)clearInterval(logTimer);
-  // 立即加载一次
   _fetchLogs();
   logTimer=setInterval(_fetchLogs,2000);
 }
@@ -964,7 +965,16 @@ function _fetchLogs(){
 function _renderLogs(){
   var box=document.getElementById('logBox');
   box.innerHTML='<pre>'+esc(logEntries.join('\n'))+'</pre>';
-  box.scrollTop=box.scrollHeight;
+  if(!logPaused) box.scrollTop=box.scrollHeight;
+}
+function toggleLogPause(){
+  logPaused=!logPaused;
+  var btn=document.getElementById('logPauseBtn');
+  btn.textContent=logPaused?'Resume':'Pause';
+  if(!logPaused){
+    var box=document.getElementById('logBox');
+    box.scrollTop=box.scrollHeight;
+  }
 }
 function _stopLogTimer(){
   if(logTimer){clearInterval(logTimer);logTimer=null;}
