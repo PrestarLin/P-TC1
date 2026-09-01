@@ -399,34 +399,21 @@
           </div>
           <button class="btn btn-ghost btn-sm" id="checkUpdateBtn" onclick="checkForUpdate()">Check for Updates</button>
           <button class="btn btn-primary btn-sm" id="startUpdateBtn" onclick="startAutoUpdate()" style="display:none">Update Now</button>
-          <div class="progress mb-3" style="display:none;margin-top:8px" id="autoProgress">
-            <div class="progress-bar" id="autoBar" style="width:0%"></div>
-          </div>
-          <div id="autoStatus" style="font-size:var(--text-sm);color:var(--fg-muted);margin-top:4px"></div>
         </div>
         <div class="form-group">
           <label class="form-label" data-i18n="online_ota_url">Online OTA URL</label>
           <input class="form-input" id="otaUrl" placeholder="http://server/firmware.bin">
         </div>
-        <button class="btn btn-primary btn-block" id="otaUrlBtn" onclick="startOnlineOta()" data-i18n="btn_start_online_ota">Start Online OTA</button>
-        <div class="progress mb-3" style="display:none;margin-top:8px" id="onlineProgress">
-          <div class="progress-bar" id="onlineBar" style="width:0%"></div>
-        </div>
-        <div id="onlineStatus" style="font-size:var(--text-sm);color:var(--fg-muted);margin-top:4px"></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head" data-i18n="local_ota">Local OTA</div>
-      <div class="card-body">
+        <button class="btn btn-primary btn-block" id="otaUrlBtn" onclick="startOnlineOta()" style="margin-bottom:12px" data-i18n="btn_start_online_ota">Start Online OTA</button>
         <div class="form-group">
           <label class="form-label" data-i18n="select_firmware">Select Firmware (.ota.bin)</label>
           <input class="form-input" id="otaFile" type="file" accept=".bin">
         </div>
-        <div class="progress mb-3" style="display:none" id="otaProgress">
+        <button class="btn btn-primary btn-block" id="otaBtn" onclick="startOta()" disabled data-i18n="btn_start_upload">Start Upload</button>
+        <div class="progress mb-3" style="display:none;margin-top:12px" id="otaProgress">
           <div class="progress-bar" id="otaBar" style="width:0%"></div>
         </div>
-        <div id="otaStatus" style="font-size:var(--text-sm);color:var(--fg-muted);margin-bottom:12px"></div>
-        <button class="btn btn-primary btn-block" id="otaBtn" onclick="startOta()" disabled data-i18n="btn_start_upload">Start Upload</button>
+        <div id="otaStatus" style="font-size:var(--text-sm);color:var(--fg-muted);margin-top:4px"></div>
       </div>
     </div>
   </div>
@@ -1006,13 +993,13 @@ function fetchOtaStatus(){
     if(e)return;
     var val=parseInt(d);
     if(val>=0&&val<=100){
-      document.getElementById('otaCurVer').textContent='Progress: '+val+'%';
+      // OTA进行中时不更新版本显示，进度条已统一处理
     }else{
       // 空闲时显示固件版本
       api('/status',function(e2,d2){
-        if(e2){document.getElementById('otaCurVer').textContent='Idle';return;}
+        if(e2){document.getElementById('otaCurVer').textContent='--';return;}
         var j=p(d2);
-        document.getElementById('otaCurVer').textContent=j?(j.version||'--'):'Idle';
+        document.getElementById('otaCurVer').textContent=j?(j.version||'--'):'--';
       });
     }
   });
@@ -1091,8 +1078,8 @@ function checkForUpdate(){
   var branch=document.getElementById('otaBranch').value;
   btn.disabled=true;btn.textContent='Checking...';
   document.getElementById('otaServerVer').textContent='Connecting...';
-  document.getElementById('autoStatus').textContent='';
-  document.getElementById('autoProgress').style.display='none';
+  document.getElementById('otaStatus').textContent='';
+  document.getElementById('otaProgress').style.display='none';
   api('/status',function(e,d){
     if(e){btn.disabled=false;btn.textContent='Check for Updates';document.getElementById('otaServerVer').textContent='Device offline';return;}
     var j=p(d);var curVer=j?(j.version||''):'';
@@ -1119,26 +1106,51 @@ function startAutoUpdate(){
   var branch=document.getElementById('otaBranch').value;
   if(!confirm('Update to '+latestVersion+' ('+branch+')? Device will reboot.'))return;
   document.getElementById('startUpdateBtn').disabled=true;
-  document.getElementById('autoStatus').textContent='Starting auto update...';
+  document.getElementById('otaStatus').textContent='Starting auto update...';
+  document.getElementById('otaProgress').style.display='none';
   post('/ota',OTA_SERVER+'/firmware?branch='+branch,function(e,r){
     document.getElementById('startUpdateBtn').disabled=false;
-    if(e){document.getElementById('autoStatus').textContent='OTA start failed';return;}
-    document.getElementById('autoStatus').textContent='Downloading '+latestVersion+' ('+branch+')...';
-    pollAutoOtaProgress();
+    if(e){document.getElementById('otaStatus').textContent='OTA start failed';return;}
+    document.getElementById('otaStatus').textContent='Downloading '+latestVersion+' ('+branch+')...';
+    pollOtaProgress(0);
   });
 }
-function pollAutoOtaProgress(){
+function startOnlineOta(){
+  var url=document.getElementById('otaUrl').value.trim();
+  if(!url){toast('Enter OTA URL');return;}
+  document.getElementById('otaUrlBtn').disabled=true;
+  document.getElementById('otaStatus').textContent='Starting online OTA...';
+  document.getElementById('otaProgress').style.display='none';
+  post('/ota',url,function(e,r){
+    if(e){document.getElementById('otaUrlBtn').disabled=false;document.getElementById('otaStatus').textContent='OTA start failed';return;}
+    document.getElementById('otaStatus').textContent='OTA in progress...';
+    pollOtaProgress(0);
+  });
+}
+function pollOtaProgress(retries){
+  if(retries>30){
+    document.getElementById('otaUrlBtn').disabled=false;
+    document.getElementById('startUpdateBtn').disabled=false;
+    document.getElementById('otaStatus').textContent='OTA timeout, please retry';
+    document.getElementById('otaProgress').style.display='none';
+    return;
+  }
   api('/ota',function(e,d){
     if(e)return;
     var val=parseInt(d);
     if(val>=0&&val<=100){
-      document.getElementById('autoProgress').style.display='';
-      document.getElementById('autoBar').style.width=val+'%';
-      document.getElementById('autoStatus').textContent='OTA progress: '+val+'%';
-      if(val<100)setTimeout(pollAutoOtaProgress,2000);
-      else document.getElementById('autoStatus').textContent='OTA complete, rebooting...';
+      document.getElementById('otaProgress').style.display='';
+      document.getElementById('otaBar').style.width=val+'%';
+      document.getElementById('otaStatus').textContent='OTA progress: '+val+'%';
+      if(val<100)setTimeout(function(){pollOtaProgress(0);},2000);
+      else document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+    }else if(val===-2){
+      document.getElementById('otaUrlBtn').disabled=false;
+      document.getElementById('startUpdateBtn').disabled=false;
+      document.getElementById('otaStatus').textContent='OTA failed, please check URL and retry';
+      document.getElementById('otaProgress').style.display='none';
     }else{
-      setTimeout(pollAutoOtaProgress,2000);
+      setTimeout(function(){pollOtaProgress(retries+1);},2000);
     }
   });
 }
