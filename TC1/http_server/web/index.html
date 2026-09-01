@@ -954,7 +954,7 @@ function _fetchLogs(){
     var newIdx=parseInt(lines[0])||0;
     for(var i=1;i<lines.length;i++){
       var line=lines[i];
-      if(!line||line.indexOf('FreeMem')===0)continue;
+      if(!line)continue;
       logEntries.push(line);
     }
     logLastIdx=newIdx;
