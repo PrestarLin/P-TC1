@@ -431,33 +431,8 @@ static OSStatus ota_server_set_url( char *url )
 OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
 {
     OSStatus err = kNoErr;
-    char *actual_url = url;
 
     require_action(url, exit, err = kParamErr);
-
-    // GitHub blob URL 自动转 raw URL
-    char *blob = strstr(url, "github.com");
-    if (blob) {
-        char *slash_blob = strstr(url, "/blob/");
-        if (slash_blob) {
-            // github.com/user/repo/blob/main/file.bin
-            // → raw.githubusercontent.com/user/repo/main/file.bin
-            int host_len = slash_blob - url;
-            int path_len = strlen(slash_blob + 6); // skip "/blob/"
-            int raw_url_len = strlen("raw.githubusercontent.com") + host_len - strlen("github.com") + 1 + path_len + 1;
-            char *raw_url = malloc(raw_url_len);
-            if (raw_url) {
-                // 复制 host 部分，替换 github.com 为 raw.githubusercontent.com
-                int github_pos = blob - url;
-                snprintf(raw_url, raw_url_len, "%.*sraw.githubusercontent.com%s/%s",
-                    github_pos, url,
-                    blob + strlen("github.com"),
-                    slash_blob + 6);
-                ota_server_log("GitHub raw URL: %s", raw_url);
-                actual_url = raw_url;
-            }
-        }
-    }
 
     if( ota_server_context != NULL ){
         err = kGeneralErr;
@@ -468,11 +443,11 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
     require_action(ota_server_context, exit, err = kNoMemoryErr);
     memset(ota_server_context, 0x00, sizeof(ota_server_context_t));
 
-    ota_server_context->download_url.url = malloc(strlen(actual_url));
+    ota_server_context->download_url.url = malloc(strlen(url));
     require_action(ota_server_context->download_url.url, exit, err = kNoMemoryErr);
-    memset(ota_server_context->download_url.url, 0x00, strlen(actual_url));
+    memset(ota_server_context->download_url.url, 0x00, strlen(url));
 
-    err = ota_server_set_url(actual_url);
+    err = ota_server_set_url(url);
     require_noerr(err, exit);
 
     if( md5 != NULL ){
@@ -485,7 +460,6 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
 
     err = mico_rtos_create_thread( NULL, MICO_APPLICATION_PRIORITY, "OTA", ota_server_thread, OTA_SERVER_THREAD_STACK_SIZE, 0 );
     exit:
-    if (actual_url != url) free(actual_url);
     return err;
 }
 
