@@ -409,6 +409,10 @@
           <input class="form-input" id="otaUrl" placeholder="http://server/firmware.bin">
         </div>
         <button class="btn btn-primary btn-block" id="otaUrlBtn" onclick="startOnlineOta()" data-i18n="btn_start_online_ota">Start Online OTA</button>
+        <div class="progress mb-3" style="display:none;margin-top:8px" id="onlineProgress">
+          <div class="progress-bar" id="onlineBar" style="width:0%"></div>
+        </div>
+        <div id="onlineStatus" style="font-size:var(--text-sm);color:var(--fg-muted);margin-top:4px"></div>
       </div>
     </div>
     <div class="card">
@@ -1018,36 +1022,36 @@ function startOnlineOta(){
   var url=document.getElementById('otaUrl').value.trim();
   if(!url){toast('Enter OTA URL');return;}
   document.getElementById('otaUrlBtn').disabled=true;
-  document.getElementById('otaStatus').textContent='Starting online OTA...';
-  document.getElementById('otaProgress').style.display='none';
+  document.getElementById('onlineStatus').textContent='Starting online OTA...';
+  document.getElementById('onlineProgress').style.display='none';
   post('/ota',url,function(e,r){
-    if(e){document.getElementById('otaUrlBtn').disabled=false;document.getElementById('otaStatus').textContent='OTA start failed';return;}
-    document.getElementById('otaStatus').textContent='OTA in progress...';
-    pollOtaProgress(0);
+    if(e){document.getElementById('otaUrlBtn').disabled=false;document.getElementById('onlineStatus').textContent='OTA start failed';return;}
+    document.getElementById('onlineStatus').textContent='OTA in progress...';
+    pollOnlineOtaProgress(0);
   });
 }
-function pollOtaProgress(retries){
+function pollOnlineOtaProgress(retries){
   if(retries>30){
     document.getElementById('otaUrlBtn').disabled=false;
-    document.getElementById('otaStatus').textContent='OTA timeout, please retry';
-    document.getElementById('otaProgress').style.display='none';
+    document.getElementById('onlineStatus').textContent='OTA timeout, please retry';
+    document.getElementById('onlineProgress').style.display='none';
     return;
   }
   api('/ota',function(e,d){
     if(e)return;
     var val=parseInt(d);
     if(val>=0&&val<=100){
-      document.getElementById('otaProgress').style.display='';
-      document.getElementById('otaBar').style.width=val+'%';
-      document.getElementById('otaStatus').textContent='OTA progress: '+val+'%';
-      if(val<100)setTimeout(function(){pollOtaProgress(0);},2000);
-      else document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+      document.getElementById('onlineProgress').style.display='';
+      document.getElementById('onlineBar').style.width=val+'%';
+      document.getElementById('onlineStatus').textContent='OTA progress: '+val+'%';
+      if(val<100)setTimeout(function(){pollOnlineOtaProgress(0);},2000);
+      else document.getElementById('onlineStatus').textContent='OTA complete, rebooting...';
     }else if(val===-2){
       document.getElementById('otaUrlBtn').disabled=false;
-      document.getElementById('otaStatus').textContent='OTA failed, please check URL and retry';
-      document.getElementById('otaProgress').style.display='none';
+      document.getElementById('onlineStatus').textContent='OTA failed, please check URL and retry';
+      document.getElementById('onlineProgress').style.display='none';
     }else{
-      setTimeout(function(){pollOtaProgress(retries+1);},2000);
+      setTimeout(function(){pollOnlineOtaProgress(retries+1);},2000);
     }
   });
 }
