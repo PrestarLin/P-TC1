@@ -416,9 +416,10 @@
     <div class="card">
       <div class="card-head">
         <span data-i18n="system_log">System Log</span>
-        <div class="btn-group">
+        <div class="btn-group" style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:var(--text-sm);color:var(--fg-muted)">Auto-scroll</span>
+          <div class="toggle-track on" id="logAutoScroll" role="switch" tabindex="0"><div class="toggle-thumb"></div></div>
           <button class="btn btn-ghost btn-sm" onclick="fetchLog()" data-i18n="btn_refresh">Refresh</button>
-          <button class="btn btn-ghost btn-sm" id="logPauseBtn" onclick="toggleLogPause()">Pause</button>
           <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
         </div>
       </div>
@@ -967,15 +968,6 @@ function _renderLogs(){
   box.innerHTML='<pre>'+esc(logEntries.join('\n'))+'</pre>';
   if(!logPaused) box.scrollTop=box.scrollHeight;
 }
-function toggleLogPause(){
-  logPaused=!logPaused;
-  var btn=document.getElementById('logPauseBtn');
-  btn.textContent=logPaused?'Resume':'Pause';
-  if(!logPaused){
-    var box=document.getElementById('logBox');
-    box.scrollTop=box.scrollHeight;
-  }
-}
 function _stopLogTimer(){
   if(logTimer){clearInterval(logTimer);logTimer=null;}
 }
@@ -1113,6 +1105,7 @@ initToggle('togMaster',toggleMaster);
 initToggle('togLed',toggleLed);
 initToggle('togLock',toggleLock);
 initToggle('nightModeTog',function(on){nightModeOn=on;document.getElementById('nightStart').disabled=on;document.getElementById('nightEnd').disabled=on;saveNightMode();});
+initToggle('logAutoScroll',function(on){logPaused=!on;if(!on){var box=document.getElementById('logBox');box.scrollTop=box.scrollHeight;}});
 
 function saveWifi(){
   var ssid=document.getElementById('wifiSsid').value;
