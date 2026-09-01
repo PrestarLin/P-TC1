@@ -1136,14 +1136,22 @@ function pollOtaProgress(retries){
     return;
   }
   api('/ota',function(e,d){
-    if(e)return;
+    if(e){
+      // 连接失败说明设备正在重启，显示成功
+      document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+      document.getElementById('otaProgress').style.display='none';
+      return;
+    }
     var val=parseInt(d);
     if(val>=0&&val<=100){
       document.getElementById('otaProgress').style.display='';
       document.getElementById('otaBar').style.width=val+'%';
       document.getElementById('otaStatus').textContent='OTA progress: '+val+'%';
       if(val<100)setTimeout(function(){pollOtaProgress(0);},2000);
-      else document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+      else{
+        document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+        document.getElementById('otaProgress').style.display='none';
+      }
     }else if(val===-2){
       document.getElementById('otaUrlBtn').disabled=false;
       document.getElementById('startUpdateBtn').disabled=false;
