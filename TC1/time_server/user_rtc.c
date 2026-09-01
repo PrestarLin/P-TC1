@@ -57,6 +57,13 @@ OSStatus UserSntpGetTime()
     mico_utc_time_ms_t utc_time_ms = (uint64_t)current_time.seconds * (uint64_t)1000
         + (current_time.microseconds / 1000);
     mico_time_set_utc_time_ms(&utc_time_ms);
+
+    time_t now = (time_t)current_time.seconds + 28800;
+    struct tm *t = localtime(&now);
+    rtc_log("sntp synced: %04d-%02d-%02d %02d:%02d:%02d",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+        t->tm_hour, t->tm_min, t->tm_sec);
+
     return kNoErr;
 }
 
@@ -126,6 +133,7 @@ void RtcThread(mico_thread_arg_t arg)
             micoWlanGetLinkStatus(&LinkStatus);
             if (LinkStatus.is_connected == 1)
             {
+                rtc_log("periodic ntp sync...");
                 err = UserSntpGetTime();
                 if (err == kNoErr)
                     rtc_init = 1;
