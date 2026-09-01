@@ -132,16 +132,17 @@ void RtcThread(mico_thread_arg_t arg)
         // 每10分钟同步一次NTP，避免依赖tm_sec==0的1秒窗口
         if (currentTime->tm_min % 10 == 0 && currentTime->tm_min != last_sync_min)
         {
-            last_sync_min = currentTime->tm_min;
             micoWlanGetLinkStatus(&LinkStatus);
             if (LinkStatus.is_connected == 1)
             {
                 rtc_log("periodic ntp sync...");
                 err = UserSntpGetTime();
-                if (err == kNoErr)
+                if (err == kNoErr) {
                     rtc_init = 1;
-                else
+                    last_sync_min = currentTime->tm_min; // 成功才更新，失败会在同一窗口重试
+                } else {
                     rtc_init = 2;
+                }
             }
         }
 
