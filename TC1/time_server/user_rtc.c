@@ -135,14 +135,18 @@ void RtcThread(mico_thread_arg_t arg)
             micoWlanGetLinkStatus(&LinkStatus);
             if (LinkStatus.is_connected == 1)
             {
-                rtc_log("periodic ntp sync...");
-                err = UserSntpGetTime();
-                if (err == kNoErr) {
-                    rtc_init = 1;
-                    last_sync_min = currentTime->tm_min; // 成功才更新，失败会在同一窗口重试
-                } else {
+                int retry;
+                for (retry = 0; retry < 3; retry++) {
+                    rtc_log("periodic ntp sync... attempt %d/3", retry + 1);
+                    err = UserSntpGetTime();
+                    if (err == kNoErr) {
+                        rtc_init = 1;
+                        break;
+                    }
                     rtc_init = 2;
+                    if (retry < 2) mico_rtos_thread_sleep(3);
                 }
+                last_sync_min = currentTime->tm_min; // 无论成功失败都进入下一个窗口
             }
         }
 
