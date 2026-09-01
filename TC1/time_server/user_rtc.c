@@ -90,6 +90,7 @@ void RtcThread(mico_thread_arg_t arg)
 
     mico_utc_time_t utc_time;
     mico_utc_time_t utc_time_last = 0;
+    int last_sync_min = -1;
     while (1)
     {
         micoWlanGetLinkStatus(&LinkStatus);
@@ -128,8 +129,10 @@ void RtcThread(mico_thread_arg_t arg)
 
         struct tm * currentTime = localtime((const time_t *) &utc_time);
 
-        if (currentTime->tm_sec == 0 && currentTime->tm_min % 10 == 0)
+        // 每10分钟同步一次NTP，避免依赖tm_sec==0的1秒窗口
+        if (currentTime->tm_min % 10 == 0 && currentTime->tm_min != last_sync_min)
         {
+            last_sync_min = currentTime->tm_min;
             micoWlanGetLinkStatus(&LinkStatus);
             if (LinkStatus.is_connected == 1)
             {
