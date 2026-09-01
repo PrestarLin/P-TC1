@@ -103,7 +103,7 @@ void RtcThread(mico_thread_arg_t arg)
                 break;
             }
             rtc_init = 2;
-            break;
+            mico_rtos_thread_sleep(3);
         }
         mico_rtos_thread_sleep(3);
     }
@@ -121,7 +121,7 @@ void RtcThread(mico_thread_arg_t arg)
 
         struct tm * currentTime = localtime((const time_t *) &utc_time);
 
-        if (currentTime->tm_sec == 0 && currentTime->tm_min == 0)
+        if (currentTime->tm_sec == 0 && currentTime->tm_min % 10 == 0)
         {
             micoWlanGetLinkStatus(&LinkStatus);
             if (LinkStatus.is_connected == 1)
