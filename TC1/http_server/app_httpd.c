@@ -288,8 +288,9 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     return err;
 }
 
-#define OTA_BUF_SIZE 5120
+#define OTA_BUF_SIZE 8192
 #define OTA_MIN_SIZE 32768
+#define OTA_FLASH_WRITE_RETRY 3
 
 static int HttpSetOTAFile(httpd_request_t *req)
 {
@@ -309,6 +310,14 @@ static int HttpSetOTAFile(httpd_request_t *req)
         send_http("BUSY", 4, exit, &err);
         return err;
     }
+
+    /* 内存检查: 确保有足够缓冲区 */
+    if (MicoGetMemoryInfo()->free_memory < OTA_BUF_SIZE + 2048) {
+        tc1_log("[OTA] not enough memory: %d bytes free", MicoGetMemoryInfo()->free_memory);
+        send_http("BUSY", 4, exit, &err);
+        return err;
+    }
+
     ota_progress = 0;
 
     /* OTA 防呆保护: 只有完整收到、大小一致且镜像头合法的固件才会切换并重启。
@@ -337,8 +346,22 @@ static int HttpSetOTAFile(httpd_request_t *req)
                 break;
             }
             CRC16_Update(&crc_context, (uint8_t*)buffer, ret);
-            err = MicoFlashWrite(MICO_PARTITION_OTA_TEMP, &offset, (uint8_t*)buffer, ret);
+
+            /* Flash写入带重试 */
+            int write_retry;
+            for (write_retry = 0; write_retry < OTA_FLASH_WRITE_RETRY; write_retry++) {
+                err = MicoFlashWrite(MICO_PARTITION_OTA_TEMP, &offset, (uint8_t*)buffer, ret);
+                if (err == kNoErr) break;
+                tc1_log("[OTA] flash write retry %d/%d, err=%d", write_retry + 1, OTA_FLASH_WRITE_RETRY, err);
+                if (write_retry < OTA_FLASH_WRITE_RETRY - 1) mico_rtos_thread_sleep(1);
+            }
             require_noerr_quiet(err, exit);
+
+            /* 更新进度 */
+            if (req->body_nbytes > 0) {
+                ota_progress = (total * 100) / req->body_nbytes;
+                if (ota_progress > 99) ota_progress = 99;
+            }
 
             if (req->body_nbytes > 0 && total >= req->body_nbytes) {
                 upload_ok = true;   /* Content-Length 已收满 */
