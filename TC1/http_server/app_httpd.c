@@ -356,8 +356,6 @@ static int HttpSetOTAFile(httpd_request_t *req)
             err = kConnectionErr;
             break;
         }
-
-        mico_rtos_thread_msleep(100);
     }
 
     /* 校验 1: 接收字节数必须与 Content-Length 一致, 且不小于最小固件尺寸 */

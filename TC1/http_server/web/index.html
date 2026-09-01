@@ -988,7 +988,7 @@ function startOta(){
   var file=fileInput.files[0];
   var reader=new FileReader();
   reader.onload=function(e){
-    var x=new XMLHttpRequest();x.open('POST','/ota/fileUpload',true);x.timeout=120000;
+    var x=new XMLHttpRequest();x.open('POST','/ota/fileUpload',true);x.timeout=300000;
     x.upload.onprogress=function(ev){
       if(ev.lengthComputable){
         var pct=Math.round(ev.loaded/ev.total*100);
