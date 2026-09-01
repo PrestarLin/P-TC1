@@ -986,7 +986,12 @@ function fetchOtaStatus(){
     if(val>=0&&val<=100){
       document.getElementById('otaCurVer').textContent='Progress: '+val+'%';
     }else{
-      document.getElementById('otaCurVer').textContent='Idle';
+      // 空闲时显示固件版本
+      api('/status',function(e2,d2){
+        if(e2){document.getElementById('otaCurVer').textContent='Idle';return;}
+        var j=p(d2);
+        document.getElementById('otaCurVer').textContent=j?(j.version||'--'):'Idle';
+      });
     }
   });
   fetchStatus();
