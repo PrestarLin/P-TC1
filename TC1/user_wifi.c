@@ -108,6 +108,7 @@ int RssiGet(void)
 
 bool scaned = false;
 char* wifi_ret = NULL;
+static mico_timer_t wifi_scan_timer;
 //wifi鎵弿缁撴灉鍥炶皟
 void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
 {
@@ -155,6 +156,16 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
     scaned = true;
     free(ssids);
     free(secs);
+}
+
+static void WifiScanTimerCallback(void* arg)
+{
+    LinkStatusTypeDef LinkStatus;
+    micoWlanGetLinkStatus(&LinkStatus);
+    if (LinkStatus.is_connected == 1) {
+        wifi_log("periodic wifi scan...");
+        micoWlanStartScanAdv();
+    }
 }
 
 
@@ -227,19 +238,22 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
 void WifiInit(void)
 {
-    //wifi鐘舵€佷笅led闂儊瀹氭椂鍣ㄥ垵濮嬪寲
+    //wifi鐘舵€佷笅led闂儊瀹氭椂鍣ㄥ垵濮嬪寲
     mico_rtos_init_timer(&wifi_led_timer, 100, (void*)WifiLedTimerCallback, NULL);
-    //wifi鏂紑寤惰繜鍔ㄤ綔瀹氭椂鍣?1绉掑懆鏈?
+    //wifi鏂紑寤惰繜鍔ㄤ綂瀹氭椂鍣?1绉掑懆鏈?
     mico_rtos_init_timer(&wifi_offline_timer, 1000, (void*)WifiOfflineTimerHandler, NULL);
+    // 30秒定时WiFi扫描
+    mico_rtos_init_timer(&wifi_scan_timer, 30000, (void*)WifiScanTimerCallback, NULL);
+    mico_rtos_start_timer(&wifi_scan_timer);
     //wifi宸茶繛鎺ヨ幏鍙栧埌IP鍦板潃 鍥炶皟
     mico_system_notify_register(mico_notify_DHCP_COMPLETED, (void*)WifiGetIpCallback, NULL);
     //wifi杩炴帴鐘舵€佹敼鍙樺洖璋?
     mico_system_notify_register(mico_notify_WIFI_STATUS_CHANGED, (void*)WifiStatusCallback, NULL);
-    //wifi鎵弿缁撴灉鍥炶皟
+    //wifi鎵弿缁撴灉鍥炶皟
     mico_system_notify_register(mico_notify_WIFI_SCAN_ADV_COMPLETED, (void*)WifiScanCallback, NULL);
 
     //sntp_init();
-    //鍚姩瀹氭椂鍣ㄥ紑濮嬭繘琛寃ifi杩炴帴
+    //鍚姩瀹氭椂鍣ㄥ紑濮嬭繘琛寃ifi杩炴帴
     if (!mico_rtos_is_timer_running(&wifi_led_timer)) mico_rtos_start_timer(&wifi_led_timer);
 }
 
