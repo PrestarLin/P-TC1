@@ -417,12 +417,13 @@ char* GetTaskStr()
         int is_loop = IS_LOOP_TASK(tmp_tsk->weekday);
         int loop_dur = GET_LOOP_DURATION(tmp_tsk->weekday);
         int loop_int = GET_LOOP_INTERVAL(tmp_tsk->weekday);
+        int loop_start = GET_LOOP_START(tmp_tsk->weekday) ? GET_LOOP_START(tmp_tsk->weekday) - 1 : -1;
 
         sprintf(tmp_str,
             "{'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
-            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_end':%d},",
+            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_start':%d,'loop_end':%d},",
             tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday,
-            is_loop, loop_dur, loop_int, tmp_tsk->loop_end);
+            is_loop, loop_dur, loop_int, loop_start, tmp_tsk->loop_end);
         tmp_str += strlen(tmp_str);
         tmp_tsk = tmp_tsk->next;
     }

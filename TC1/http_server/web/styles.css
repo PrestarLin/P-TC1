@@ -342,7 +342,12 @@ ul, ol { list-style: none; }
 .socket-edit:hover { background: var(--muted); color: var(--fg); }
 
 /* ── Table ── */
-.tbl { width: 100%; border-collapse: collapse; }
+.tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.tbl th:nth-child(1), .tbl td:nth-child(1) { width: 22%; }
+.tbl th:nth-child(2), .tbl td:nth-child(2) { width: 21%; }
+.tbl th:nth-child(3), .tbl td:nth-child(3) { width: 12%; }
+.tbl th:nth-child(4), .tbl td:nth-child(4) { width: 34%; }
+.tbl th:nth-child(5), .tbl td:nth-child(5) { width: 11%; }
 .tbl th, .tbl td {
   padding: var(--sp-3) var(--sp-4);
   text-align: left;

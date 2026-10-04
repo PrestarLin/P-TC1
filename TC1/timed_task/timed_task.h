@@ -16,10 +16,13 @@
 #define LOOP_START_MASK     0x7FF
 
 #define IS_LOOP_TASK(w)         (((w) >> LOOP_FLAG_BIT) & 1)
-#define GET_LOOP_DURATION(w)    (((w) >> LOOP_DURATION_SHIFT) & LOOP_MASK_MINUTES)
+#define GET_LOOP_DURATION(w)    ((((w) >> LOOP_DURATION_SHIFT) & LOOP_MASK_MINUTES) - LOOP_DUR_BIAS)
 #define GET_LOOP_INTERVAL(w)    (((w) >> LOOP_INTERVAL_SHIFT) & LOOP_MASK_MINUTES)
+/* dur 字段(bits0-9)与 LOOP_FLAG_BIT(bit7)重叠: 存储时 dur+128 保证 bit7 恒置 1,
+   解码减回 128. 旧数据 0x80|dur(dur<128)数值恰等于 dur+128, 天然兼容. dur 有效范围 1~127 分 */
+#define LOOP_DUR_BIAS           128
 #define MAKE_LOOP_WEEKDAY(dur, interval) \
-    (0x80 | ((dur) & LOOP_MASK_MINUTES) << LOOP_DURATION_SHIFT | \
+    (0x80 | (((dur) + LOOP_DUR_BIAS) & LOOP_MASK_MINUTES) << LOOP_DURATION_SHIFT | \
      ((interval) & LOOP_MASK_MINUTES) << LOOP_INTERVAL_SHIFT)
 /* 起点编码(存 start_min+1, 0 表示旧任务未编码, 回退旧逻辑) */
 #define GET_LOOP_START(w)       (((w) >> LOOP_START_SHIFT) & LOOP_START_MASK)

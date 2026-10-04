@@ -906,6 +906,8 @@ static int HttpAddTask(httpd_request_t *req) {
 
     /* 如果传了循环参数，编码到 weekday */
     if (re >= 6 && loop_dur > 0) {
+        if (loop_dur > 127) loop_dur = 127;
+        if (loop_int > 1023) loop_int = 1023;
         /* 起点(北京分钟)编码进 weekday 高位: prs_time 每轮重排后会丢失原窗口起点 */
         int start_min = (int)(((task->prs_time + 28800) % 86400) / 60);
         task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int) | MAKE_LOOP_START(start_min);
