@@ -262,6 +262,7 @@ bool DelTask(int time)
             AppContextUpdate(sys_config);
             return true;
         }
+        pre_tsk = tmp_tsk;
         tmp_tsk = tmp_tsk->next;
     }
     return false;
