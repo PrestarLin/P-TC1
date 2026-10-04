@@ -394,7 +394,14 @@ static int HttpSetOTAFile(httpd_request_t *req)
             err = kConnectionErr;
             break;
         } else {
-            /* ret < 0: socket 错误 */
+            /* ret < 0: recv 报错(errno 见 httpd_wsgi 日志: ENOMEM/EWOULDBLOCK 等
+             * 多为 lwIP 瞬时状态)。与超时同等宽限, 连续多次才判失败;
+             * 实测 150KB(约30%)处首次 -1 即中止过, 不应一次致命 */
+            if (++idle_retries < OTA_IDLE_RETRY) {
+                tc1_log("[OTA] recv err ret=%d at %d bytes, retry %d/%d", ret, total, idle_retries, OTA_IDLE_RETRY);
+                mico_rtos_thread_msleep(200);
+                continue;
+            }
             tc1_log("[OTA] read error ret=%d, got %d bytes", ret, total);
             err = kConnectionErr;
             break;

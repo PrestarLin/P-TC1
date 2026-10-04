@@ -33,6 +33,7 @@
  */
 
 #include <string.h>
+#include <errno.h>
 
 #include "httpd.h"
 #include "http_parse.h"
@@ -577,7 +578,7 @@ int httpd_get_data2(httpd_request_t *req, char *content, int length)
 	ret = httpd_recv(req->sock, content,
 			length, 0);
 	if (ret == -1) {
-		system_log("Failed to read POST data");
+		system_log("Failed to read POST data, errno=%d", errno);
 		goto out;
 	}
 	/* scratch will now have the JSON data */
