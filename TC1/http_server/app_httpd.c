@@ -368,6 +368,11 @@ static int HttpSetOTAFile(httpd_request_t *req)
                 if (ota_progress > 99) ota_progress = 99;
             }
 
+            /* 让出 CPU: master 每块 sleep 100ms 实测正常; dev 去掉后本线程满载
+             * 连跑到 70% 左右会把其他任务(看门狗/日志/WiFi)饿死, 设备中途复位,
+             * 浏览器表现为 connection lost */
+            mico_rtos_thread_msleep(100);
+
             if (req->body_nbytes > 0 && total >= req->body_nbytes) {
                 upload_ok = true;   /* Content-Length 已收满 */
                 break;
@@ -375,9 +380,11 @@ static int HttpSetOTAFile(httpd_request_t *req)
         } else if (ret == 0) {
             /* ret==0 可能是 select 5s 超时/被信号打断(此时连接仍在),
              * 也可能对端真的关闭。连续多次无数据才判定截断:
-             * 连接真关闭时 select 立即返回, 不会多等; 瞬时停顿则可跨过误判 */
-            if (++idle_retries < OTA_IDLE_RETRY)
+             * EINTR 时 select 会立即返回, 加短 sleep 防止快速空烧重试计数 */
+            if (++idle_retries < OTA_IDLE_RETRY) {
+                mico_rtos_thread_msleep(100);
                 continue;
+            }
             /* 对端关闭连接(浏览器被关闭/断网): 没收满 Content-Length 即为截断,
              * 无 Content-Length 的请求一律视为非法, 不接受无法校验完整性的上传 */
             tc1_log("[OTA] connection closed early: got %d of %d bytes", total, req->body_nbytes);

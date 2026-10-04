@@ -285,7 +285,10 @@ static void ota_server_thread( mico_thread_arg_t arg )
 
         ota_server_context->download_url.ota_fd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
         err = ota_server_connect_server( in_addr );
-        require_noerr_action( err, RECONNECTED,  ota_server_progress_set(OTA_FAIL));
+        /* 瞬时连接失败走 RECONNECTED 断点续传, 不上报 OTA_FAIL:
+         * 否则一次抖动就把 ota_progress 置 -2, 页面在 90% 左右误显示失败,
+         * 而下载实际会继续并最终成功。FAIL 仅在下方放弃续传时上报 */
+        require_noerr( err, RECONNECTED );
 
         /* Send HTTP Request */
         ota_server_send_header( );

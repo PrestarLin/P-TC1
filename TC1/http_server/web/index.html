@@ -1080,6 +1080,7 @@ document.getElementById('otaFile').addEventListener('change',function(){document
 /* ── Auto Update Check ── */
 var OTA_SERVER='http://'+location.hostname+':8081';
 var latestVersion='';
+var preOtaVer='';
 function checkForUpdate(){
   var btn=document.getElementById('checkUpdateBtn');
   var branch=document.getElementById('otaBranch').value;
@@ -1115,6 +1116,7 @@ function startAutoUpdate(){
   document.getElementById('startUpdateBtn').disabled=true;
   document.getElementById('otaStatus').textContent='Starting auto update...';
   document.getElementById('otaProgress').style.display='none';
+  preOtaVer=document.getElementById('otaCurVer').textContent;
   post('/ota',OTA_SERVER+'/firmware?branch='+branch,function(e,r){
     document.getElementById('startUpdateBtn').disabled=false;
     if(e){document.getElementById('otaStatus').textContent='OTA start failed';return;}
@@ -1128,6 +1130,7 @@ function startOnlineOta(){
   document.getElementById('otaUrlBtn').disabled=true;
   document.getElementById('otaStatus').textContent='Starting online OTA...';
   document.getElementById('otaProgress').style.display='none';
+  preOtaVer=document.getElementById('otaCurVer').textContent;
   post('/ota',url,function(e,r){
     if(e){document.getElementById('otaUrlBtn').disabled=false;document.getElementById('otaStatus').textContent='OTA start failed';return;}
     document.getElementById('otaStatus').textContent='OTA in progress...';
@@ -1160,10 +1163,20 @@ function pollOtaProgress(retries){
         document.getElementById('otaProgress').style.display='none';
       }
     }else if(val===-2){
-      document.getElementById('otaUrlBtn').disabled=false;
-      document.getElementById('startUpdateBtn').disabled=false;
-      document.getElementById('otaStatus').textContent='OTA failed, please check URL and retry';
-      document.getElementById('otaProgress').style.display='none';
+      /* -2 也可能出现在: 新固件刚重启完成的初始态 / 一次瞬时故障的残留状态。
+       * 不能直接判失败, 查 /status 版本: 连不上或版本已变 → 实际升级成功 */
+      api('/status',function(e2,d2){
+        var j=e2?null:p(d2);
+        var ver=j?(j.version||''):'';
+        if(e2||(preOtaVer&&preOtaVer!=='--'&&ver&&ver!==preOtaVer)){
+          document.getElementById('otaStatus').textContent='OTA complete, rebooting...';
+        }else{
+          document.getElementById('otaUrlBtn').disabled=false;
+          document.getElementById('startUpdateBtn').disabled=false;
+          document.getElementById('otaStatus').textContent='OTA failed, please check URL and retry';
+        }
+        document.getElementById('otaProgress').style.display='none';
+      });
     }else{
       setTimeout(function(){pollOtaProgress(retries+1);},2000);
     }
