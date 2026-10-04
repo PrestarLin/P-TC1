@@ -30,7 +30,8 @@ bool RelayOut(void) {
 }
 
 char* get_func_name(char func_code) {
-    static char buffer[32];
+    /* "Toggle Socket 6 "(16) + 插座名最长 SOCKET_NAME_LENGTH-1(63) + NUL = 80 */
+    static char buffer[80];
     switch (func_code) {
         case SWITCH_ALL_SOCKETS:
             return "Toggle All Sockets";
@@ -44,7 +45,7 @@ char* get_func_name(char func_code) {
         case SWITCH_SOCKET_4:
         case SWITCH_SOCKET_5:
         case SWITCH_SOCKET_6:
-            sprintf(buffer, "Toggle Socket %d %s", func_code - 1,
+            snprintf(buffer, sizeof(buffer), "Toggle Socket %d %s", func_code - 1,
                     user_config->socket_names[func_code - 1]);
             return buffer;
         case SWITCH_LED_ENABLE:
@@ -156,7 +157,7 @@ void SetSocketStatus(char *socket_status) {
         UserMqttSendSocketState(i);
     }
     UserMqttSendTotalSocketState();
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 /*UserRelaySet
@@ -214,7 +215,7 @@ static void KeyEventHandler(int num, boolean longPress) {
         UserRelaySet(idx, on);
         UserMqttSendSocketState(idx);
         UserMqttSendTotalSocketState();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         key_log("WARNING:%s", get_func_name(function));
         return;
     }
@@ -228,7 +229,7 @@ static void KeyEventHandler(int num, boolean longPress) {
             } else {
                 UserRelaySetAll(1);
             }
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             for (int i = 0; i < SOCKET_NUM; i++) {
                 UserMqttSendSocketState(i);
             }
@@ -240,7 +241,7 @@ static void KeyEventHandler(int num, boolean longPress) {
             UserRelaySetAll(Relay_ON);
             for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
             UserMqttSendTotalSocketState();
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             break;
         case SWITCH_ALL_OFF:
             if (childLockEnabled)
@@ -248,7 +249,7 @@ static void KeyEventHandler(int num, boolean longPress) {
             UserRelaySetAll(Relay_OFF);
             for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
             UserMqttSendTotalSocketState();
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             break;
         case SWITCH_SOCKET_1:
         case SWITCH_SOCKET_2:
@@ -261,7 +262,7 @@ static void KeyEventHandler(int num, boolean longPress) {
             UserRelaySet(function - 1, Relay_TOGGLE);
             UserMqttSendSocketState(function - 1);
             UserMqttSendTotalSocketState();
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             break;
         case SWITCH_LED_ENABLE:
         if (childLockEnabled)
@@ -273,7 +274,7 @@ static void KeyEventHandler(int num, boolean longPress) {
                 UserLedSet(0);
             }
             UserMqttSendLedState();
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             break;
         case SWITCH_LED_ON:
             if (childLockEnabled)
@@ -281,7 +282,7 @@ static void KeyEventHandler(int num, boolean longPress) {
             MQTT_LED_ENABLED = 1;
             if (RelayOut()) UserLedSet(1); else UserLedSet(0);
             UserMqttSendLedState();
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             break;
         case SWITCH_LED_OFF:
             if (childLockEnabled)
@@ -289,27 +290,27 @@ static void KeyEventHandler(int num, boolean longPress) {
             MQTT_LED_ENABLED = 0;
             UserLedSet(0);
             UserMqttSendLedState();
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             break;
         case SWITCH_CHILD_LOCK_ENABLE:
             showLog=true;
             user_config->child_lock = user_config->child_lock == 0 ? 1 : 0;
             childLockEnabled = user_config->child_lock;
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             UserMqttSendChildLockState();
             break;
         case SWITCH_CHILD_LOCK_ON:
             showLog=true;
             user_config->child_lock = 1;
             childLockEnabled = 1;
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             UserMqttSendChildLockState();
             break;
         case SWITCH_CHILD_LOCK_OFF:
             showLog=true;
             user_config->child_lock = 0;
             childLockEnabled = 0;
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             UserMqttSendChildLockState();
             break;
         case REBOOT_SYSTEM:

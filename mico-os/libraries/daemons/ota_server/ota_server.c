@@ -35,6 +35,12 @@
 #include "ota_server.h"
 #include "url.h"
 
+/* 应用层(TC1/ota_server/user_ota.c)校验 OTA_TEMP 镜像头(MRVL+magic_sig) */
+extern int OtaImageHeaderValid(void);
+
+/* 下载断点续传连续无进展的最大重试次数, 超过即放弃并释放 context */
+#define OTA_SERVER_MAX_RETRY 8
+
 #if OTA_DEBUG
 #define ota_server_log(M, ...) custom_log("OTA", M, ##__VA_ARGS__)
 #else
@@ -240,6 +246,8 @@ static void ota_server_thread( mico_thread_arg_t arg )
     char md5_value[16] = {0};
     char md5_value_string[33] = {0};
     fd_set readfds;
+    int stall_retry = 0;
+    int last_progress_pos = 0;
     struct hostent* hostent_content = NULL;
     char **pptr = NULL;
     struct in_addr in_addr;
@@ -285,7 +293,8 @@ static void ota_server_thread( mico_thread_arg_t arg )
         FD_ZERO( &readfds );
         FD_SET( ota_server_context->download_url.ota_fd, &readfds );
 
-        select( ota_server_context->download_url.ota_fd + 1, &readfds, NULL, NULL, NULL );
+        struct timeval select_tv = { 10, 0 }; /* 服务器挂死时不再永久阻塞 */
+        select( ota_server_context->download_url.ota_fd + 1, &readfds, NULL, NULL, &select_tv );
         if ( FD_ISSET( ota_server_context->download_url.ota_fd, &readfds ) )
         {
             /*parse header*/
@@ -318,6 +327,8 @@ static void ota_server_thread( mico_thread_arg_t arg )
          && ota_server_context->download_state.download_len == ota_server_context->download_state.download_begin_pos )
         {
             if( httpHeader->statusCode != 200 && httpHeader->statusCode != 206 ){
+                ota_server_log("ERROR: HTTP status %d", httpHeader->statusCode);
+                ota_server_progress_set(OTA_FAIL);
                 goto DELETE;
             }
             CRC16_Final( &crc_context, &crc16 );
@@ -325,12 +336,20 @@ static void ota_server_thread( mico_thread_arg_t arg )
                 Md5Final( &md5, (unsigned char *) md5_value );
                 hex2str((uint8_t *)md5_value, 16, md5_value_string);
             }
-            if ( memcmp( md5_value_string, ota_server_context->ota_check.md5, OTA_MD5_LENTH ) == 0 ){
+            /* 无 md5 时原 memcmp 恒真(md5_value_string 与 ota_check.md5 都是全0)——
+             * 改为: 有 md5 校 md5, 无 md5 跳过; 两条路径都必须通过镜像头校验 */
+            bool check_ok = true;
+            if( ota_server_context->ota_check.is_md5 == true ){
+                check_ok = ( memcmp( md5_value_string, ota_server_context->ota_check.md5, OTA_MD5_LENTH ) == 0 );
+                if ( !check_ok )
+                    ota_server_log("OTA md5 check err, Calculation:%s, Get:%s", md5_value_string, ota_server_context->ota_check.md5);
+            }
+            if ( check_ok && OtaImageHeaderValid() ){
                 ota_server_progress_set(OTA_SUCCE);
                 mico_ota_switch_to_new_fw( ota_server_context->download_state.download_len, crc16 );
                 mico_system_power_perform( mico_system_context_get( ), eState_Software_Reset );
             }else{
-                ota_server_log("OTA md5 check err, Calculation:%s, Get:%s", md5_value_string, ota_server_context->ota_check.md5);
+                ota_server_log("OTA image check failed (md5_ok=%d)", (int)check_ok);
                 ota_server_progress_set(OTA_FAIL);
             }
             goto DELETE;
@@ -338,6 +357,16 @@ static void ota_server_thread( mico_thread_arg_t arg )
 
         RECONNECTED:
         ota_server_socket_close( );
+        /* 断点续传有进展则重置计数; 连续无进展(服务器不可达/挂死)达到上限即放弃,
+         * 上报 OTA_FAIL 并释放 context, 避免线程永久空转占死 OTA 入口 */
+        if ( ota_server_context->download_state.download_begin_pos > last_progress_pos ){
+            last_progress_pos = ota_server_context->download_state.download_begin_pos;
+            stall_retry = 0;
+        } else if ( ++stall_retry >= OTA_SERVER_MAX_RETRY ){
+            ota_server_log("ERROR: OTA download stall, give up after %d retries", stall_retry);
+            ota_server_progress_set(OTA_FAIL);
+            goto DELETE;
+        }
         mico_thread_sleep(2);
         continue;
 
@@ -412,7 +441,9 @@ static OSStatus ota_server_set_url( char *url )
         ota_server_context->download_url.HTTP_SECURITY = HTTP_SECURITY_HTTP;
     }
 
-    strcpy( ota_server_context->download_url.host, url_t->host );
+    strncpy( ota_server_context->download_url.host, url_t->host,
+             sizeof( ota_server_context->download_url.host ) - 1 );
+    ota_server_context->download_url.host[sizeof( ota_server_context->download_url.host ) - 1] = '\0';
     ota_server_context->download_url.port = atoi( url_t->port );
     pos = strstr( url, url_t->path );
     if ( pos == NULL )
@@ -431,6 +462,7 @@ static OSStatus ota_server_set_url( char *url )
 OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
 {
     OSStatus err = kNoErr;
+    bool context_created = false; /* 仅清理本次调用分配的 context, 不误删运行中的任务 */
 
     require_action(url, exit, err = kParamErr);
 
@@ -442,10 +474,11 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
     ota_server_context = malloc(sizeof(ota_server_context_t));
     require_action(ota_server_context, exit, err = kNoMemoryErr);
     memset(ota_server_context, 0x00, sizeof(ota_server_context_t));
+    context_created = true;
 
-    ota_server_context->download_url.url = malloc(strlen(url));
+    ota_server_context->download_url.url = malloc(strlen(url) + 1);
     require_action(ota_server_context->download_url.url, exit, err = kNoMemoryErr);
-    memset(ota_server_context->download_url.url, 0x00, strlen(url));
+    memset(ota_server_context->download_url.url, 0x00, strlen(url) + 1);
 
     err = ota_server_set_url(url);
     require_noerr(err, exit);
@@ -460,6 +493,15 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
 
     err = mico_rtos_create_thread( NULL, MICO_APPLICATION_PRIORITY, "OTA", ota_server_thread, OTA_SERVER_THREAD_STACK_SIZE, 0 );
     exit:
+    if ( err != kNoErr && context_created && ota_server_context != NULL ){
+        /* 启动失败: 释放 context, 否则残留非NULL导致后续 start 永远返回 kGeneralErr */
+        if ( ota_server_context->download_url.url != NULL ){
+            free( ota_server_context->download_url.url );
+            ota_server_context->download_url.url = NULL;
+        }
+        free( ota_server_context );
+        ota_server_context = NULL;
+    }
     return err;
 }
 

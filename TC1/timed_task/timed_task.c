@@ -43,18 +43,18 @@ void RebuildTaskList(void)
             user_config->timed_tasks[i].next = NULL;
             pTimedTask task = &user_config->timed_tasks[i];
 
+            /* 旧固件夜灯任务用 8 当"每日"哨兵(与周三掩码冲突), 迁移为专用标记。
+             * 只迁夜灯: 其时刻必等于当前 night_mode_start/end(旧固件改配置必删旧建新,
+             * 升级残留的任务即最后一次设置); 用户手建的周三 LED(8) 时刻不匹配, 保留周三语义 */
+            if (task->weekday == 8 && task->operation == SWITCH_LED_ENABLE) {
+                int m = (int)((task->prs_time + 28800) % day_sec) / 60;
+                if (m == user_config->night_mode_start || m == user_config->night_mode_end)
+                    task->weekday = NIGHT_DAILY_WEEKDAY;
+            }
+
             if (task->weekday != 0 && task->prs_time <= now)
             {
-                if (task->weekday == 8)
-                {
-                    task->prs_time = (now - now % day_sec) + task->prs_time % day_sec;
-                    if (task->prs_time <= now)
-                        task->prs_time += day_sec;
-                }
-                else
-                {
-                    AddTask(task);
-                }
+                AddTask(task);
             }
             else
             {
@@ -113,19 +113,22 @@ bool AddTaskSingle(pTimedTask task)
 }
 
 /* 计算 day_mask(Sun=bit0..Sat=bit6) 中下一个匹配时刻(严格晚于 from, 当日时刻为 hhmm 秒)。
- * include_today=true 时, 今天若匹配且时刻未过则可用(用于新建任务)。 */
+ * include_today=true 时, 今天若匹配且时刻未过则可用(用于新建任务)。
+ * hhmm 为北京时间当日秒数; 设备本地时区为 UTC, 统一 +8h 换算到北京域计算后再转回,
+ * 否则北京 00:00-07:59 的周任务会错位到前一天(星期与时刻跨域不一致)。 */
 static time_t FindNextMatchTime(int day_mask, time_t from, int hhmm, bool include_today)
 {
-    time_t base = from - from % day_sec;
-    int today = ((int)(from / day_sec) + 4) % 7 + 1;   // 1=Sun..7=Sat, 1970-01-01=周四
+    time_t bj = from + 28800;                     /* 北京域当前时刻 */
+    time_t base = bj - bj % day_sec;
+    int today = ((int)(bj / day_sec) + 4) % 7 + 1;   // 1=Sun..7=Sat, 1970-01-01=周四
     for (int d = 0; d < 14; d++)
     {
         int wd = ((today - 1 + d) % 7) + 1;
         if (day_mask & (1 << (wd - 1)))
         {
-            time_t cand = base + d * day_sec + hhmm;
-            if (cand > from && (include_today || d > 0))
-                return cand;
+            time_t cand = base + d * day_sec + hhmm; /* 北京域候选 */
+            if (cand > bj && (include_today || d > 0))
+                return cand - 28800;              /* 转回 epoch */
         }
     }
     return from + 7 * day_sec;
@@ -134,14 +137,14 @@ static time_t FindNextMatchTime(int day_mask, time_t from, int hhmm, bool includ
 bool AddTaskWeek(pTimedTask task)
 {
     time_t now = time(NULL);
-    int hhmm = (int)(task->prs_time % day_sec);   // 保留用户设置的时分
+    int hhmm = (int)((task->prs_time + 28800) % day_sec);   // 保留用户设置的时分(北京)
     task->prs_time = FindNextMatchTime(task->weekday, now, hhmm, true);
     return AddTaskSingle(task);
 }
 
 bool AddTask(pTimedTask task)
 {
-    if (IS_LOOP_TASK(task->weekday) || task->weekday == 0 || task->weekday == 8)
+    if (IS_LOOP_TASK(task->weekday) || task->weekday == 0)
         return AddTaskSingle(task);
     return AddTaskWeek(task);
 }
@@ -157,17 +160,13 @@ bool DelFirstTask()
         {
             tmp->on_use = false;
         }
-        else if (tmp->weekday == 8)
-        {
-            tmp->prs_time += day_sec;
-            AddTask(tmp);
-        }
         else
         {
-            tmp->prs_time = FindNextMatchTime(tmp->weekday, time(NULL), (int)(tmp->prs_time % day_sec), false);
+            tmp->prs_time = FindNextMatchTime(tmp->weekday, time(NULL),
+                (int)((tmp->prs_time + 28800) % day_sec), false);
             AddTask(tmp);
         }
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         return true;
     }
     return false;
@@ -183,7 +182,7 @@ void ClearAllTasks()
     }
     user_config->task_top = NULL;
     user_config->task_count = 0;
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 void ClearLoopTasks()
@@ -205,7 +204,7 @@ void ClearLoopTasks()
         }
         tsk = next;
     }
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 void ClearScheduledTasks()
@@ -227,7 +226,7 @@ void ClearScheduledTasks()
         }
         tsk = next;
     }
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 bool DelTask(int time)
@@ -243,7 +242,7 @@ bool DelTask(int time)
         user_config->task_top = user_config->task_top->next;
         tmp->on_use = false;
         user_config->task_count--;
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         return true;
     }
     else if (user_config->task_top->next == NULL)
@@ -260,7 +259,7 @@ bool DelTask(int time)
             pre_tsk->next = tmp_tsk->next;
             tmp_tsk->on_use = false;
             user_config->task_count--;
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
             return true;
         }
         tmp_tsk = tmp_tsk->next;
@@ -296,24 +295,24 @@ void ProcessTask()
         UserMqttSendChildLockState();
     } else if (op == REBOOT_SYSTEM) {
         DelFirstTask();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         MicoSystemReboot();
         return;
     } else if (op == CONFIG_WIFI) {
         DelFirstTask();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         micoWlanSuspendStation();
         ApInit(true);
         return;
     } else if (op == RESET_SYSTEM) {
         DelFirstTask();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         mico_system_context_restore(sys_config);
         mico_rtos_thread_sleep(1);
         MicoSystemReboot();
         return;
     }
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     /* 循环任务：执行后检查是否在时间段内，是则重新调度 */
     if (IS_LOOP_TASK(user_config->task_top->weekday)) {
@@ -325,13 +324,17 @@ void ProcessTask()
         int saved_wd = user_config->task_top->weekday;
         int saved_loop_end = user_config->task_top->loop_end;
 
-        /* 检查当前时间是否在时间段内 (loop_end=0 表示不限制) */
+        /* 检查当前时间是否在时间段内 (loop_end=0 表示不限制)。
+         * 全部按北京时间比较: 设备 localtime=UTC, 直接用会与 loop_end(北京) 差 8 小时。
+         * 起点来自 weekday 高位编码(prs_time 每轮会被改成下次触发时间, 不能当起点用);
+         * 旧任务未编码(=0)回退原逻辑 */
         if (loop_end > 0) {
             time_t now = time(NULL);
-            struct tm *t = localtime(&now);
-            if (t) {
-                int now_min = t->tm_hour * 60 + t->tm_min;
-                int start_min = (int)(user_config->task_top->prs_time) % 1440;
+            int now_min = (int)((now + 28800) % day_sec) / 60; /* 北京分钟 */
+            int start_enc = GET_LOOP_START(saved_wd);
+            int start_min = (start_enc > 0) ? (start_enc - 1)
+                                            : (int)(user_config->task_top->prs_time) % 1440;
+            {
                 bool in_range;
                 if (start_min <= loop_end) {
                     in_range = (now_min >= start_min && now_min < loop_end);
@@ -341,7 +344,7 @@ void ProcessTask()
                 if (!in_range) {
                     task_log("loop out of range, stop");
                     DelFirstTask();
-                    mico_system_context_update(sys_config);
+                    AppContextUpdate(sys_config);
                     return;
                 }
             }
@@ -364,7 +367,7 @@ void ProcessTask()
             newTask->loop_end = saved_loop_end;
             AddTask(newTask);
         }
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         return;
     }
 

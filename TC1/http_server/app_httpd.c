@@ -240,7 +240,7 @@ static int HttpSetSocketName(httpd_request_t *req) {
     if (index < 0 || index >= SOCKET_NUM) { free(buf); return kParamErr; }
     strncpy(user_config->socket_names[index], name, sizeof(user_config->socket_names[index]) - 1);
     user_config->socket_names[index][sizeof(user_config->socket_names[index]) - 1] = '\0';
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
     registerMqttEvents();
     send_http("OK", 2, exit, &err);
 
@@ -279,7 +279,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
         set_key_map(user_config->user,index, func, RESERVED_CFG->key_long[index]);
     }
     key_log("WARNING:set KEY func %d short[%d] long[%d]", index, RESERVED_CFG->key_short[index], RESERVED_CFG->key_long[index]);
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     send_http("OK", 2, exit, &err);
 
@@ -325,10 +325,10 @@ static int HttpSetOTAFile(httpd_request_t *req)
      * 清空被动分区、不切换、不重启, 旧固件继续运行, 不会变砖。 */
 
     buffer = malloc(OTA_BUF_SIZE);
-    require_action(buffer, exit, err = kNoMemoryErr);
+    if (!buffer) { err = kNoMemoryErr; ota_progress = -2; goto exit; }
 
     ota_partition = MicoFlashGetInfo(MICO_PARTITION_OTA_TEMP);
-    require_action(ota_partition, exit, err = kUnsupportedErr);
+    if (!ota_partition) { err = kUnsupportedErr; ota_progress = -2; goto exit; }
 
     MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
 
@@ -355,7 +355,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
                 tc1_log("[OTA] flash write retry %d/%d, err=%d", write_retry + 1, OTA_FLASH_WRITE_RETRY, err);
                 if (write_retry < OTA_FLASH_WRITE_RETRY - 1) mico_rtos_thread_sleep(1);
             }
-            require_noerr_quiet(err, exit);
+            if (err != kNoErr) break; /* 落入下方公共失败块, 置 ota_progress=-2 */
 
             /* 更新进度 */
             if (req->body_nbytes > 0) {
@@ -401,6 +401,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
     }
 
     if (err != kNoErr) {
+ota_failed:
         /* 失败: 清空被动分区, 不切换、不重启, 旧固件继续运行 */
         tc1_log("[OTA] upload aborted, old firmware keeps running");
         MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
@@ -415,7 +416,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
 
     err = mico_ota_switch_to_new_fw(total, crc16);
     tc1_log("[OTA] mico_ota_switch_to_new_fw err=%d", err);
-    require_noerr(err, exit);
+    if (err != kNoErr) goto ota_failed; /* 清分区+进度-2, 允许立即重试 */
 
     char resp[128];
     snprintf(resp, sizeof(resp), "OK, total: %d bytes", total);
@@ -439,7 +440,7 @@ static int HttpSetDeviceName(httpd_request_t *req) {
     sscanf(buf, "%63s", name);
     strncpy(sys_config->micoSystemConfig.name, name, sizeof(sys_config->micoSystemConfig.name) - 1);
     sys_config->micoSystemConfig.name[sizeof(sys_config->micoSystemConfig.name) - 1] = '\0';
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
     registerMqttEvents();
     send_http("OK", 2, exit, &err);
 
@@ -460,7 +461,7 @@ static int HttpSetChildLock(httpd_request_t *req) {
     sscanf(buf, "%d", &enableLock);
     user_config->child_lock = enableLock;
     childLockEnabled = enableLock;
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
     UserMqttSendChildLockState();
     send_http("OK", 2, exit, &err);
 
@@ -655,9 +656,9 @@ static int HttpFactoryReset(httpd_request_t *req) {
         memcpy(saved_mqtt_pass, user_config->mqtt_password, sizeof(saved_mqtt_pass));
     }
 
-    memset(user_config, 0, sizeof(user_config_t));
-    user_config->version = USER_CONFIG_VERSION;
-    user_config->power_led_enabled = 1;
+    /* 与配置损坏恢复走同一套出厂默认值(按键功能/夜间模式/上报周期/插座状态等)，
+     * 避免两条恢复路径行为不一致 */
+    SetFactoryUserDefaults(user_config);
 
     if (keep & 1) {
         memcpy(user_config->ap_name, saved_ap_name, sizeof(saved_ap_name));
@@ -670,11 +671,7 @@ static int HttpFactoryReset(httpd_request_t *req) {
         memcpy(user_config->mqtt_password, saved_mqtt_pass, sizeof(saved_mqtt_pass));
     }
 
-    for (int i = 0; i < SOCKET_NUM; i++) {
-        snprintf(user_config->socket_names[i], SOCKET_NAME_LENGTH, "Socket %d", i + 1);
-    }
-
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
     send_http("OK", 2, exit, &err);
     mico_rtos_thread_sleep(1);
     MicoSystemReboot();
@@ -707,7 +704,7 @@ static int HttpSetWifiStatic(httpd_request_t *req) {
     } else {
         http_log("DHCP mode saved");
     }
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     send_http("OK", 2, exit, &err);
 
@@ -734,7 +731,7 @@ static int HttpSetWifiOffline(httpd_request_t *req) {
     RESERVED_CFG->wifi_offline_delay = delay;
     RESERVED_CFG->wifi_offline_action = action;
     http_log("wifi offline action saved: delay=%ds action=%d", delay, action);
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     send_http("OK", 2, exit, &err);
 
@@ -753,7 +750,7 @@ static int HttpSetMqttConfig(httpd_request_t *req) {
     require_noerr(err, exit);
 
     sscanf(buf, "%31s %d %31s %31s", MQTT_SERVER, &MQTT_SERVER_PORT, MQTT_SERVER_USR, MQTT_SERVER_PWD);
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
     if (!(MQTT_SERVER[0] < 0x20 || MQTT_SERVER[0] > 0x7f || MQTT_SERVER_PORT < 1)){
     err = UserMqttInit();
     require_noerr(err, exit);
@@ -776,7 +773,7 @@ static int HttpSetMqttReportFreq(httpd_request_t *req) {
     require_noerr(err, exit);
 
     sscanf(buf, "%d", &MQTT_REPORT_FREQ);
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     send_http("OK", 2, exit, &err);
 
@@ -861,9 +858,11 @@ static int HttpAddTask(httpd_request_t *req) {
 
     /* 濡傛灉浼犱簡寰幆鍙傛暟锛岀紪鐮佸埌 weekday */
     if (re >= 6 && loop_dur > 0) {
-        task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int);
+        /* 起点(北京分钟)编码进 weekday 高位: prs_time 每轮重排后会丢失原窗口起点 */
+        int start_min = (int)(((task->prs_time + 28800) % 86400) / 60);
+        task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int) | MAKE_LOOP_START(start_min);
         task->loop_end = loop_end;
-        http_log("Loop task: dur=%d int=%d end=%d weekday=0x%X", loop_dur, loop_int, loop_end, task->weekday);
+        http_log("Loop task: dur=%d int=%d end=%d start=%d weekday=0x%X", loop_dur, loop_int, loop_end, start_min, task->weekday);
     }
 
     if (task->prs_time < 1577428136 || task->prs_time > 9577428136
@@ -877,7 +876,7 @@ static int HttpAddTask(httpd_request_t *req) {
         task->on_use = false;
         mess = "NO";
     } else {
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
     }
     TaskUnlock();
 
@@ -966,7 +965,7 @@ static int LedSetEnabled(httpd_request_t *req) {
         UserLedSet(0);
     }
     UserMqttSendLedState();
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     send_http("OK", 2, exit, &err);
 
@@ -1040,7 +1039,7 @@ static int HttpSetNightMode(httpd_request_t *req) {
     user_config->night_mode_enabled = enabled ? 1 : 0;
     user_config->night_mode_start = (start_h * 60 + start_m) % 1440;
     user_config->night_mode_end = (end_h * 60 + end_m) % 1440;
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 
     RemoveNightModeTasks();
     if (enabled) {

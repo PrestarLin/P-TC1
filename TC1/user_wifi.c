@@ -33,7 +33,7 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
         mico_rtos_stop_timer(&wifi_offline_timer);
         wifi_offline_start_s = 0;
         sys_config->micoSystemConfig.reserved = status;
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
 
         OSStatus status = micoWlanSuspendSoftAP(); // 关闭AP
         if (status != kNoErr)
@@ -46,7 +46,7 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
     else if (status == NOTIFY_STATION_DOWN) // WiFi断开
     {
         sys_config->micoSystemConfig.reserved = status;
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
 
         wifi_status = WIFI_STATE_NOCONNECT;
         if (!mico_rtos_is_timer_running(&wifi_led_timer))
@@ -211,7 +211,7 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
     snprintf(sys_config->micoSystemConfig.ssid, sizeof(sys_config->micoSystemConfig.ssid), "%s", wifi_ssid);
     snprintf(sys_config->micoSystemConfig.user_key, sizeof(sys_config->micoSystemConfig.user_key), "%s", wifi_key);
     sys_config->micoSystemConfig.user_keyLength = strlen(wifi_key);
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
     wifi_status = WIFI_STATE_NOCONNECT;
 }
 
@@ -241,7 +241,7 @@ void ApConfig(char* name, char* key)
     wifi_log("ApConfig ap_name[%s] ap_key[******]", user_config->ap_name);
     micoWlanSuspendStation();
     ApInit(false);
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 void ApInit(bool use_defaul)

@@ -25,14 +25,31 @@ user_config_t *user_config;
 
 mico_gpio_t Relay[Relay_NUM] = {Relay_0, Relay_1, Relay_2, Relay_3, Relay_4, Relay_5};
 
-/* MICO system callback: Restore default configuration provided by application */
-void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
-    UNUSED_PARAMETER(size);
+/* 全局配置写入互斥: mico_system_context_update 内部(seed++/flash 写)非线程安全,
+ * HTTP/MQTT/WiFi/按键线程并发调用会互相踩踏, 统一从 AppContextUpdate 走此锁。
+ * (SDK 内部的 context_update 调用点无法覆盖, 见修复报告) */
+static mico_mutex_t context_update_mutex;
+static volatile bool context_update_mutex_ready = false;
 
-    mico_system_context_get()->micoSystemConfig.name[0] = 1; //在下次重启时使用默认名称
-    mico_system_context_get()->micoSystemConfig.name[1] = 0;
+void AppContextUpdateInit(void) {
+    if (mico_rtos_init_mutex(&context_update_mutex) == kNoErr)
+        context_update_mutex_ready = true;
+}
 
-    user_config_t *userConfigDefault = user_config_data;
+void AppContextUpdate(system_config_t *config) {
+    if (context_update_mutex_ready && mico_rtos_lock_mutex(&context_update_mutex) == kNoErr) {
+        mico_system_context_update(config);
+        mico_rtos_unlock_mutex(&context_update_mutex);
+    } else {
+        mico_system_context_update(config); /* 启动早期(上下文初始化回调)尚未建锁, 直通 */
+    }
+}
+
+/* 出厂默认 user 配置（配置损坏恢复 与 Web 恢复出厂 共用，保证两条路径一致）。
+ * 可能在 mico_system_context_init 内部被调用(配置损坏/擦除时), 此时全局 user_config
+ * 仍为 NULL, 不能使用 set_key_map/RESERVED_CFG(它们依赖全局 user_config),
+ * 必须通过参数 访问配置。 */
+void SetFactoryUserDefaults(user_config_t *userConfigDefault) {
     memset(userConfigDefault, 0, sizeof(user_config_t)); // 确保 reserved 尾部字节确定，CRC 可复现
     userConfigDefault->user[0] = 0;
     userConfigDefault->child_lock = 0;
@@ -50,10 +67,7 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     userConfigDefault->night_mode_start = 23 * 60;  /* 23:00 */
     userConfigDefault->night_mode_end = 7 * 60;     /* 07:00 */
     userConfigDefault->version = USER_CONFIG_VERSION;
-    /* 出厂按键配置直接写入 reserved(全字节功能码)。
-     * 注意: 本回调可能在 mico_system_context_init 内部被调用(配置损坏/擦除时),
-     * 此时全局 user_config 仍为 NULL, 不能使用 set_key_map/RESERVED_CFG(它们依赖全局
-     * user_config), 必须通过回调参数 user_config_data(userConfigDefault) 访问配置。 */
+    /* 出厂按键配置直接写入 reserved(全字节功能码) */
     reserved_cfg_t *reserved = (reserved_cfg_t *)userConfigDefault->reserved;
     reserved->key_short[1] = SWITCH_ALL_SOCKETS;
     reserved->key_long[1]  = KEY_NONE;
@@ -77,7 +91,17 @@ void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
     for (int i = 0; i < MAX_TASK_NUM; i++) {
         userConfigDefault->timed_tasks[i].on_use = false;
     }
-    mico_system_context_update(sys_config);
+}
+
+/* MICO system callback: Restore default configuration provided by application */
+void appRestoreDefault_callback(void *const user_config_data, uint32_t size) {
+    UNUSED_PARAMETER(size);
+
+    mico_system_context_get()->micoSystemConfig.name[0] = 1; //在下次重启时使用默认名称
+    mico_system_context_get()->micoSystemConfig.name[1] = 0;
+
+    SetFactoryUserDefaults(user_config_data);
+    AppContextUpdate(sys_config);
 }
 
 void recordDailyPCount() {
@@ -102,7 +126,7 @@ void recordDailyPCount() {
             user_config->p_count_1_day_ago = p_count;
 
             // 更新系统配置
-            mico_system_context_update(sys_config);
+            AppContextUpdate(sys_config);
 
             tc1_log("WARNING: p_count record! p_count_1_day_ago:%d p_count_2_days_ago:%d",
                     user_config->p_count_1_day_ago, user_config->p_count_2_days_ago);
@@ -190,7 +214,7 @@ bool user_config_migrate(void) {
         user_config->version = USER_CONFIG_VERSION;
 
         /* 迁移后写回 flash（含固定 CRC），此后布局即为最新。 */
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         return true;
     }
 
@@ -211,7 +235,7 @@ bool user_config_migrate(void) {
         user_config->night_mode_start = 23 * 60;  /* 23:00 */
         user_config->night_mode_end = 7 * 60;     /* 07:00 */
         user_config->version = USER_CONFIG_VERSION;
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
         return true;
     }
 
@@ -232,7 +256,7 @@ void RemoveNightModeTasks(void) {
     pTimedTask prev = NULL;
     while (tsk) {
         pTimedTask next = tsk->next;
-        if (tsk->operation == SWITCH_LED_ENABLE && tsk->weekday == 8) {
+        if (tsk->operation == SWITCH_LED_ENABLE && tsk->weekday == NIGHT_DAILY_WEEKDAY) {
             if (prev) {
                 prev->next = next;
             } else {
@@ -246,7 +270,7 @@ void RemoveNightModeTasks(void) {
         tsk = next;
     }
     TaskUnlock();
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 void CreateNightModeTask(int hour, int minute, int on) {
@@ -267,18 +291,20 @@ void CreateNightModeTask(int hour, int minute, int on) {
     task->prs_time = target;
     task->operation = SWITCH_LED_ENABLE;
     task->on = on;
-    task->weekday = 8;
+    task->weekday = NIGHT_DAILY_WEEKDAY;
     task->loop_end = 0;
 
     TaskLock();
     AddTask(task);
     TaskUnlock();
-    mico_system_context_update(sys_config);
+    AppContextUpdate(sys_config);
 }
 
 int application_start(void) {
     int i;
     OSStatus err = kNoErr;
+
+    AppContextUpdateInit(); /* 先建锁: 后续 context_init 回调/各线程统一走 AppContextUpdate */
 
     // Create mico system context and read application's config data from flash
     sys_config = mico_system_context_init(sizeof(user_config_t));
@@ -340,7 +366,7 @@ int application_start(void) {
     /* 旧固件升级：把 user[] nibble 编码解包到全字节按键功能码(仅首次) */
     ButtonConfigInit();
     if (RESERVED_CFG->key_init != KEY_CFG_MAGIC) {
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
     }
 
     /* 5s/10s 长按为受保护出厂任务(配网/恢复出厂)，强制回写为出厂值，
@@ -356,7 +382,7 @@ int application_start(void) {
     }
     if (heal_key) {
         tc1_log("WARNING: heal protected default tasks (5s/10s)");
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
     }
 
     RebuildTaskList();

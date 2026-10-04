@@ -58,6 +58,11 @@ void UserOtaStart(char *url, char *md5)
 {
     ota_progress = 0;
     ota_log("ready to ota:%s",url);
-    ota_server_start(url, md5, OtaServerStatusHandler);
+    OSStatus err = ota_server_start(url, md5, OtaServerStatusHandler);
+    if (err != kNoErr) {
+        /* 启动失败(参数非法/已有任务/内存不足)不会触发回调, 必须在此恢复进度 */
+        ota_log("ota_server_start failed, err=%d", err);
+        ota_progress = -2;
+    }
 }
 

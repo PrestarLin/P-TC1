@@ -55,6 +55,7 @@ mico_queue_t mqtt_msg_send_queue = NULL;
 Client c;  // mqtt client object
 Network n;  // socket network for mqtt client
 volatile bool mqtt_thread_should_exit = false;
+volatile bool mqtt_thread_running = false; /* 线程存活标志：Init 据此判断是否需回收重建 */
 
 static mico_worker_thread_t mqtt_client_worker_thread; /* Worker thread to manage send/recv events */
 //static mico_timed_event_t mqtt_client_send_event;
@@ -125,8 +126,22 @@ return;
 /* Application entrance */
 OSStatus UserMqttInit(void) {
     OSStatus err = kNoErr;
-if(mqtt_msg_send_queue != NULL)
-    return err;
+    if (mqtt_msg_send_queue != NULL) {
+        /* 已初始化：线程正常运行则直接返回；线程已退出(DeInit/异常退出)则回收重建 */
+        if (mqtt_thread_running && !mqtt_thread_should_exit)
+            return kNoErr;
+        /* 等待旧线程真正退出(其 select 最长阻塞 5s)，通常数秒内完成 */
+        for (int i = 0; i < 70 && mqtt_thread_running; i++)
+            mico_rtos_thread_msleep(100);
+        if (mqtt_thread_running) {
+            mqtt_log("ERROR: old mqtt thread still exiting, defer init");
+            return kGeneralErr;
+        }
+        clear_mqtt_msg_send_queue();
+        mico_rtos_deinit_queue(&mqtt_msg_send_queue);
+        mqtt_msg_send_queue = NULL;
+    }
+    mqtt_thread_should_exit = false;
     sprintf(topic_set, MQTT_CLIENT_SUB_TOPIC1);
     sprintf(topic_state, MQTT_CLIENT_PUB_TOPIC, str_mac);
     //TODO size:0x800
@@ -143,15 +158,22 @@ if(mqtt_msg_send_queue != NULL)
     require_noerr_action(err, exit, mqtt_log("ERROR: create mqtt msg send queue err=%d.", err));
 
     /* start mqtt client */
+    mqtt_thread_running = true; /* 先置位：线程可能在 create 返回后立即走到退出路径 */
     err = mico_rtos_create_thread(NULL, MICO_APPLICATION_PRIORITY, "mqtt_client",
                                   (mico_thread_function_t) MqttClientThread,
                                   mqtt_thread_stack_size, 0);
+    if (err != kNoErr) mqtt_thread_running = false;
     require_noerr_string(err, exit, "ERROR: Unable to start the mqtt client thread.");
 
     /* Create a worker thread for user handling MQTT data event  */
-    err = mico_rtos_create_worker_thread(&mqtt_client_worker_thread, MICO_APPLICATION_PRIORITY,
-                                         0x800, 5);
-    require_noerr_string(err, exit, "ERROR: Unable to start the mqtt client worker thread.");
+    /* worker 独立于 client 线程且常驻: 只创建一次; 重复 create 会 memset 已在运行的 struct */
+    static bool mqtt_worker_created = false;
+    if (!mqtt_worker_created) {
+        err = mico_rtos_create_worker_thread(&mqtt_client_worker_thread, MICO_APPLICATION_PRIORITY,
+                                             0x800, 5);
+        require_noerr_string(err, exit, "ERROR: Unable to start the mqtt client worker thread.");
+        mqtt_worker_created = true;
+    }
 
     exit:
     if (kNoErr != err)mqtt_log("ERROR2, app thread exit err: %d kNoErr[%d]", err, kNoErr);
@@ -253,7 +275,6 @@ void MqttClientThread(mico_thread_arg_t arg) {
 
     require_action(msg_send_event_fd >= 0, exit,
                    mqtt_log("ERROR: create msg send queue event fd failed!!!"));
-    mqtt_thread_should_exit = false;
     MQTT_start:
 
     isconnect = false;
@@ -278,6 +299,7 @@ void MqttClientThread(mico_thread_arg_t arg) {
 
         //mqtt_log("ERROR: MQTT network connect err=%d, reconnect after 3s...", rc);
     }
+    if (mqtt_thread_should_exit) goto exit; /* DeInit 请求：不进入假"连接成功"流程 */
     mqtt_log("MQTT network connect success!");
 
     /* 2. init mqtt client */
@@ -372,6 +394,7 @@ mqtt_log("Disconnect MQTT client, and reconnect after 5s, reason: mqtt_rc = %d, 
     UserMqttClientRelease(&c, &n);
     isconnect = false;
     UserLedSet(-1);
+    if (mqtt_thread_should_exit) goto exit;
     mico_rtos_thread_msleep(100);
     UserLedSet(-1);
     mico_rtos_thread_sleep(5);
@@ -381,6 +404,12 @@ exit:
     isconnect = false;
     mqtt_log("EXIT: MQTT client exit with err = %d.", err);
     UserMqttClientRelease(&c, &n);
+    mico_stop_timer(&timer_handle);            /* 防止定时器回调访问已回收的队列 */
+    if (msg_send_event_fd >= 0) {
+        mico_delete_event_fd(msg_send_event_fd); /* event fd 关联队列，须在队列销毁前删除 */
+        msg_send_event_fd = -1;
+    }
+    mqtt_thread_running = false;               /* 允许 UserMqttInit 回收重建 */
     mico_rtos_delete_thread(NULL); // 自删
     return;
 }
@@ -446,7 +475,7 @@ void ProcessHaCmd(char *cmd) {
         UserRelaySet(i, on);
         UserMqttSendSocketState(i);
         UserMqttSendTotalSocketState();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
     } else if (strncmp(cmd, "set led", 7) == 0) {
         if (sscanf(cmd, "set led %19s %d", mac, &on) != 2) return;
         if (strcmp(mac, str_mac)) return;mqtt_log("set led on[%d]", on);
@@ -458,7 +487,7 @@ void ProcessHaCmd(char *cmd) {
             UserLedSet(0);
         }
         UserMqttSendLedState();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
     } else if (strncmp(cmd, "set total_socket", 16) == 0) {
         if (sscanf(cmd, "set total_socket %19s %d", mac, &on) != 2) return;
         if (strcmp(mac, str_mac)) return;mqtt_log("set total_socket on[%d]", on);
@@ -477,7 +506,7 @@ void ProcessHaCmd(char *cmd) {
         user_config->child_lock = on;
         childLockEnabled = on;
         UserMqttSendChildLockState();
-        mico_system_context_update(sys_config);
+        AppContextUpdate(sys_config);
     }else if (strncmp(cmd, "reboot ", 7) == 0) {
         if (sscanf(cmd, "reboot %19s", mac) != 1) return;
         if (strcmp(mac, str_mac)) return;
