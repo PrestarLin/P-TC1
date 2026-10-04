@@ -882,12 +882,19 @@ function addTask(){
     var startMin=parseInt(sp[0])*60+parseInt(sp[1]);
     var endMin=parseInt(ep[0])*60+parseInt(ep[1]);
     var now=new Date();
-    var startTs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),parseInt(sp[0]),parseInt(sp[1]),0);
-    if(startTs<=now)startTs.setDate(startTs.getDate()+1);
+    var nowMin=now.getHours()*60+now.getMinutes();
+    var inWin=startMin<=endMin?(nowMin>=startMin&&nowMin<endMin):(nowMin>=startMin||nowMin<endMin);
+    var startTs;
+    if(inWin){
+      startTs=new Date(now.getTime()+3000);
+    }else{
+      startTs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),parseInt(sp[0]),parseInt(sp[1]),0);
+      if(startTs<=now)startTs.setDate(startTs.getDate()+1);
+    }
     var ts=Math.floor(startTs.getTime()/1000);
     var dur=parseInt(document.getElementById('loopDuration').value)||5;
     var interval=parseInt(document.getElementById('loopInterval').value)||10;
-    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin;
+    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin+' '+startMin;
   }else{
     var timeVal=document.getElementById('taskTime').value;
     if(!timeVal){toast('Set time');return;}

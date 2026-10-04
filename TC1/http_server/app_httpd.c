@@ -899,17 +899,19 @@ static int HttpAddTask(httpd_request_t *req) {
     memset(task, 0, sizeof(struct TimedTask));
     task->on_use = saved_on_use;
 
-    int loop_dur = 0, loop_int = 0, loop_end = 0;
-    int re = sscanf(buf, "%ld %d %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
-                    &task->weekday, &loop_dur, &loop_int, &loop_end);
+    int loop_dur = 0, loop_int = 0, loop_end = 0, loop_start_min = -1;
+    int re = sscanf(buf, "%ld %d %d %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
+                    &task->weekday, &loop_dur, &loop_int, &loop_end, &loop_start_min);
     http_log("AddTask buf[%s] re[%d]", buf, re);
 
     /* 如果传了循环参数，编码到 weekday */
     if (re >= 6 && loop_dur > 0) {
         if (loop_dur > 1023) loop_dur = 1023;
         if (loop_int > 1023) loop_int = 1023;
-        /* 起点(北京分钟)编码进 weekday 高位: prs_time 每轮重排后会丢失原窗口起点 */
-        int start_min = (int)(((task->prs_time + 28800) % 86400) / 60);
+        /* 起点(北京分钟)编码进 weekday 高位: prs_time 每轮重排后会丢失原窗口起点。
+         * 优先用显式传入的 startMin(窗口内创建时 prs_time=now+3s, 不再是窗口起点); 旧页面只传 7 段时回退推算 */
+        int start_min = (loop_start_min >= 0 && loop_start_min < 1440) ? loop_start_min
+                        : (int)(((task->prs_time + 28800) % 86400) / 60);
         task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int) | MAKE_LOOP_START(start_min);
         task->loop_end = loop_end;
         http_log("Loop task: dur=%d int=%d end=%d start=%d weekday=0x%X", loop_dur, loop_int, loop_end, start_min, task->weekday);
