@@ -628,8 +628,7 @@ function fetchStatus(){
     document.getElementById('infoIp').textContent=j.ip||'--';
     document.getElementById('infoWifi').textContent=j.station_ssid||'--';
     document.getElementById('infoMac').textContent=j.mac||'--';
-    document.getElementById('infoUp').textContent=j.up_time||'--';
-    document.getElementById('infoSys').textContent=j.sys_time||'--';
+    setDeviceInfoTimes(j.up_time,j.sys_time);
     document.getElementById('mqttHost').value=j.mqtt_addr||'';
     document.getElementById('mqttPort').value=j.mqtt_port||1883;
     document.getElementById('mqttUser').value=j.mqtt_usr||'';
@@ -1658,6 +1657,31 @@ function applyLang(){
 }
 function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();}
 
+/* ── Device Info clock: 本地逐秒走时, fetchStatus 到达时用设备值校准基准, 零额外请求 ── */
+var _devUpBase=-1,_devUpAt=0,_devSysBase=null,_devSysAt=0;
+function setDeviceInfoTimes(up,sys){
+  var m=/^(\d+)d (\d{2}):(\d{2}):(\d{2})$/.exec(up||'');
+  if(m){_devUpBase=(+m[1])*86400+(+m[2])*3600+(+m[3])*60+(+m[4]);_devUpAt=Date.now();}
+  var s=/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(sys||'');
+  if(s){_devSysBase=new Date(+s[1],+s[2]-1,+s[3],+s[4],+s[5],+s[6]);_devSysAt=Date.now();}
+  else _devSysBase=null;
+  tickDeviceInfo();
+}
+function _pad2(n){return String(n).padStart(2,'0');}
+function tickDeviceInfo(){
+  var eu=document.getElementById('infoUp'),es=document.getElementById('infoSys');
+  if(!eu||!es)return;
+  if(_devUpBase>=0){
+    var sec=Math.floor(_devUpBase+(Date.now()-_devUpAt)/1000);
+    eu.textContent=Math.floor(sec/86400)+'d '+_pad2(Math.floor(sec/3600)%24)+':'+_pad2(Math.floor(sec/60)%60)+':'+_pad2(sec%60);
+  }
+  if(_devSysBase){
+    var t=new Date(_devSysBase.getTime()+(Date.now()-_devSysAt));
+    es.textContent=t.getFullYear()+'-'+_pad2(t.getMonth()+1)+'-'+_pad2(t.getDate())+' '
+      +_pad2(t.getHours())+':'+_pad2(t.getMinutes())+':'+_pad2(t.getSeconds());
+  }else es.textContent='--';
+}
+
 /* ── Init ── */
 var _weekDays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function updateDateTime(){
@@ -1678,7 +1702,7 @@ setInterval(function(){
   fetchHeaderStatus();
   updateDateTime();
 },3000);
-setInterval(updateDateTime,1000);
+setInterval(function(){updateDateTime();tickDeviceInfo();},1000);
 </script>
 </body>
 </html>
