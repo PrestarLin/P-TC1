@@ -59,7 +59,7 @@ static bool is_handlers_registered;
 const struct httpd_wsgi_call g_app_handlers[];
 char power_info_json[2048] = {0};
 char up_time[32] = "00:00:00";
-#define CHUNK_SIZE 1024  // 鍖归厤SDK HTTPD_SEND_BODY_DATA_MAX_LEN锛屽噺灏憇end璋冪敤娆℃暟
+#define CHUNK_SIZE 1024  // 匹配 SDK HTTPD_SEND_BODY_DATA_MAX_LEN，减少 send 调用次数
 #define OTA_BUFFER_SIZE 512
 #define MAX_OTA_SIZE 1024*1024
 
@@ -263,7 +263,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     sscanf(buf, "%d %d %d", &index, &func, &longPress);
     if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
     
-    // Safety搴曠嚎锛氶粯璁や换鍔?5绉掗厤缃戙€?0绉掓仮澶嶅嚭鍘?涓嶅厑璁镐慨鏀?
+    // Safety底线：默认任务5秒配网、10秒恢复出厂，不允许修改
     if ((index == 5 && longPress == 1) || (index == 10 && longPress == 1)) {
         http_log("Blocked: default task at %ds cannot be modified", index);
         free(buf);
@@ -536,7 +536,7 @@ static int HttpGetWifiConfig(httpd_request_t *req) {
 }
 
 
-// 鍗曚釜鍗佸叚杩涘埗瀛楃杞暟瀛楋紙瀹夊叏锛?
+// 单个十六进制字符转数字（安全）
 static int hex_char_to_int(char c) {
     if ('0' <= c && c <= '9') return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
@@ -558,7 +558,7 @@ void url_decode(const char *src, char *dest, size_t max_len) {
                     continue;
                 }
             }
-            // 闈炴硶缂栫爜锛岃烦杩?%
+            // 非法编码，跳过%
             src++;
         } else if (*src == '+') {
             dest[i++] = ' ';
@@ -873,7 +873,7 @@ static int HttpAddTask(httpd_request_t *req) {
                     &task->weekday, &loop_dur, &loop_int, &loop_end);
     http_log("AddTask buf[%s] re[%d]", buf, re);
 
-    /* 濡傛灉浼犱簡寰幆鍙傛暟锛岀紪鐮佸埌 weekday */
+    /* 如果传了循环参数，编码到 weekday */
     if (re >= 6 && loop_dur > 0) {
         /* 起点(北京分钟)编码进 weekday 高位: prs_time 每轮重排后会丢失原窗口起点 */
         int start_min = (int)(((task->prs_time + 28800) % 86400) / 60);
