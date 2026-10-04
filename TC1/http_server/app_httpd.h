@@ -70,7 +70,7 @@
     'static_dns':'%s',\
 	'reportFreq':'%d',\
     'ledEnabled':%d,\
-    'up_time':%ld,\
+    'up_time':'%s','sys_time':'%s',\
     'socketNames':'%s',\
     'child_lock_enabled':%d,\
     'deviceName':'%s',\

@@ -22,7 +22,7 @@
   </button>
   <div class="header-brand">
     <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-    <span>TC1</span>
+    <span id="brandName">TC1</span>
   </div>
   <div class="header-status">
     <span class="status-chip" id="headerTime" style="font-size:13px;font-weight:500">--:--</span>
@@ -125,6 +125,8 @@
         <div class="toggle-row"><span class="toggle-label">WiFi</span><span id="infoWifi" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">IP</span><span id="infoIp" style="color:var(--fg-muted)">--</span></div>
         <div class="toggle-row"><span class="toggle-label">MAC</span><span id="infoMac" style="color:var(--fg-muted)">--</span></div>
+        <div class="toggle-row"><span class="toggle-label" data-i18n="uptime">Uptime</span><span id="infoUp" style="color:var(--fg-muted)">--</span></div>
+        <div class="toggle-row"><span class="toggle-label" data-i18n="sys_time">System Time</span><span id="infoSys" style="color:var(--fg-muted)">--</span></div>
       </div>
     </div>
   </div>
@@ -578,6 +580,7 @@ function wifiIcon(level){
   return s;
 }
 function updateStatusIndicators(j){
+  var bn=document.getElementById('brandName');if(bn)bn.textContent=j.deviceName||'TC1';
   var dict=i18nData[curLang]||i18nData.en;
   var wifiI=document.getElementById('wifiIcon'),wifiT=document.getElementById('wifiText');
   if(wifiI&&wifiT){
@@ -625,6 +628,8 @@ function fetchStatus(){
     document.getElementById('infoIp').textContent=j.ip||'--';
     document.getElementById('infoWifi').textContent=j.station_ssid||'--';
     document.getElementById('infoMac').textContent=j.mac||'--';
+    document.getElementById('infoUp').textContent=j.up_time||'--';
+    document.getElementById('infoSys').textContent=j.sys_time||'--';
     document.getElementById('mqttHost').value=j.mqtt_addr||'';
     document.getElementById('mqttPort').value=j.mqtt_port||1883;
     document.getElementById('mqttUser').value=j.mqtt_usr||'';
@@ -1547,7 +1552,7 @@ var i18nData={
     nav_network:'Network',nav_log:'Log',nav_settings:'Settings',
     kpi_power:'Power (W)',kpi_today:'Today (kWh)',kpi_sock_on:'Sockets On',kpi_uptime:'Uptime',
     chart_power:'POWER (W)',quick_control:'Quick Control',master_switch:'Master Switch',child_lock:'Child Lock',
-    device_info:'Device Info',firmware:'Firmware',power_sockets:'Power Sockets',
+    device_info:'Device Info',uptime:'Uptime',sys_time:'System Time',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
     timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_device:'Device',task_action:'Action',task_repeat:'Repeat',
     loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
@@ -1592,7 +1597,7 @@ var i18nData={
     nav_network:'网络',nav_log:'日志',nav_settings:'设置',
     kpi_power:'功率 (W)',kpi_today:'今日用电 (kWh)',kpi_sock_on:'开启插座',kpi_uptime:'运行时间',
     chart_power:'功率 (W)',quick_control:'快捷控制',master_switch:'总开关',child_lock:'童锁',
-    device_info:'设备信息',firmware:'固件版本',power_sockets:'电源插座',
+    device_info:'设备信息',uptime:'运行时间',sys_time:'系统时间',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
     timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_device:'设备',task_action:'动作',task_repeat:'重复',
     loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',

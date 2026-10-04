@@ -172,6 +172,21 @@ static int HttpGetTc1Status(httpd_request_t *req) {
     char *short_click_config = GetButtonClickConfig();
     char *tc1_status = malloc(2048);
     char *socket_names = malloc(512);
+    /* 运行时间: 开机秒数格式化为 Nd HH:MM:SS */
+    mico_time_t past_ms = 0;
+    mico_time_get_time(&past_ms);
+    int past = (int)(past_ms / 1000);
+    char up_buf[32];
+    sprintf(up_buf, "%dd %02d:%02d:%02d", past / 86400, past / 3600 % 24, past / 60 % 60, past % 60);
+    /* 系统时间: SNTP 校时成功后返回本地时间(UTC+8), 未校时为空串由前端显示 -- */
+    char sys_buf[24] = "";
+    if (rtc_init == 1) {
+        mico_utc_time_t utc_time = 0;
+        mico_time_get_utc_time(&utc_time);
+        utc_time += 28800;
+        struct tm *t = localtime((const time_t *) &utc_time);
+        strftime(sys_buf, sizeof(sys_buf), "%Y-%m-%d %H:%M:%S", t);
+    }
     sprintf(socket_names, "%s,%s,%s,%s,%s,%s",
             user_config->socket_names[0],
             user_config->socket_names[1],
@@ -187,7 +202,7 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             user_config->ip_mode, user_config->static_ip, user_config->static_mask,
             user_config->static_gateway, user_config->static_dns,
             user_config->mqtt_report_freq,
-            user_config->power_led_enabled, 0L, socket_names, childLockEnabled,
+            user_config->power_led_enabled, up_buf, sys_buf, socket_names, childLockEnabled,
             sys_config->micoSystemConfig.name, short_click_config,
             user_config->night_mode_enabled,
             user_config->night_mode_start,
