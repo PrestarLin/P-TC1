@@ -217,7 +217,7 @@
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="task_action">Action</label>
-            <select class="form-select" id="taskAction">
+            <select class="form-select" id="taskAction" onchange="toggleLoopFields()">
               <option value="1">Power On</option>
               <option value="0">Power Off</option>
               <option value="-1">Toggle</option>
@@ -243,10 +243,10 @@
         <div id="loopFields" style="display:none">
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label" data-i18n="loop_duration">On Duration (min)</label>
+              <label class="form-label" id="loopDurationLabel" data-i18n="loop_duration">On Duration (min)</label>
               <input class="form-input" id="loopDuration" type="number" value="5" min="1" max="32767">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="loopIntervalGroup">
               <label class="form-label" data-i18n="loop_interval">Off Interval (min)</label>
               <input class="form-input" id="loopInterval" type="number" value="10" min="1" max="32767">
             </div>
@@ -862,6 +862,13 @@ function toggleLoopFields(){
   document.getElementById('loopTimeRow').style.display=isLoop?'block':'none';
   document.getElementById('scheduleFields').style.display=isLoop?'none':'block';
   document.getElementById('loopFields').style.display=isLoop?'block':'none';
+  var isToggle=isLoop&&document.getElementById('taskAction').value==='-1';
+  document.getElementById('loopIntervalGroup').style.display=isToggle?'none':'';
+  var dl=document.getElementById('loopDurationLabel');
+  if(dl){
+    dl.setAttribute('data-i18n',isToggle?'loop_period':'loop_duration');
+    dl.textContent=(i18nData[curLang]||i18nData.en)[isToggle?'loop_period':'loop_duration'];
+  }
 }
 function addTask(){
   var socket=parseInt(document.getElementById('taskSocket').value);
@@ -1555,7 +1562,7 @@ var i18nData={
     device_info:'Device Info',uptime:'Uptime',sys_time:'System Time',firmware:'Firmware',power_sockets:'Power Sockets',
     power_consumption:'Power Consumption',record_w:'Record (W)',today_wh:'Today (Wh)',yest_wh:'Yesterday (Wh)',total_wh:'Total (Wh)',
     timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_device:'Device',task_action:'Action',task_repeat:'Repeat',
-    loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
+    loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_period:'Toggle Period (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
     no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
@@ -1600,7 +1607,7 @@ var i18nData={
     device_info:'设备信息',uptime:'运行时间',sys_time:'系统时间',firmware:'固件版本',power_sockets:'电源插座',
     power_consumption:'用电统计',record_w:'当前 (W)',today_wh:'今日 (Wh)',yest_wh:'昨日 (Wh)',total_wh:'累计 (Wh)',
     timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_device:'设备',task_action:'动作',task_repeat:'重复',
-    loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
+    loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_period:'翻转周期 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
     no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',

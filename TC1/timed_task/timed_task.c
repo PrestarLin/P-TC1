@@ -344,12 +344,12 @@ void ProcessTask()
                 }
                 if (!in_range) {
                     task_log("loop out of range, stop");
-                    /* 超窗时若刚执行的是"开", 补一次"关", 否则插座停在开启态 */
-                    if (on_val == 1 && op >= SWITCH_SOCKET_1 && op <= SWITCH_SOCKET_6) {
+                    /* 超窗后按实际状态兜底: 仍为通则补一次"关"(覆盖开/关/切换三种动作), 避免插座停在开启态 */
+                    if (op >= SWITCH_SOCKET_1 && op <= SWITCH_SOCKET_6 && user_config->socket_status[op - 1] != Relay_OFF) {
                         UserRelaySet(op - 1, 0);
                         UserMqttSendSocketState(op - 1);
                         UserMqttSendTotalSocketState();
-                    } else if (on_val == 1 && op == SWITCH_ALL_SOCKETS) {
+                    } else if (op == SWITCH_ALL_SOCKETS && RelayOut()) {
                         UserRelaySetAll(0);
                         for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
                         UserMqttSendTotalSocketState();
@@ -361,7 +361,7 @@ void ProcessTask()
             }
         }
 
-        /* 开启态保持 duration 分钟后关, 关闭态保持 interval 分钟后再开 */
+        /* 开=保持 duration 后关, 关=保持 interval 后再开; 切换(-1)无开关锚点, 按单周期: 每隔 duration 分钟翻转, interval 忽略(前端已隐藏该输入) */
         int delay_min = (saved_on == 0) ? interval : duration;
         int delay_sec = (delay_min > 0 ? delay_min : 1) * 60;
         if (delay_sec < 60) delay_sec = 60;
