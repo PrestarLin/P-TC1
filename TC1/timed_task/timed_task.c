@@ -395,8 +395,9 @@ char* GetTaskStr()
     {
         char buffer[26];
         struct tm* tm_info;
+        struct tm tm_buf;
         time_t prs_time = tmp_tsk->prs_time;
-        tm_info = localtime(&prs_time);
+        tm_info = localtime_r(&prs_time, &tm_buf);
         if (tm_info) {
             strftime(buffer, 26, "%m-%d %H:%M", tm_info);
         } else {

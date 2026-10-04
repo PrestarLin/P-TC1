@@ -59,7 +59,8 @@ OSStatus UserSntpGetTime()
     mico_time_set_utc_time_ms(&utc_time_ms);
 
     time_t now = (time_t)current_time.seconds + 28800;
-    struct tm *t = localtime(&now);
+    struct tm tm_r;
+    struct tm *t = localtime_r(&now, &tm_r);
     rtc_log("sntp synced: %04d-%02d-%02d %02d:%02d:%02d",
         t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
         t->tm_hour, t->tm_min, t->tm_sec);
@@ -127,7 +128,8 @@ void RtcThread(mico_thread_arg_t arg)
             total_time++;
         }
 
-        struct tm * currentTime = localtime((const time_t *) &utc_time);
+        struct tm tm_r;
+        struct tm * currentTime = localtime_r((const time_t *) &utc_time, &tm_r);
 
         // 每10分钟同步一次NTP，避免依赖tm_sec==0的1秒窗口
         if (currentTime->tm_min % 10 == 0 && currentTime->tm_min != last_sync_min)

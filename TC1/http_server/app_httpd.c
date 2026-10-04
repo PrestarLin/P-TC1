@@ -184,7 +184,8 @@ static int HttpGetTc1Status(httpd_request_t *req) {
         mico_utc_time_t utc_time = 0;
         mico_time_get_utc_time(&utc_time);
         utc_time += 28800;
-        struct tm *t = localtime((const time_t *) &utc_time);
+        struct tm tm_r;
+        struct tm *t = localtime_r((const time_t *) &utc_time, &tm_r);
         strftime(sys_buf, sizeof(sys_buf), "%Y-%m-%d %H:%M:%S", t);
     }
     sprintf(socket_names, "%s,%s,%s,%s,%s,%s",

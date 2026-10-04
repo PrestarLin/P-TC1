@@ -63,7 +63,8 @@ void WebLog(const char *M, ...)
     char* buff = (char*)malloc(sizeof(char)*LOG_LEN);
 
     time_t now = time(NULL) + 28800;
-    strftime(buff, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime(&now));
+    struct tm tm_r;
+    strftime(buff, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime_r(&now, &tm_r));
     buff[TIME_LEN - 1] = ' ';
 
     va_list ap;

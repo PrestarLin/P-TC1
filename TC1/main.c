@@ -109,7 +109,8 @@ void recordDailyPCount() {
     mico_utc_time_t utc_time;
     mico_time_get_utc_time(&utc_time);
     utc_time += 28800;
-    struct tm *current_time = localtime((const time_t *) &utc_time);
+    struct tm tm_r;
+    struct tm *current_time = localtime_r((const time_t *) &utc_time, &tm_r);
     // 判断上次检查的时间与当前时间的日期是否不同
     if (last_check_day != 0) {
         // 如果日期发生变化（即跨天了），则进行记录
@@ -245,7 +246,8 @@ bool user_config_migrate(void) {
 
 static int GetMinutesSinceMidnight(void) {
     time_t now = time(NULL);
-    struct tm *t = localtime(&now);
+    struct tm tm_r;
+    struct tm *t = localtime_r(&now, &tm_r);
     if (!t) return -1;
     return t->tm_hour * 60 + t->tm_min;
 }
@@ -281,7 +283,8 @@ void CreateNightModeTask(int hour, int minute, int on) {
     /* time() 返回 UTC, 设备按北京时间(UTC+8)处理(与 web_log/RtcThread 一致):
      * 用本地时间算目标时刻, 再转回 UTC 存 prs_time。 */
     time_t local_now = now + 28800;
-    struct tm *t = localtime(&local_now);
+    struct tm tm_r;
+    struct tm *t = localtime_r(&local_now, &tm_r);
     if (!t) { task->on_use = false; return; }
 
     time_t target = local_now - (t->tm_hour * 3600 + t->tm_min * 60 + t->tm_sec)

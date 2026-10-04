@@ -24,7 +24,8 @@ extern LogRecord log_record;
         char *_log_buf = (char*)malloc(sizeof(char)*LOG_LEN); \
         if (_log_buf) { \
             time_t _log_now = time(NULL) + 28800; \
-            strftime(_log_buf, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime(&_log_now)); \
+            struct tm _log_tm; \
+            strftime(_log_buf, TIME_LEN, "[%Y-%m-%d %H:%M:%S]", localtime_r(&_log_now, &_log_tm)); \
             _log_buf[TIME_LEN - 1] = ' '; \
             snprintf(_log_buf + TIME_LEN, LOG_LEN - TIME_LEN, "["N" %s:%d] "M, SHORT_FILE, __LINE__, ##__VA_ARGS__); \
             SetLogRecord(&log_record, _log_buf); \
