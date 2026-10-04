@@ -285,7 +285,7 @@ void MqttClientThread(mico_thread_arg_t arg) {
         isconnect = false;
         mico_rtos_thread_sleep(3);
         if (MQTT_SERVER[0] < 0x20 || MQTT_SERVER[0] > 0x7f || MQTT_SERVER_PORT < 1)
-            continue;  //鏈厤缃甿qtt鏈嶅姟鍣ㄦ椂涓嶈繛鎺�
+            continue;  /* 未配置 mqtt 服务器时不连接 */
 
         micoWlanGetLinkStatus(&LinkStatus);
         if (LinkStatus.is_connected != 1) { mqtt_log(
@@ -329,7 +329,7 @@ void MqttClientThread(mico_thread_arg_t arg) {
     rc = MQTTSubscribe(&c, topic_set, QOS0, MessageArrived);
     require_noerr_string(rc, MQTT_reconnect, "ERROR: MQTT client subscribe err.");mqtt_log(
             "MQTT client subscribe success! recv_topic=[%s].", topic_set);
-    /*4.1 杩炴帴鎴愬姛鍚庡厛鏇存柊鍙戦�佷竴娆℃暟鎹�*/
+    /*4.1 连接成功后先更新发送一次数据*/
     isconnect = true;
 
     int i = 0;
@@ -428,7 +428,10 @@ static void MessageArrived(MessageData *md) {
         p_recv_msg->datalen = MAX_MQTT_DATA_SIZE - 1;
     p_recv_msg->qos = (char) (message->qos);
     p_recv_msg->retained = message->retained;
-    strncpy(p_recv_msg->topic, md->topicName->lenstring.data, md->topicName->lenstring.len);
+    unsigned int topic_len = md->topicName->lenstring.len;
+    if (topic_len > sizeof(p_recv_msg->topic) - 1)
+        topic_len = sizeof(p_recv_msg->topic) - 1;
+    strncpy(p_recv_msg->topic, md->topicName->lenstring.data, topic_len);
     p_recv_msg->topic[sizeof(p_recv_msg->topic) - 1] = '\0';
     memcpy(p_recv_msg->data, message->payload, p_recv_msg->datalen);
     p_recv_msg->data[p_recv_msg->datalen] = '\0';

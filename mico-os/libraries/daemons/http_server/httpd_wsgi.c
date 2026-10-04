@@ -529,7 +529,7 @@ int httpd_get_data(httpd_request_t *req, char *content, int length)
 
 	/* handle here */
 	ret = httpd_recv(req->sock, content,
-			length, 0);
+			length > 0 ? length - 1 : 0);
 	if (ret == -1) {
 		httpd_d("Failed to read POST data");
 		goto out;

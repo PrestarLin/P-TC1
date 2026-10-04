@@ -349,7 +349,11 @@ static int HttpSetOTAFile(httpd_request_t *req)
     ota_partition = MicoFlashGetInfo(MICO_PARTITION_OTA_TEMP);
     if (!ota_partition) { err = kUnsupportedErr; ota_progress = -2; goto exit; }
 
-    MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
+    err = MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
+    if (err != kNoErr) {
+        tc1_log("[OTA] pre-erase failed err=%d", err);
+        goto ota_failed;
+    }
 
     CRC16_Context crc_context;
     CRC16_Init(&crc_context);
@@ -857,6 +861,7 @@ static int HttpGetTasks(httpd_request_t *req) {
     TaskLock();
     char *tasks_str = GetTaskStr();
     TaskUnlock();
+    if (!tasks_str) { err = kNoMemoryErr; goto exit; }
     send_http(tasks_str, strlen(tasks_str), exit, &err);
 
     exit:

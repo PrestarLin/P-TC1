@@ -351,7 +351,9 @@ void ProcessTask()
             }
         }
 
-        int delay_sec = (duration > 0 ? duration : 1) * 60;
+        /* 开启态保持 duration 分钟后关, 关闭态保持 interval 分钟后再开 */
+        int delay_min = (saved_on == 0) ? interval : duration;
+        int delay_sec = (delay_min > 0 ? delay_min : 1) * 60;
         if (delay_sec < 60) delay_sec = 60;
         time_t next = time(NULL) + delay_sec;
         if (saved_on >= 0) {
