@@ -291,6 +291,9 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
 #define OTA_BUF_SIZE 8192
 #define OTA_MIN_SIZE 32768
 #define OTA_FLASH_WRITE_RETRY 3
+/* httpd_recv 用 select 5s 超时, 超时/EINTR 时返回 0, 与"对端关闭"返回值相同。
+ * 上传中设备可能因 flash 争用/TCP 流控短暂停顿, 连续多次收不到数据才判定截断 */
+#define OTA_IDLE_RETRY 12
 
 static int HttpSetOTAFile(httpd_request_t *req)
 {
@@ -299,6 +302,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
     OSStatus err = kNoErr;
     int total = 0;
     int ret = 0;
+    int idle_retries = 0;
     char *buffer = NULL;
     uint32_t offset = 0;
     bool upload_ok = false;
@@ -339,6 +343,7 @@ static int HttpSetOTAFile(httpd_request_t *req)
         ret = httpd_get_data2(req, buffer, OTA_BUF_SIZE);
 
         if (ret > 0) {
+            idle_retries = 0;
             total += ret;
             if ((uint32_t)total > ota_partition->partition_length) {
                 tc1_log("[OTA] file too large: %d > partition %d", total, ota_partition->partition_length);
@@ -368,6 +373,11 @@ static int HttpSetOTAFile(httpd_request_t *req)
                 break;
             }
         } else if (ret == 0) {
+            /* ret==0 可能是 select 5s 超时/被信号打断(此时连接仍在),
+             * 也可能对端真的关闭。连续多次无数据才判定截断:
+             * 连接真关闭时 select 立即返回, 不会多等; 瞬时停顿则可跨过误判 */
+            if (++idle_retries < OTA_IDLE_RETRY)
+                continue;
             /* 对端关闭连接(浏览器被关闭/断网): 没收满 Content-Length 即为截断,
              * 无 Content-Length 的请求一律视为非法, 不接受无法校验完整性的上传 */
             tc1_log("[OTA] connection closed early: got %d of %d bytes", total, req->body_nbytes);
