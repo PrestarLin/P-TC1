@@ -344,6 +344,16 @@ void ProcessTask()
                 }
                 if (!in_range) {
                     task_log("loop out of range, stop");
+                    /* 超窗时若刚执行的是"开", 补一次"关", 否则插座停在开启态 */
+                    if (on_val == 1 && op >= SWITCH_SOCKET_1 && op <= SWITCH_SOCKET_6) {
+                        UserRelaySet(op - 1, 0);
+                        UserMqttSendSocketState(op - 1);
+                        UserMqttSendTotalSocketState();
+                    } else if (on_val == 1 && op == SWITCH_ALL_SOCKETS) {
+                        UserRelaySetAll(0);
+                        for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
+                        UserMqttSendTotalSocketState();
+                    }
                     DelFirstTask();
                     AppContextUpdate(sys_config);
                     return;
