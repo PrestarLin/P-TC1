@@ -5,25 +5,26 @@
  * 定时任务: bit0-6 为星期标志 (Sun=1,Mon=2,...,Sat=64), bit7=0
  *   - 8=仅周三(旧固件曾把 8 当"每日"哨兵, 已废弃)
  *   - 127=每日(全周); 383(127+bit8)=夜间模式每日 LED 专用标记
- * 循环任务: bit7=1, bit0-9=持续时间(分), bit10-19=间隔时间(分),
+ * 循环任务: bit31=1, bit0-9=持续时间(分, 1~1023), bit10-19=间隔时间(分),
  *           bit20-30=起点分钟+1(北京分钟 since midnight, 0=旧任务未编码)
  */
-#define LOOP_FLAG_BIT       7
+#define LOOP_FLAG_BIT       31
+#define LOOP_FLAG_BIT_OLD   7
 #define LOOP_DURATION_SHIFT 0
 #define LOOP_INTERVAL_SHIFT 10
 #define LOOP_MASK_MINUTES   0x3FF
 #define LOOP_START_SHIFT    20
 #define LOOP_START_MASK     0x7FF
 
-#define IS_LOOP_TASK(w)         (((w) >> LOOP_FLAG_BIT) & 1)
-#define GET_LOOP_DURATION(w)    ((((w) >> LOOP_DURATION_SHIFT) & LOOP_MASK_MINUTES) - LOOP_DUR_BIAS)
+#define IS_LOOP_TASK(w)         ((((unsigned int)(w)) >> LOOP_FLAG_BIT) & 1)
+#define IS_LOOP_TASK_OLD(w)     (((w) >> LOOP_FLAG_BIT_OLD) & 1)
+#define GET_LOOP_DURATION(w)    (((w) >> LOOP_DURATION_SHIFT) & LOOP_MASK_MINUTES)
 #define GET_LOOP_INTERVAL(w)    (((w) >> LOOP_INTERVAL_SHIFT) & LOOP_MASK_MINUTES)
-/* dur 字段(bits0-9)与 LOOP_FLAG_BIT(bit7)重叠: 存储时 dur+128 保证 bit7 恒置 1,
-   解码减回 128. 旧数据 0x80|dur(dur<128)数值恰等于 dur+128, 天然兼容. dur 有效范围 1~127 分 */
-#define LOOP_DUR_BIAS           128
+/* 编码: bit31 循环标志 | bits20-30 起点 | bits10-19 间隔 | bits0-9 时长(1~1023 分)。
+   旧编码标志在 bit7 且与 dur 字段重叠(致时长 +128), 由 RebuildTaskList 开机迁移 */
 #define MAKE_LOOP_WEEKDAY(dur, interval) \
-    (0x80 | (((dur) + LOOP_DUR_BIAS) & LOOP_MASK_MINUTES) << LOOP_DURATION_SHIFT | \
-     ((interval) & LOOP_MASK_MINUTES) << LOOP_INTERVAL_SHIFT)
+    ((int)(0x80000000u | (((dur) & LOOP_MASK_MINUTES) << LOOP_DURATION_SHIFT) | \
+     (((interval) & LOOP_MASK_MINUTES) << LOOP_INTERVAL_SHIFT)))
 /* 起点编码(存 start_min+1, 0 表示旧任务未编码, 回退旧逻辑) */
 #define GET_LOOP_START(w)       (((w) >> LOOP_START_SHIFT) & LOOP_START_MASK)
 #define MAKE_LOOP_START(min)    (((((min) + 1) & LOOP_START_MASK)) << LOOP_START_SHIFT)

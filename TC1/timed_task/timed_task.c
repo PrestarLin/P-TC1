@@ -52,6 +52,16 @@ void RebuildTaskList(void)
                     task->weekday = NIGHT_DAILY_WEEKDAY;
             }
 
+            /* 旧循环任务编码迁移: 旧标志 bit7 压在 duration 字段内(致 +128), 新编码标志在 bit31。
+             * 旧存储 dur 字段 = 原时长|0x80: 原值<128 可精确还原; >=128 无法区分, 还原偏小需重建。
+             * 383 是夜灯"每日"哨兵(bit8 标记), 不参与迁移 */
+            int ow = task->weekday;
+            if (ow != NIGHT_DAILY_WEEKDAY && IS_LOOP_TASK_OLD(ow) && !IS_LOOP_TASK(ow)) {
+                int dur = (ow & LOOP_MASK_MINUTES) - 0x80;
+                task->weekday = MAKE_LOOP_WEEKDAY(dur < 1 ? 1 : dur, GET_LOOP_INTERVAL(ow))
+                              | (GET_LOOP_START(ow) << LOOP_START_SHIFT);
+            }
+
             if (task->weekday != 0 && task->prs_time <= now)
             {
                 AddTask(task);
