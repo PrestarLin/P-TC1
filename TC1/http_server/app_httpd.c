@@ -288,7 +288,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
     return err;
 }
 
-#define OTA_BUF_SIZE 8192
+#define OTA_BUF_SIZE 5120  /* 与 ade6413 初版一致: 实测稳定的写入块 */
 #define OTA_MIN_SIZE 32768
 #define OTA_FLASH_WRITE_RETRY 3
 /* httpd_recv 用 select 5s 超时, 超时/EINTR 时返回 0, 与"对端关闭"返回值相同。
@@ -373,7 +373,10 @@ static int HttpSetOTAFile(httpd_request_t *req)
              * 浏览器表现为 connection lost */
             mico_rtos_thread_msleep(100);
 
-            if (req->body_nbytes > 0 && total >= req->body_nbytes) {
+            /* 完成判定与 ade6413 初版一致: remaining_bytes 收尾,
+             * body_nbytes 双保险; 随后的 size/magic 校验仍然保留 */
+            if (req->remaining_bytes <= 0 ||
+                (req->body_nbytes > 0 && total >= req->body_nbytes)) {
                 upload_ok = true;   /* Content-Length 已收满 */
                 break;
             }
