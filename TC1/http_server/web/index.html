@@ -197,30 +197,39 @@
               <input class="form-input" id="loopEndTime" type="time" value="22:00">
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" data-i18n="task_repeat">Repeat</label>
+              <select class="form-select" id="loopRepeat">
+                <option value="0" data-i18n="tbl_once">Once</option>
+                <option value="1" data-i18n="tbl_daily">Daily</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" data-i18n="task_device">Device</label>
             <select class="form-select" id="taskSocket">
-              <option value="0">All Sockets</option>
+              <option value="0" data-i18n="all_sockets">All Sockets</option>
               <option value="1">Socket 1</option>
               <option value="2">Socket 2</option>
               <option value="3">Socket 3</option>
               <option value="4">Socket 4</option>
               <option value="5">Socket 5</option>
               <option value="6">Socket 6</option>
-              <option value="7">LED</option>
-              <option value="11">Child Lock</option>
-              <option value="8">Reboot</option>
-              <option value="12">Restart HTTP</option>
+              <option value="7" data-i18n="act_led">LED</option>
+              <option value="11" data-i18n="child_lock">Child Lock</option>
+              <option value="8" data-i18n="act_reboot">Reboot</option>
+              <option value="12" data-i18n="act_restart_http">Restart HTTP</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="task_action">Action</label>
             <select class="form-select" id="taskAction" onchange="toggleLoopFields()">
-              <option value="1">Power On</option>
-              <option value="0">Power Off</option>
-              <option value="-1">Toggle</option>
+              <option value="1" data-i18n="act_on">Power On</option>
+              <option value="0" data-i18n="act_off">Power Off</option>
+              <option value="-1" data-i18n="act_toggle">Toggle</option>
             </select>
           </div>
         </div>
@@ -894,7 +903,8 @@ function addTask(){
     var ts=Math.floor(startTs.getTime()/1000);
     var dur=parseInt(document.getElementById('loopDuration').value)||5;
     var interval=parseInt(document.getElementById('loopInterval').value)||10;
-    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin+' '+startMin;
+    var rep=parseInt(document.getElementById('loopRepeat').value)||0;
+    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin+' '+startMin+' '+rep;
   }else{
     var timeVal=document.getElementById('taskTime').value;
     if(!timeVal){toast('Set time');return;}
@@ -914,7 +924,7 @@ function addTask(){
 function fetchTasks(){
   updateTaskSocketOptions();
   api('/task',function(e,d){
-    if(e){document.getElementById('taskListScheduled').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">Failed to load</div>';return;}
+    if(e){document.getElementById('taskListScheduled').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">'+L('fail_load')+'</div>';return;}
     var arr=p(d);S.tasks=Array.isArray(arr)?arr:[];renderTasks();
   });
 }
@@ -925,41 +935,44 @@ function renderTasks(){
   S.tasks.forEach(function(t){
     if(t.is_loop)loop.push(t);else scheduled.push(t);
   });
-  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var days=(i18nData[curLang]||i18nData.en).weekdays;
   function renderRow(t,isLoopTable){
     var wk=t.weekday||0;
     var rStr='';
     var winStr='';
+    var repStr='';
     if(t.is_loop){
       var _p2=function(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');};
       var endStr=t.loop_end!=null?_p2(t.loop_end):'--:--';
       var startStr=(t.loop_start!=null&&t.loop_start>=0)?_p2(t.loop_start):'--:--';
       winStr=startStr+' - '+endStr;
+      repStr=t.loop_repeat?L('tbl_daily'):L('tbl_once');
       rStr=(t.on===-1)?(t.loop_duration+'m'):(t.loop_duration+'m / '+t.loop_interval+'m');
-    }else if(wk===127||wk===383)rStr='Daily';
-    else if(wk===0)rStr='Once';
-    else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||'None';}
-    var devMap={0:'All Sockets',7:'LED',8:'Reboot',11:'Child Lock',12:'Restart HTTP'};
+    }else if(wk===127||wk===383)rStr=L('tbl_daily');
+    else if(wk===0)rStr=L('tbl_once');
+    else{var ds=[];for(var d=0;d<7;d++){if(wk&(1<<d))ds.push(days[d]);}rStr=ds.join(', ')||L('tbl_none');}
+    var devMap={0:L('all_sockets'),7:L('act_led'),8:L('act_reboot'),11:L('child_lock'),12:L('act_restart_http')};
     var sockStr=devMap[t.operation];
     if(!sockStr){
       if(t.operation>=1&&t.operation<=6&&S.socketNames[t.operation-1])sockStr=S.socketNames[t.operation-1];
-      else sockStr='Socket '+t.operation;
+      else sockStr=L('socket_n')+t.operation;
     }
-    var act=t.on===-1?'Toggle':(t.on?'On':'Off');
+    var act=t.on===-1?L('act_toggle'):(t.on?L('act_on'):L('act_off'));
     var ts='--:--';
     if(t.timestamp){var dd=new Date(t.timestamp*1000);ts=(dd.getHours()<10?'0':'')+dd.getHours()+':'+(dd.getMinutes()<10?'0':'')+dd.getMinutes();}
-    return '<tr><td>'+(isLoopTable&&winStr?winStr:ts)+'</td><td>'+sockStr+'</td><td>'+act+'</td><td>'+rStr+'</td>'
-      +'<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">Delete</span></td></tr>';
+    return '<tr><td>'+(isLoopTable&&winStr?winStr:ts)+'</td><td>'+sockStr+'</td><td>'+act+'</td>'
+      +'<td>'+(t.is_loop?rStr:'')+'</td><td>'+(t.is_loop?repStr:rStr)+'</td>'
+      +'<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">'+L('btn_del')+'</span></td></tr>';
   }
   if(scheduled.length){
-    var h='<table class="tbl"><thead><tr><th>Time</th><th>Device</th><th>Action</th><th>Repeat</th><th></th></tr></thead><tbody>';
+    var h='<table class="tbl"><thead><tr><th>'+L('col_time')+'</th><th>'+L('task_device')+'</th><th>'+L('task_action')+'</th><th></th><th>'+L('task_repeat')+'</th><th></th></tr></thead><tbody>';
     scheduled.forEach(function(t){h+=renderRow(t,false);});
     h+='</tbody></table>';elS.innerHTML=h;
   }else{
     elS.innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)" data-i18n="no_scheduled">No scheduled tasks</div>';
   }
   if(loop.length){
-    var h='<table class="tbl"><thead><tr><th>Window</th><th>Device</th><th>Action</th><th>Loop (on/off)</th><th></th></tr></thead><tbody>';
+    var h='<table class="tbl"><thead><tr><th>'+L('col_window')+'</th><th>'+L('task_device')+'</th><th>'+L('task_action')+'</th><th>'+L('col_loop')+'</th><th>'+L('task_repeat')+'</th><th></th></tr></thead><tbody>';
     loop.forEach(function(t){h+=renderRow(t,true);});
     h+='</tbody></table>';elL.innerHTML=h;
   }else{
@@ -1574,6 +1587,7 @@ var i18nData={
     timed_tasks:'Timed Tasks',loop_tasks:'Loop Tasks',add_task:'Add Task',task_type:'Type',task_time:'Time (HH:MM)',task_device:'Device',task_action:'Action',task_repeat:'Repeat',
     loop_duration:'On Duration (min)',loop_interval:'Off Interval (min)',loop_period:'Toggle Period (min)',loop_start_time:'Start Time',loop_end_time:'End Time',
     no_scheduled:'No scheduled tasks',no_loop:'No loop tasks',
+    col_time:'Time',col_window:'Window',col_loop:'Loop (on/off)',tbl_daily:'Daily',tbl_once:'Once',tbl_none:'None',act_led:'LED',act_reboot:'Reboot',act_restart_http:'Restart HTTP',btn_del:'Delete',fail_load:'Failed to load',socket_n:'Socket ',
     btn_save_task:'Save Task',btn_daily:'Daily',btn_once:'Once',btn_clear_all:'Clear All',loading:'Loading...',
     night_mode:'Night Mode',night_mode_hint:'Turn off LED during night',night_start:'Start',night_end:'End',btn_save_night:'Save Night Mode',
     btn_config:'Button Configuration',btn_long_sec:'Long Press',btn_add:'+ Add',
@@ -1619,6 +1633,7 @@ var i18nData={
     timed_tasks:'定时任务',loop_tasks:'循环任务',add_task:'添加任务',task_type:'类型',task_time:'时间 (HH:MM)',task_device:'设备',task_action:'动作',task_repeat:'重复',
     loop_duration:'开启时长 (分)',loop_interval:'关闭间隔 (分)',loop_period:'翻转周期 (分)',loop_start_time:'开始时间',loop_end_time:'结束时间',
     no_scheduled:'暂无定时任务',no_loop:'暂无循环任务',
+    col_time:'时间',col_window:'窗口',col_loop:'循环(开/关)',tbl_daily:'每天',tbl_once:'仅一次',tbl_none:'无',act_led:'指示灯',act_reboot:'重启',act_restart_http:'重启HTTP',btn_del:'删除',fail_load:'加载失败',socket_n:'插座 ',
     btn_save_task:'保存任务',btn_daily:'每天',btn_once:'仅一次',btn_clear_all:'清空全部',loading:'加载中...',
     night_mode:'夜间模式',night_mode_hint:'夜间关闭LED灯',night_start:'开始',night_end:'结束',btn_save_night:'保存夜间模式',
     btn_config:'按键配置',btn_long_sec:'长按',btn_add:'+ 添加',
@@ -1653,6 +1668,7 @@ var i18nData={
   }
 };
 var curLang=localStorage.getItem('lang')||'en';
+function L(k){var d=i18nData[curLang]||i18nData.en;if(d[k]!==undefined)return d[k];return i18nData.en[k]!==undefined?i18nData.en[k]:k;}
 function applyLang(){
   var dict=i18nData[curLang]||i18nData.en;
   document.querySelectorAll('[data-i18n]').forEach(function(el){
@@ -1666,7 +1682,7 @@ function applyLang(){
   });
   document.getElementById('langToggle').textContent=curLang==='en'?'中/EN':'EN/中';
 }
-function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();}
+function toggleLang(){curLang=curLang==='en'?'zh':'en';localStorage.setItem('lang',curLang);applyLang();if(typeof S!=='undefined'&&Array.isArray(S.tasks))renderTasks();}
 
 /* ── Device Info clock: 本地逐秒走时, fetchStatus 到达时用设备值校准基准, 零额外请求 ── */
 var _devUpBase=-1,_devUpAt=0,_devSysBase=null,_devSysAt=0;

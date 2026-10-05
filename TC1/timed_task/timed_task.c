@@ -329,7 +329,10 @@ void ProcessTask()
     if (IS_LOOP_TASK(user_config->task_top->weekday)) {
         int duration = GET_LOOP_DURATION(user_config->task_top->weekday);
         int interval = GET_LOOP_INTERVAL(user_config->task_top->weekday);
-        int loop_end = user_config->task_top->loop_end;
+        int raw_end = user_config->task_top->loop_end;
+        int loop_end = raw_end & 0xFFFF;
+        int loop_daily = (raw_end >> 16) & 1;
+        int loop_start_on = (raw_end >> 17) & 1;
         int saved_op = user_config->task_top->operation;
         int saved_on = user_config->task_top->on;
         int saved_wd = user_config->task_top->weekday;
@@ -363,6 +366,25 @@ void ProcessTask()
                         UserRelaySetAll(0);
                         for (int i = 0; i < SOCKET_NUM; i++) UserMqttSendSocketState(i);
                         UserMqttSendTotalSocketState();
+                    }
+                    if (loop_daily) {
+                        /* 每天重复: 不删除, 重挂到下一个窗口起点, 动作恢复为初始方向 */
+                        int bj_now = (int)((now + 28800) % day_sec);
+                        time_t next = now - bj_now + (time_t)start_min * 60;
+                        if (next <= now) next += day_sec;
+                        task_log("loop daily re-arm: next=%ld", next);
+                        DelFirstTask();
+                        pTimedTask newTask = NewTask();
+                        if (newTask) {
+                            newTask->prs_time = next;
+                            newTask->operation = saved_op;
+                            newTask->on = (saved_on == -1) ? -1 : (loop_start_on ? 1 : 0);
+                            newTask->weekday = saved_wd;
+                            newTask->loop_end = saved_loop_end;
+                            AddTask(newTask);
+                        }
+                        AppContextUpdate(sys_config);
+                        return;
                     }
                     DelFirstTask();
                     AppContextUpdate(sys_config);
@@ -431,9 +453,9 @@ char* GetTaskStr()
 
         sprintf(tmp_str,
             "{'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
-            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_start':%d,'loop_end':%d},",
+            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_start':%d,'loop_end':%d,'loop_repeat':%d},",
             tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday,
-            is_loop, loop_dur, loop_int, loop_start, tmp_tsk->loop_end);
+            is_loop, loop_dur, loop_int, loop_start, tmp_tsk->loop_end & 0xFFFF, (tmp_tsk->loop_end >> 16) & 1);
         tmp_str += strlen(tmp_str);
         tmp_tsk = tmp_tsk->next;
     }
