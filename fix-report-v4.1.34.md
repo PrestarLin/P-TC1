@@ -95,12 +95,51 @@
 
 ## 三、未修项（超出认可范围，仅记录）
 
-1. **`GET_LOOP_DURATION` 与循环标志 bit7 重叠（既有）**：`dur & 0x3FF` 含 bit7 → 取出的 duration 恒为 `dur|128`（默认 5m → 133m）；`loop_interval` 变量实际未被消费。属既有宏设计缺陷，修改会波及存量任务解码，本次未动。
-2. **SDK 内部 `mico_system_context_update` 调用点**（easylink/power_daemon 等）未纳入 `AppContextUpdate` 锁——框架代码，改动风险大于收益。
-3. **MQTT 配置修改需等线程重连/重 Init 生效**（既有行为；本次修复后保存配置触发的 `UserMqttInit` 已能真正重建线程，缩短了生效路径）。
-4. **`TC1/ota_server/ota_server.c`** 为 `mico-os` daemons 副本的死代码（`TC1.mk` 不编译），未同步修改。
-5. 降级中的首次连接失败即回调 `OTA_FAIL`（随后仍重试）为既有表现，未改。
-6. `get_func_name` 静态缓冲的多线程竞态（内容可能串扰，但不再有内存风险）——既有。
+> **v4.1.49 复查**（修复批次后远程又合入 33 个提交，2026-10-05 逐条核对）：
+
+1. ~~**`GET_LOOP_DURATION` 与循环标志 bit7 重叠**~~ → ✅ **已解决**：`453a50c`（偏置编解码）+ `f85deeb`（循环标志 **bit7→bit31**，duration 恢复完整 10 位 1~1023 分钟，`RebuildTaskList` 开机迁移旧编码）；`24797f3` 使 `interval` 在 `ProcessTask` 实际生效。
+2. **SDK 内部 `mico_system_context_update` 调用点**（easylink/config_server/para_storage 等）未纳入 `AppContextUpdate` 锁 → ❌ **仍未解决**（框架代码未动；TC1 内残留 0 处）。
+3. **MQTT 配置修改需等线程重连才生效** → ❌ **仍未解决**：`HttpSetMqttConfig`（app_httpd.c:821）仍直调 `UserMqttInit()`，线程 running 时 `user_mqtt_client.c:131` 早退不重建。
+4. **`TC1/ota_server/ota_server.c`** 死代码副本（`TC1.mk` 不编译）→ ❌ **仍未解决**（即 Low 12）。
+5. ~~瞬时连接失败即回调 `OTA_FAIL`~~ → ✅ **已解决**：`c2e67fe`（瞬时失败走 `RECONNECTED` 不上报 FAIL）。
+6. `get_func_name` 静态缓冲多线程竞态 → ❌ **仍未解决**（`user_gpio.c:34` 仍无锁；仅内容串扰风险，无内存风险）。
+
+### 3.1 审查报告 Medium 未修项复查（M9、M13–M19）
+
+> 审查共 M9–M19 十一项，本批修 M10/M11/M12；M16/M18 后续由 `24797f3` 修复。其余 **6 项仍未修**：
+
+| 条目 | 状态 | 当前证据（行号为 v4.1.49） |
+|---|---|---|
+| M9 WiFi 扫描 `wifi_ret` UAF/double-free | ❌ 未修 | `app_httpd.c:666-674` handler 内 free 后置 NULL，但 WiFi 线程 `user_wifi.c:146-148` 并发 `free(wifi_ret)` 与 handler free 仍竞争，无锁无快照 |
+| M13 `GetTaskStr` 空列表 1 字节越界 | ❌ 未修 | `timed_task.c:402-411`：`task_count==0` → `malloc(2)`，仍写 `tmp_str[2]='\0'` |
+| M14 `registerMqttEvents` 在 timer 未初始化时被 HTTP 调用 | ❌ 未修 | `user_mqtt_client.c:245-251` 仍无初始化检查；AP 配网模式改名可达 |
+| M15 `mqtt_report_freq` 无范围校验 | ❌ 未修 | `app_httpd.c:841` 仍 `sscanf("%d")` 裸写，负值 → msleep 回绕 ≈49.7 天 |
+| M16 SDK `httpd_get_data` NUL 越界 | ✅ 已修 | `24797f3`：`httpd_wsgi.c:531` 改收 `length-1` |
+| M17 `ota-server/server.py` 安全 | ❌ 未修 | `:12/:33` `WEBHOOK_SECRET` 默认空 → `verify_webhook` 恒通过（可伪造 release webhook 推恶意固件）；`get_version(branch)`（`:16-30`）无 `..` 过滤，路径穿越读 |
+| M18 MQTT topic `strncpy` n=源长度 | ✅ 已修 | `24797f3`：`user_mqtt_client.c:432-434` 先钳制 `topic_len ≤ sizeof-1` |
+| M19 LED blink timer 自毁 + 跨线程竞态 | ❌ 未修 | `user_gpio.c:369` 回调内 `mico_deinit_timer`；`StartLedBlink:380-387` 被定时器线程/主线程并发调用，`timer_initialized` 无同步 |
+
+### 3.2 审查报告 Low 项复查（L1–L13）
+
+> **原报告"未修项"未收录 Low 项，此节补录。** 审查 Low 共 13 条：3 条已修、1 条为"仅记录"设计问题、**9 条仍未修**。
+
+| # | 条目 | 状态 | 当前证据 |
+|---|---|---|---|
+| L1 | `WebLog()` malloc 不判空 | ❌ 未修 | `web_log.c:63-67`：`buff=malloc` 后直接 `strftime(buff,…)`（局部已改 `localtime_r`，判空仍缺） |
+| L2 | `localtime()` 非可重入多线程混用 | ✅ 已修 | `53f145a` 全部改 `localtime_r`（WebLog/timed_task/main 等） |
+| L3 | sscanf 返回值不检查 / 变量未初始化类 | ❌ 未修 | `app_httpd.c:526` `int enableLock` 无初值；`:251/:276` `int index` 无初值（`HttpSetSocketName` sscanf 失败时 fallback 用 `index+1` 即栈垃圾）；`user_gpio.c:148` `int tmp[6]`；`HttpAddTask` weekday/loop_end、`HttpSetNightMode` 时分仍无范围校验 |
+| L4 | 插座名含空格被截断 | ❌ 未修 | `app_httpd.c:250` 仍 `%63s` 读到首个空格；`index.html:1242` 仍 `i+' '+newName` 发送（"Living Room" 存成 "Living"） |
+| L5 | `HttpSetMqttConfig` buf=97 装不下最长合法载荷(~101) | ❌ 未修 | `app_httpd.c:812` 等 6 处仍 `buf_size=97`；满配（31+5+31+31+3空格=101）时写入失败 500 静默不生效 |
+| L6 | 长按计时 `uint8_t key_time` 25.6s 回绕 + 死变量 | ❌ 未修 | `user_gpio.c:410` 仍 `static uint8_t`；`:354` 全局 `uint16_t key_time` 仍被 shadow |
+| L7 | 循环 dur/interval 编码 10 位 vs 前端 32767 | ✅ 已修 | 前端 `index.html:247/:251` `max="1023"` 与编码上限对齐；`f85deeb` 后 dur=完整 10 位（≤1023 分钟，语义上限已是产品设计） |
+| L8 | 单引号 JSON 被内容破坏 + `innerHTML` XSS | ❌ 未修 | `index.html:562` `p()` 仍 `'`→`"` 替换；插座名 `:930` 仍 `innerHTML`；含 `'`/`\` 的名字使 status/扫描整个解析失败 |
+| L9 | 无认证 API + 明文回显密码 | ⚠️ 仅记录（设计如此） | `app_httpd.c:197-199` 仍明文返回 WiFi/MQTT 密码；全部 API 匿名可调——可信 LAN 设计取舍，按审查建议在报告中记录 |
+| L10 | `GetTaskStr` 返回 NULL 时 `strlen(NULL)` | ✅ 已修 | `24797f3`：`app_httpd.c:884` 判空转 `kNoMemoryErr` |
+| L11 | `HttpGetPowerInfo` GET 5s 阻塞 + idx 未初始化 | 🔶 部分 | `app_httpd.c:545` `int idx = 0` 已初始化；但裸 GET 的 `httpd_get_data` 5s select 阻塞仍在（前端用 POST 规避） |
+| L12 | 死代码 `TC1/ota_server/ota_server.c` | ❌ 未修 | 文件仍在且未加注释（= 未修项 #4） |
+| L13 | `GetButtonClickConfig` `len += snprintf` + 无符号比较模式 | ❌ 未修 | `user_gpio.c:112-116` 模式未改写（现行不可达，代码模式危险） |
+
+> 未解决项的跟踪见仓库根目录 `todolist.md`。
 
 ## 四、行为变化（升级须知）
 
