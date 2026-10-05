@@ -35,7 +35,7 @@ with open(map_file, 'r') as f:
         if(module == '*fill*'):
             sections = list(map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall(r'\*fill\*[ \t]+(0x\w+)[ \t]+(0x\w+)[ \t]+\n', mem_map)))
         else:
-            sections = list(map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall(r'(0x\w+)[ \t]+(0x\w+)[ \t]+.+[/\\]'+module+'(\(.+\.o\))?\n', mem_map)))
+            sections = list(map(lambda arg : {'address':int(arg[0], 16), 'size':int(arg[1], 16)}, re.findall(r'(0x\w+)[ \t]+(0x\w+)[ \t]+.+[/\\]'+module+r'(\(.+\.o\))?\n', mem_map)))
         if(not sections):
             continue
 

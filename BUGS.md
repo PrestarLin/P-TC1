@@ -1,5 +1,15 @@
 # P-TC1 未修复 Bug 清单
 
+> **2026-10-05 复核(对照当前 dev)**：本清单为历史审计记录，下列条目绝大部分已在历次修复中落地。
+> - C1–C5 ✅ 已修（snprintf/边界钳制/payload 截断/task_mutex 全链路加锁）
+> - M1–M9 ✅ 已修（strncmp 前缀解析、索引校验、child_lock 独立字段、任务持久化、web_log 互斥、WiFi 配置 free、HTTP 206、url_t 判空、context 防重入）
+> - M10 ✅ 已修（ISR n>100 截断）；M11 ✅ 已修（strncpy + 强制 NUL）
+> - m1–m8 ✅ 已修；m9/未修4 ✅ 本次解决（删除 TC1/ota_server 死副本，user_ota.c 改引 daemons 头）
+> - m10 ✅ CI 以 sed 注入 VERSION_STRING，产物版本正确；m11 ✅ 本次解决（map_parse_gcc.py raw string）
+> - 报告"未修5"（首连失败即报 OTA_FAIL）实际也已修：瞬时失败走 RECONNECTED 不上报
+>
+> **仍保留不修（有意为之）**：SDK 内部 `mico_system_context_update` 调用点（框架代码）；`get_func_name` 静态缓冲多线程竞态（仅日志内容串扰，无内存风险）。
+
 经过全面代码审计，按优先级分级列出。每条均已核实。
 
 ---

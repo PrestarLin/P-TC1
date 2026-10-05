@@ -1,7 +1,7 @@
 #include "http_server/web_log.h"
 
 #include "mico.h"
-#include "ota_server/ota_server.h"
+#include "ota_server.h"
 #include "main.h"
 #include "mqtt_server/user_mqtt_client.h"
 
