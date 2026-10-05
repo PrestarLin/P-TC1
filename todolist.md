@@ -33,6 +33,15 @@
 - [ ] **L13 `GetButtonClickConfig` `len += snprintf` 无符号比较模式**（`user_gpio.c:112-116`）——现行不可达，防御性改写
 - [ ] **L12 死代码 `TC1/ota_server/ota_server.c`** ——删除或加"未编译副本"注释，防误导审计
 
+## ⚠️ 潜在风险（本次排查新发现）
+
+- [ ] **双分区 CRC「算一次、数据写两次」竞态**（`mico-os/MiCO/system/mico_system_para_storage.c:126-168`）
+  - `internal_update_config` 先算 CRC(t0)，随后从**活动 RAM** 分别写 P1(t1)/P2(t2)，窗口≈1-2s（两次扇区擦除）
+  - 窗口内任何无锁 RAM 写（`WifiStatusCallback` 写 `reserved`、`recordDailyPCount` 写 p_count、插座状态、SDK `power_daemon.c:125`/`system_misc.c:133` 无锁 `context_update` = N3 家族）→ **两个分区 data≠CRC 同时持久化**
+  - 后果：下次开机 `MICOReadConfiguration:281-283` 双分区校验失败 → 恢复出厂（mqtt/任务/名称全清 + 开热点）——低概率、偶发
+  - 修法：先 memcpy 快照到临时缓冲，基于快照算 CRC + 写盘；并把互斥下沉进 `mico_system_context_update` 覆盖 SDK 调用点
+  - 背景：2026-10-05 排查「静态IP后MQTT丢失」时排除的机制（实际根因是 DHCP_COMPLETED 不派发，已修 `083590b`），但竞态本身仍存在
+
 ## 报告遗留（fix-report §3 未修项）
 
 - [ ] **#2 SDK 内部 `mico_system_context_update` 未加锁**（config_server/easylink/para_storage）——框架代码；低概率偶发丢配置，若要修需评估 SDK 改动面
