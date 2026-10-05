@@ -42,6 +42,17 @@ static void WifiStatusCallback(WiFiEvent status, void* arg)
         }
 
         ip_status.mode = 1;
+
+        /* 静态IP(ip_mode==1, DHCP_Disable)：不走DHCP，DHCP_COMPLETED不派发，
+         * WifiGetIpCallback永不执行 → wifi_status不会置CONNECTED →
+         * MQTT永不启动、状态页IP不更新。STATION_UP即IP就绪，这里补置。 */
+        if (user_config->ip_mode == 1) {
+            snprintf(ip_status.ip, sizeof(ip_status.ip), "%s", user_config->static_ip);
+            snprintf(ip_status.gateway, sizeof(ip_status.gateway), "%s", user_config->static_gateway);
+            snprintf(ip_status.mask, sizeof(ip_status.mask), "%s", user_config->static_mask);
+            wifi_log("static IP up:%s gw:%s", ip_status.ip, ip_status.gateway);
+            wifi_status = WIFI_STATE_CONNECTED;
+        }
     }
     else if (status == NOTIFY_STATION_DOWN) // WiFi断开
     {
