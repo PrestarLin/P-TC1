@@ -310,6 +310,7 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
 /* httpd_recv 用 select 5s 超时, 超时/EINTR 时返回 0, 与"对端关闭"返回值相同。
  * 上传中设备可能因 flash 争用/TCP 流控短暂停顿, 连续多次收不到数据才判定截断 */
 #define OTA_IDLE_RETRY 12
+#define OTA_ERASE_SLICE (32*1024)  /* 擦除步进: 与接收交错, 单次 flash 忙碌控制在 1s 内 */
 
 static int HttpSetOTAFile(httpd_request_t *req)
 {
@@ -350,7 +351,13 @@ static int HttpSetOTAFile(httpd_request_t *req)
     ota_partition = MicoFlashGetInfo(MICO_PARTITION_OTA_TEMP);
     if (!ota_partition) { err = kUnsupportedErr; ota_progress = -2; goto exit; }
 
-    err = MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length);
+    /* 整分区一次性擦除会让 flash/系统连续忙碌十几秒, 浏览器此时推流堵满 TCP 窗口,
+     * 连接大概率饿死 -> 表现为"第一次上传失败, 第二次(扇区已擦净)成功".
+     * 改为 32K 擦一段、收一段, 任何时刻单次停顿不超过一个切片 */
+    uint32_t erase_slice = ota_partition->partition_length < OTA_ERASE_SLICE
+                           ? ota_partition->partition_length : OTA_ERASE_SLICE;
+    uint32_t erased_upto = erase_slice;
+    err = MicoFlashErase(MICO_PARTITION_OTA_TEMP, 0x0, erase_slice);
     if (err != kNoErr) {
         tc1_log("[OTA] pre-erase failed err=%d", err);
         goto ota_failed;
@@ -370,6 +377,18 @@ static int HttpSetOTAFile(httpd_request_t *req)
                 err = kSizeErr;
                 break;
             }
+            /* 擦除水位推进到已收数据末尾, 保证写入区域已擦净 */
+            while ((uint32_t)total > erased_upto) {
+                uint32_t n = ota_partition->partition_length - erased_upto;
+                if (n > OTA_ERASE_SLICE) n = OTA_ERASE_SLICE;
+                err = MicoFlashErase(MICO_PARTITION_OTA_TEMP, erased_upto, n);
+                if (err != kNoErr) {
+                    tc1_log("[OTA] erase@%u failed err=%d", (unsigned)erased_upto, err);
+                    break;
+                }
+                erased_upto += n;
+            }
+            if (err != kNoErr) break;
             CRC16_Update(&crc_context, (uint8_t*)buffer, ret);
 
             /* Flash写入带重试 */
