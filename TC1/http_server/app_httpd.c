@@ -110,6 +110,18 @@ exit:
     return err;
 }
 
+/* 逗号分隔列表就地按字节上限在逗号边界截断：长负载超出缓冲时降级输出，而不是写穿内存。
+ * 传入的列表都是每次请求重建的全局/临时缓冲(power_record_str、socket_names)，可安全改写。 */
+static void TrimCommaList(char *list, int max_bytes) {
+    int len = (int) strlen(list);
+    /* len==0 时 GetPowerRecord 返回的是只读字面量 ""，不能写入 */
+    if (len == 0 || len <= max_bytes) return;
+    if (max_bytes <= 0) { list[0] = '\0'; return; }
+    int cut = max_bytes;
+    while (cut > 0 && list[cut] != ',') cut--;
+    list[cut] = '\0';
+}
+
 static int HttpGetIndexPage(httpd_request_t *req) {
     OSStatus err = kNoErr;
     int total_sz = sizeof(web_index_html);
@@ -170,8 +182,17 @@ exit:
 static int HttpGetTc1Status(httpd_request_t *req) {
     char *sockets = GetSocketStatus();
     char *short_click_config = GetButtonClickConfig();
-    char *tc1_status = malloc(2048);
+    /* 满配时本负载可达 ~2.5K(模板 1065 + 6 个 63 字节插座名 + 30 组按键 + 全部字符串字段)，
+     * 原来的 malloc(2048) + sprintf 会写穿堆块，之后任何 malloc/free 都可能崩在 httpd
+     * 线程里(网页打不开、但 MQTT 与按键照常)。这里放大到能装下最坏情况，并改用 snprintf。 */
+    int status_buf = 4096;
+    char *tc1_status = malloc(status_buf);
     char *socket_names = malloc(512);
+    OSStatus err = kNoErr;
+    if (!tc1_status || !socket_names) {
+        err = kNoMemoryErr;
+        goto nomem;
+    }
     /* 运行时间: 开机秒数格式化为 Nd HH:MM:SS */
     mico_time_t past_ms = 0;
     mico_time_get_time(&past_ms);
@@ -195,7 +216,7 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             user_config->socket_names[3],
             user_config->socket_names[4],
             user_config->socket_names[5]);
-    sprintf(tc1_status, TC1_STATUS_JSON, sockets, ip_status.mode,
+    snprintf(tc1_status, status_buf, TC1_STATUS_JSON, sockets, ip_status.mode,
             sys_config->micoSystemConfig.ssid, sys_config->micoSystemConfig.user_key,
             user_config->ap_name, user_config->ap_key, MQTT_SERVER, MQTT_SERVER_PORT,
             MQTT_SERVER_USR, MQTT_SERVER_PWD,
@@ -213,8 +234,13 @@ static int HttpGetTc1Status(httpd_request_t *req) {
             RESERVED_CFG->wifi_offline_delay,
             RESERVED_CFG->wifi_offline_action);
 
-    OSStatus err = kNoErr;
     send_http(tc1_status, strlen(tc1_status), exit, &err);
+    goto exit;
+
+    nomem:
+    /* 每个分支都必须回一个响应：httpd 是单连接的，不回话会让浏览器干等到超时，
+     * 连带把后面的请求全堵住(表现为网页一直进不去)。 */
+    send_http("ERR", 3, exit, &err);
 
     exit:
     if (socket_names) free(socket_names);
@@ -245,7 +271,11 @@ static int HttpSetSocketName(httpd_request_t *req) {
 
     int buf_size = 70;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -256,7 +286,7 @@ static int HttpSetSocketName(httpd_request_t *req) {
     if (sscanf(buf, "%d %63[^\r\n]", &index, name) < 2 || name[0] == '\0') {
         snprintf(name, sizeof(name), "Socket %d", index + 1);
     }
-    if (index < 0 || index >= SOCKET_NUM) { free(buf); return kParamErr; }
+    if (index < 0 || index >= SOCKET_NUM) { err = kParamErr; send_http("ERR", 3, exit, &err); goto exit; }
     strncpy(user_config->socket_names[index], name, sizeof(user_config->socket_names[index]) - 1);
     user_config->socket_names[index][sizeof(user_config->socket_names[index]) - 1] = '\0';
     UserNameSanitize(user_config->socket_names[index]);
@@ -274,15 +304,19 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
 
     int buf_size = 10;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
     int index = -1;
     int func = 0;
     int longPress = 0;
-    if (sscanf(buf, "%d %d %d", &index, &func, &longPress) != 3) { err = kParamErr; goto exit; }
-    if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
+    if (sscanf(buf, "%d %d %d", &index, &func, &longPress) != 3) { err = kParamErr; send_http("ERR", 3, exit, &err); goto exit; }
+    if (index < 0 || index >= maxNameLen) { err = kParamErr; send_http("ERR", 3, exit, &err); goto exit; }
     
     // Safety底线：默认任务5秒配网、10秒恢复出厂，不允许修改
     if ((index == 5 && longPress == 1) || (index == 10 && longPress == 1)) {
@@ -504,7 +538,11 @@ static int HttpSetDeviceName(httpd_request_t *req) {
 
     int buf_size = 70;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -528,12 +566,16 @@ static int HttpSetChildLock(httpd_request_t *req) {
 
     int buf_size = 32;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
     int enableLock = 0;
-    if (sscanf(buf, "%d", &enableLock) != 1) { err = kParamErr; goto exit; }
+    if (sscanf(buf, "%d", &enableLock) != 1) { err = kParamErr; send_http("ERR", 3, exit, &err); goto exit; }
     user_config->child_lock = enableLock;
     childLockEnabled = enableLock;
     AppContextUpdate(sys_config);
@@ -547,11 +589,14 @@ static int HttpSetChildLock(httpd_request_t *req) {
 
 static int HttpGetPowerInfo(httpd_request_t *req) {
     OSStatus err = kNoErr;
+    /* 必须在函数开头就置 NULL：exit 标签会 free 它，而 body 读取失败要提前跳过去，
+     * 原写法跳过声明语句到达 free()，用的是未初始化的栈槽(随机地址 free → httpd 线程挂掉)。 */
+    char *socket_names = NULL;
     char buf[16] = {0};
     /* 无 body 的裸 GET 不能调 httpd_get_data，否则会在 select 上死等 5 秒超时 */
     if (req->body_nbytes > 0) {
         err = httpd_get_data(req, buf, sizeof(buf));
-        require_noerr(err, exit);
+        require_noerr(err, fail);
     }
 
     int idx = 0;
@@ -570,7 +615,11 @@ static int HttpGetPowerInfo(httpd_request_t *req) {
     char *powers = GetPowerRecord(idx);
     char *sockets = GetSocketStatus();
     char *short_click_config = GetButtonClickConfig();
-    char *socket_names = malloc(512);
+    socket_names = malloc(512);
+    if (!socket_names) {
+        err = kNoMemoryErr;
+        goto fail;
+    }
     sprintf(socket_names, "%s,%s,%s,%s,%s,%s",
             user_config->socket_names[0],
             user_config->socket_names[1],
@@ -578,11 +627,26 @@ static int HttpGetPowerInfo(httpd_request_t *req) {
             user_config->socket_names[3],
             user_config->socket_names[4],
             user_config->socket_names[5]);
-    sprintf(power_info_json, POWER_INFO_JSON, sockets, power_record.idx, PW_NUM, p_count, powers,
-            up_time, user_config->power_led_enabled, RelayOut() ? 1 : 0, socket_names,
-            user_config->p_count_1_day_ago, user_config->p_count_2_days_ago, childLockEnabled,
-            sys_config->micoSystemConfig.name, short_click_config);
+    /* powers 最长 ~1100(100 条功率记录)，再加 socketNames(383) 与 btnClicks(443) 会超过
+     * power_info_json 的 2048：按超出量从 powers 尾部整条回退后重算，直到装得下。
+     * 装不下时原先的 sprintf 会写穿 .bss(紧跟着的就是 up_time 等全局量)。 */
+    for (int guard = 0; guard < 8; guard++) {
+        int need = snprintf(power_info_json, sizeof(power_info_json),
+                            POWER_INFO_JSON, sockets, power_record.idx, PW_NUM, p_count, powers,
+                            up_time, user_config->power_led_enabled, RelayOut() ? 1 : 0, socket_names,
+                            user_config->p_count_1_day_ago, user_config->p_count_2_days_ago, childLockEnabled,
+                            sys_config->micoSystemConfig.name, short_click_config);
+        if (need < (int) sizeof(power_info_json)) break;
+        TrimCommaList(powers, (int) strlen(powers) - (need - (int) sizeof(power_info_json) + 1));
+    }
     send_http(power_info_json, strlen(power_info_json), exit, &err);
+    goto exit;
+
+    fail:
+    /* 任何提前返回都要回一个响应：httpd 单连接串行，不回话会让浏览器一直等到超时，
+     * 后面的请求全堵在它后面，看起来就是"网页进不去"。 */
+    send_http("ERR", 3, exit, &err);
+
     exit:
     if (socket_names) free(socket_names);
     return err;
@@ -763,7 +827,11 @@ static int HttpSetWifiStatic(httpd_request_t *req) {
 
     int buf_size = 128;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -796,7 +864,11 @@ static int HttpSetWifiOffline(httpd_request_t *req) {
 
     int buf_size = 32;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -826,7 +898,11 @@ static int HttpSetMqttConfig(httpd_request_t *req) {
      * 满配保存直接失败。 */
     int buf_size = 3 * SETTING_MQTT_STRING_LENGTH_MAX + 16;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -859,13 +935,17 @@ static int HttpSetMqttReportFreq(httpd_request_t *req) {
 
     int buf_size = 128;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
 
     int freq = 0;
-    if (sscanf(buf, "%d", &freq) != 1) { err = kParamErr; goto exit; }
+    if (sscanf(buf, "%d", &freq) != 1) { err = kParamErr; send_http("ERR", 3, exit, &err); goto exit; }
     if (freq < MQTT_REPORT_FREQ_MIN) freq = MQTT_REPORT_FREQ_MIN;
     if (freq > MQTT_REPORT_FREQ_MAX) freq = MQTT_REPORT_FREQ_MAX;
     MQTT_REPORT_FREQ = freq;
@@ -1051,7 +1131,11 @@ static int LedSetEnabled(httpd_request_t *req) {
 
     int buf_size = 16;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -1078,7 +1162,11 @@ static int TotalSocketSetEnabled(httpd_request_t *req) {
     int buf_size = 16;
     int on;
     char *buf = malloc(buf_size);
-    if (!buf) return kNoMemoryErr;
+    if (!buf) {
+        err = kNoMemoryErr;
+        send_http("ERR", 3, exit, &err);
+        return err;
+    }
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -1135,6 +1223,7 @@ static int HttpSetNightMode(httpd_request_t *req) {
     int enabled = 0, start_h = 0, start_m = 0, end_h = 0, end_m = 0;
     if (sscanf(buf, "%d %d:%d %d:%d", &enabled, &start_h, &start_m, &end_h, &end_m) != 5) {
         err = kParamErr;
+        send_http("ERR", 3, exit, &err);
         goto exit;
     }
     /* 越界时分原本靠 %1440 静默折回成另一个时刻，且与下面 NightModeReapply

@@ -127,10 +127,15 @@ char *GetButtonClickConfig() {
 
         int n = snprintf(temp, sizeof(temp), "{'%d':[%d,%d]}%s", i, short_func, long_func, (i != 30) ? "," : "");
         if (n < 0) n = 0;
-        if (n > max_len - 1 - len) break;
+        /* 给收尾的 ']' 留一格：原来的 max_len-1 会在装不下时直接 break，
+         * 数组永远补不上右括号，前端 p() 的整个 JSON.parse 随之失败。 */
+        if (n > max_len - 2 - len) break;
         len += snprintf(btn_click_config + len, max_len - len, "%s", temp);
     }
-    if (len < max_len - 1) {
+    /* 提前 break 时最后一条以逗号结尾，JSON 不接受尾逗号，就地换成 ']' */
+    if (len > 0 && btn_click_config[len - 1] == ',') {
+        btn_click_config[len - 1] = ']';
+    } else {
         len += snprintf(btn_click_config + len, max_len - len, "]");
     }
 
