@@ -447,8 +447,17 @@ static OSStatus ota_server_set_url( char *url )
     strncpy( ota_server_context->download_url.host, url_t->host,
              sizeof( ota_server_context->download_url.host ) - 1 );
     ota_server_context->download_url.host[sizeof( ota_server_context->download_url.host ) - 1] = '\0';
-    ota_server_context->download_url.port = atoi( url_t->port );
-    pos = strstr( url, url_t->path );
+    /* url_parse 对无端口的 URL 返回 NULL: atoi(NULL) 会直接跑飞(如 GitHub Release 链接),
+     * 按 scheme 取默认端口 */
+    if ( url_t->port != NULL )
+    {
+        ota_server_context->download_url.port = atoi( url_t->port );
+    } else
+    {
+        ota_server_context->download_url.port =
+            ( ota_server_context->download_url.HTTP_SECURITY == HTTP_SECURITY_HTTPS ) ? 443 : 80;
+    }
+    pos = url_t->path ? strstr( url, url_t->path ) : NULL;
     if ( pos == NULL )
     {
         strcpy( ota_server_context->download_url.url, "" );

@@ -27,6 +27,7 @@
 #include "user_power.h"
 #include "user_wifi.h"
 #include "user_mqtt_client.h"
+#include "ota_server/user_ota.h"
 
 typedef struct {
     char topic[MAX_MQTT_TOPIC_SIZE];
@@ -533,6 +534,17 @@ void ProcessHaCmd(char *cmd) {
         if (sscanf(cmd, "reboot %19s", mac) != 1) return;
         if (strcmp(mac, str_mac)) return;
         MicoSystemReboot();
+    }else if (strncmp(cmd, "ota ", 4) == 0) {
+        /* 救砖通道: web 后台挂掉时 MQTT 仍可用, 用此命令让设备自行下载固件升级
+         * (下载->校验镜像头->切换分区->自动重启), URL 指向 .bin 固件 */
+        char url[256] = {0};
+        if (sscanf(cmd, "ota %19s %255s", mac, url) != 2) return;
+        if (strcmp(mac, str_mac)) return;
+        if (ota_progress >= 0 && ota_progress < 100) {
+            mqtt_log("ERROR: ota already in progress[%d]", ota_progress); return;
+        }
+        mqtt_log("mqtt ota, url[%s]", url);
+        UserOtaStart(url, NULL);
     }
 }
 

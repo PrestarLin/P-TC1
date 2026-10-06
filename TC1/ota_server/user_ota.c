@@ -52,6 +52,10 @@ static void OtaServerStatusHandler(OTA_STATE_E state, float progress)
         default:
             break;
     }
+    /* 救砖场景下 web 不可用, MQTT state 主题是唯一能观察 OTA 进度的通道 */
+    if (str[0]) UserMqttSend(str);
+    /* 本回调返回后 ota_server 立即切换分区并重启, 留 1s 把成功消息发出去 */
+    if (state == OTA_SUCCE) mico_rtos_thread_sleep(1);
 }
 
 void UserOtaStart(char *url, char *md5)
