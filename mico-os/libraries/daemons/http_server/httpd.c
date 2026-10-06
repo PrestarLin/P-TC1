@@ -60,7 +60,9 @@ static mico_thread_t httpd_main_thread;
  */
 static bool httpd_stop_req;
 
-#define HTTPD_CLIENT_SOCK_TIMEOUT 10
+/* keep-alive 空闲等待: 浏览器轮询间隔 3s, 5s 内可复用连接; 超时回收,
+ * 保证看门狗探针(8s 超时)不会因前一个连接被长期占用而误判 httpd 卡死 */
+#define HTTPD_CLIENT_SOCK_TIMEOUT 5
 #define HTTPD_TIMEOUT_EVENT 0
 
 /** Maximum number of backlogged http connections
@@ -377,6 +379,22 @@ static void httpd_handle_client_connection( const fd_set *active_readfds )
         status = httpd_handle_message( client_sockfd );
         if ( status == kNoErr )
         {
+            /* keep-alive: 请求已应答。若此刻已有新客户端在 backlog 排队, 立即关闭
+             * 当前连接回到 accept —— 否则一个持续轮询的浏览器会长期独占串行
+             * httpd, 让其它客户端与看门狗探针饿死(探针 8s 超时后误判卡死并重启)。 */
+            fd_set pendingfds;
+            struct timeval nowait;
+            FD_ZERO( &pendingfds );
+            FD_SET( http_sockfd, &pendingfds );
+            nowait.tv_sec = 0;
+            nowait.tv_usec = 0;
+            if ( select( http_sockfd + 1, &pendingfds, NULL, NULL, &nowait ) > 0 )
+            {
+                if ( close( client_sockfd ) != 0 )
+                    httpd_d("Failed to close socket %d", net_get_sock_error(client_sockfd));
+                client_sockfd = -1;
+                break;
+            }
             /* The handlers are expected more data on the
              socket */
             continue;

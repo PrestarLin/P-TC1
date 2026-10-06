@@ -37,7 +37,10 @@
 #define HTTP_CONTENT_CSS_ZIP "text/css\r\nContent-Encoding: gzip\r\nCache-Control: public"
 #define HTTP_CONTENT_WOFF2 "font/woff2\r\nCache-Control: public"
 
-#define HTTPD_HDR_DEFORT (HTTPD_HDR_ADD_SERVER|HTTPD_HDR_ADD_CONN_CLOSE|HTTPD_HDR_ADD_PRAGMA_NO_CACHE)
+/* 不用 CONN_CLOSE: 设备 TCP PCB 池约 40 个, 每次响应让浏览器断开重连会累计
+ * 占满池子(每连接等 TIME_WAIT 2min 才回收), 约 40 次请求后 httpd 无法 accept
+ * → 网页失联。keep-alive 让页面所有轮询复用同一条连接(仅 1~2 个 PCB)。 */
+#define HTTPD_HDR_DEFORT (HTTPD_HDR_ADD_SERVER|HTTPD_HDR_ADD_CONN_KEEP_ALIVE|HTTPD_HDR_ADD_PRAGMA_NO_CACHE)
 #define HTTPD_HDR_CACHE (HTTPD_HDR_ADD_SERVER|HTTPD_HDR_ADD_CONN_CLOSE|HTTPD_HDR_ADD_CACHE_CTRL_NO_CHK)
 
 #define send_http(DATA, LEN, LABEL, P_ERR)                                                                 \
