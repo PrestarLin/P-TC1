@@ -422,9 +422,11 @@ void ProcessTask()
 
 char* GetTaskStr()
 {
-    /* +3 = '[' + 每条目尾 NUL 余量 + 收尾 ']' 与 '\0'; 只留 +2 时下面空列表分支
-     * 会写到 tmp_str[2], 越界 1 字节 */
-    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*192+3));
+    /* 每条目 256 字节: 条目录入格式最坏约 210(时间戳 10 + 负 weekday(循环编码 bit31) 11 +
+     * 各数字字段)，f23fbe5 起 JSON 增加 loop_repeat 字段后循环任务实测 197~204 字节，
+     * 原 192/条 会被 sprintf 逐条写穿堆块(web 失联的根因)。+3 = '[' + 条目尾 NUL 余量
+     * + 收尾 ']' 与 '\0'; 只留 +2 时空列表分支会写到 tmp_str[2], 越界 1 字节 */
+    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*256+3));
     if (!str) return NULL;
     pTimedTask tmp_tsk = user_config->task_top;
     char* tmp_str = str;
