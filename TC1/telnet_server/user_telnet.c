@@ -2,6 +2,7 @@
  * 作用: 网页后台卡死(甚至 MQTT 不可用)时, 局域网内仍可用命令行控制设备、
  * 查看日志、在线升级救砖, 是比 curl 更直观的一道保底通道。
  * 无鉴权(与 web 后台同级别), 不要把设备暴露到公网。 */
+#include <stdarg.h>
 #include "http_server/web_log.h"
 #include "mico.h"
 #include "main.h"
