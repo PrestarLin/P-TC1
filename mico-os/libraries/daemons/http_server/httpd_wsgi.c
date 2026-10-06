@@ -151,8 +151,14 @@ typedef enum {
 int httpd_purge_headers(int sock)
 {
 	unsigned char ch;
+	int r;
 	httpd_purge_state_t purge_state = ANY_OTHER_CHAR;
-	while (httpd_recv(sock, &ch, 1, 0) != 0) {
+
+	httpd_dbg_set_stage( 9, sock, NULL );
+	/* recv 返回 -1 表示 socket 错误(如收到 RST 后 mocIP 反复报错);
+	 * 原实现仅在 !=0 时退出循环, -1 被当作"继续", 一旦 recv 持续返回 -1
+	 * 就会无超时地死循环, 把 httpd 线程永远留在请求处理里 */
+	while ((r = httpd_recv(sock, &ch, 1, 0)) > 0) {
 		switch (ch) {
 		case '\r':
 			if (purge_state == ANY_OTHER_CHAR)
@@ -204,6 +210,7 @@ int httpd_send_body(int sock, const unsigned char *body_image, uint32_t body_siz
   int buff_size = 0;
   char buff[HTTPD_SEND_BODY_DATA_MAX_LEN];
 
+  httpd_dbg_set_stage( 6, sock, NULL );
   while (body_size > offset)
   {
     buff_size = MIN(HTTPD_SEND_BODY_DATA_MAX_LEN, (body_size - offset));
@@ -378,6 +385,8 @@ int httpd_send_all_header(httpd_request_t *req, const char *first_line, int body
         return ret;
     }
   }
+
+  httpd_dbg_set_stage( 5, req->sock, req->filename );
 
   ret = httpd_send(req->sock, first_line, strlen(first_line));
   if (ret != kNoErr) {
@@ -722,6 +731,7 @@ int httpd_wsgi(httpd_request_t *req_p)
 
 	/* Match found. So map the wsgi to this request */
 	req_p->wsgi = calls[match_index];
+	httpd_dbg_set_stage( 4, req_p->sock, req_p->filename );
 	switch (req_p->type) {
 	case HTTPD_REQ_TYPE_HEAD:
 	case HTTPD_REQ_TYPE_GET:

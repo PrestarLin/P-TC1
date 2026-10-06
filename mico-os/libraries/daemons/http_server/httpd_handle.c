@@ -139,6 +139,8 @@ int httpd_send(int conn, const char *buf, int len)
     fd_set writefds;
     int idle_retries = 0;
 
+    httpd_dbg_io( 1, conn );
+
     t.tv_sec = 0;
     t.tv_usec = 200*1000;
 
@@ -155,7 +157,8 @@ int httpd_send(int conn, const char *buf, int len)
         if( FD_ISSET( conn, &writefds) )
         {
             num = send(conn, buf, len, 0);
-            if (num < 0) {
+            /* num==0 也要按错误处理: 否则 len 不变会无限自旋 */
+            if (num <= 0) {
                 httpd_d("send() failed: %d" ,conn);
                 return -kInProgressErr;
             }
@@ -180,6 +183,8 @@ int httpd_recv(int fd, void *buf, size_t n, int flags)
     int len = 0;
     struct timeval t;
     fd_set readfds;
+
+    httpd_dbg_io( 2, fd );
 
     FD_ZERO( &readfds );
     FD_SET( fd, &readfds );
@@ -286,6 +291,8 @@ int httpd_send_error(int conn, int http_error)
 {
     int err = 0;
 
+    httpd_dbg_set_stage( 8, conn, NULL );
+
     switch (http_error) {
         case HTTP_404:
             err = httpd_send(conn, http_header_404,
@@ -352,7 +359,9 @@ void httpd_purge_socket_data(httpd_request_t *req, char *msg_in,
         unsigned to_read = msg_in_len >= data_remaining ?
                            data_remaining : msg_in_len;
         int actually_read = httpd_recv(conn, msg_in, to_read, 0);
-        if (actually_read < 0) {
+        /* 0 = select 5s 超时(对端不再发数据), <0 = socket 错误;
+         * 原实现只在 <0 时退出, 0 会以 5s/轮无限循环拖死 httpd 线程 */
+        if (actually_read <= 0) {
             httpd_d("Unable to read content."
                     "Was purging socket data");
             return;
@@ -376,6 +385,7 @@ int httpd_handle_message(int conn)
     httpd_req.sock = conn;
 
     /* Read the first line of the HTTP header */
+    httpd_dbg_set_stage( 1, conn, NULL );
     req_line_len = htsys_getln_soc(conn, msg_in, sizeof(msg_in));
     if (req_line_len == 0)
         return HTTPD_DONE;
@@ -386,6 +396,7 @@ int httpd_handle_message(int conn)
     }
 
     /* Parse the first line of the header */
+    httpd_dbg_set_stage( 2, conn, NULL );
     err = httpd_parse_hdr_main(msg_in, &httpd_req);
     if (err == -WM_E_HTTPD_NOTSUPP)
         /* Send 505 HTTP Version not supported */
@@ -407,6 +418,7 @@ int httpd_handle_message(int conn)
      * invoke the handlers that match the request type and pattern.  If
      * request type and url patern match, invoke the handler.
      */
+    httpd_dbg_set_stage( 3, conn, httpd_req.filename );
     err = httpd_wsgi(&httpd_req);
 
     if (err == HTTPD_DONE) {
@@ -423,14 +435,17 @@ int httpd_handle_message(int conn)
          * all the pending data in the socket. We let the client
          * close the socket for us, if necessary.
          */
+        httpd_dbg_set_stage( 7, conn, httpd_req.filename );
         httpd_purge_socket_data(&httpd_req, msg_in,
                                 sizeof(msg_in), conn);
         httpd_set_error("File %s not_found", httpd_req.filename);
+        httpd_dbg_set_stage( 8, conn, httpd_req.filename );
         httpd_send_error(conn, HTTP_404);
         return kNoErr;
     } else {
         httpd_d("WSGI handler failed.");
         /* Send 500 Internal Server Error */
+        httpd_dbg_set_stage( 8, conn, httpd_req.filename );
         return httpd_send_error(conn, HTTP_500);
     }
 

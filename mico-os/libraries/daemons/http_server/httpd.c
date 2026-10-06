@@ -108,28 +108,32 @@ bool httpd_is_https_active( )
     return https_active;
 }
 
-/* ---- 诊断计数器(telnet `httpd` 命令使用): 区分"线程卡死"与"线程活着但不服务" ---- */
-typedef struct
-{
-    volatile uint32_t loops;        /* 主循环迭代 */
-    volatile uint32_t ticks;        /* select 超时(1s tick) */
-    volatile uint32_t sel;          /* select 调用次数 */
-    volatile uint32_t selerr;       /* select 返回错误 */
-    volatile uint32_t acc;          /* accept 成功 */
-    volatile uint32_t accfail;      /* accept 未成功(含非阻塞 EAGAIN) */
-    volatile uint32_t srv;          /* 请求处理完成(kNoErr) */
-    volatile uint32_t srvfail;      /* 请求处理失败/连接关闭 */
-    volatile uint32_t reap;         /* 空闲回收的连接数 */
-    volatile uint32_t evict;        /* 连接满时驱逐的次数 */
-    volatile uint32_t in_select;    /* 1=当前正阻塞在 select 内 */
-    volatile uint32_t in_accept;    /* 1=当前正阻塞在 accept 内 */
-    volatile uint32_t in_handle;    /* 1=当前正在处理请求 */
-    volatile uint32_t handle_ms;    /* 最近一次请求处理耗时(ms) */
-    volatile int32_t  last_status;  /* 最近一次 httpd_handle_message 返回值 */
-    volatile uint32_t suspend_site; /* 0=未挂起 1=select失败 2=stop请求 3=启动失败 */
-} httpd_dbg_t;
+httpd_dbg_t httpd_dbg;
 
-static httpd_dbg_t httpd_dbg;
+void httpd_dbg_set_stage( uint32_t stage, int fd, const char *fname )
+{
+    httpd_dbg.stage = stage;
+    httpd_dbg.stage_fd = fd;
+    httpd_dbg.stage_ms = mico_rtos_get_time( );
+    if ( fname )
+    {
+        strncpy( httpd_dbg.stage_fn, fname, sizeof(httpd_dbg.stage_fn) - 1 );
+        httpd_dbg.stage_fn[sizeof(httpd_dbg.stage_fn) - 1] = 0;
+    }
+}
+
+/* kind: 1=httpd_send 2=httpd_recv; 换 fd/方向时重新计数, 便于 telnet 观察
+ * 卡死点是否在某个 fd 上被反复调用(io_loop 爆炸)或是单次阻塞 */
+void httpd_dbg_io( int kind, int fd )
+{
+    if ( httpd_dbg.io_kind != (uint32_t) kind || (int) httpd_dbg.io_fd != fd )
+    {
+        httpd_dbg.io_kind = kind;
+        httpd_dbg.io_fd = fd;
+        httpd_dbg.io_loop = 0;
+    }
+    httpd_dbg.io_loop++;
+}
 
 static int net_get_sock_error( int sock )
 {
@@ -521,10 +525,14 @@ static void httpd_main( mico_thread_arg_t arg )
             {
                 uint32_t t0 = mico_rtos_get_time( );
                 httpd_dbg.in_handle = 1;
+                httpd_dbg.io_kind = 0;
+                httpd_dbg.io_loop = 0;
                 status = httpd_handle_message( fd );
                 httpd_dbg.in_handle = 0;
                 httpd_dbg.handle_ms = mico_rtos_get_time( ) - t0;
                 httpd_dbg.last_status = status;
+                httpd_dbg.stage = 0;
+                httpd_dbg.io_kind = 0;
             }
             if ( status == kNoErr )
             {
@@ -615,7 +623,13 @@ static int httpd_signal_and_wait_for_halt( )
     int sockfd;
     int rv = tcp_local_connect( &sockfd );
     if ( rv != kNoErr )
+    {
+        /* 本地连接失败时不能把 stop_req 留下: 否则下一次 httpd_start 起来的
+         * 新线程会在首个 select 里立刻自挂起(state=SUSPENDED/listen=-1),
+         * 网页从此永久失联 —— 实测看门狗重启后正是死在这个状态 */
+        httpd_stop_req = FALSE;
         return rv;
+    }
 
     while ( httpd_state != HTTPD_THREAD_SUSPENDED && num_iterations-- )
     {
@@ -760,6 +774,7 @@ char *httpd_debug_info( void )
         "loop=%lu tick=%lu sel=%lu selerr=%lu susp=%lu\r\n"
         "acc=%lu afail=%lu srv=%lu sfail=%lu reap=%lu evict=%lu\r\n"
         "in sel/acc/hnd=%lu/%lu/%lu hnd_ms=%lu lastst=%ld\r\n"
+        "stg=%lu fd=%lu age=%lums fn=%s io=%lu/%lu/%lu\r\n"
         "slot:",
         (int) httpd_state, http_sockfd, (unsigned long) ( now / 1000 ),
         (unsigned long) httpd_dbg.loops, (unsigned long) httpd_dbg.ticks,
@@ -770,7 +785,12 @@ char *httpd_debug_info( void )
         (unsigned long) httpd_dbg.reap, (unsigned long) httpd_dbg.evict,
         (unsigned long) httpd_dbg.in_select, (unsigned long) httpd_dbg.in_accept,
         (unsigned long) httpd_dbg.in_handle, (unsigned long) httpd_dbg.handle_ms,
-        (long) httpd_dbg.last_status );
+        (long) httpd_dbg.last_status,
+        (unsigned long) httpd_dbg.stage, (unsigned long) httpd_dbg.stage_fd,
+        (unsigned long) ( httpd_dbg.stage ? now - httpd_dbg.stage_ms : 0 ),
+        httpd_dbg.stage_fn,
+        (unsigned long) httpd_dbg.io_kind, (unsigned long) httpd_dbg.io_fd,
+        (unsigned long) httpd_dbg.io_loop );
 
     if ( n < 0 )
         n = 0;
