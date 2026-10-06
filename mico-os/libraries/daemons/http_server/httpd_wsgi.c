@@ -152,13 +152,29 @@ int httpd_purge_headers(int sock)
 {
 	unsigned char ch;
 	int r;
+	struct timeval tv;
+	fd_set readfds;
 	httpd_purge_state_t purge_state = ANY_OTHER_CHAR;
 
 	httpd_dbg_set_stage( 9, sock, NULL );
-	/* recv 返回 -1 表示 socket 错误(如收到 RST 后 mocIP 反复报错);
-	 * 原实现仅在 !=0 时退出循环, -1 被当作"继续", 一旦 recv 持续返回 -1
-	 * 就会无超时地死循环, 把 httpd 线程永远留在请求处理里 */
-	while ((r = httpd_recv(sock, &ch, 1, 0)) > 0) {
+	/* 只排空"已到达"的请求头字节, 等不到就直接收工:
+	 * - 原实现用 httpd_recv(内含 5s select)读字节, 一旦请求头不在缓冲区
+	 *   (已被解析消费或本就没有), 每次白等 5s 超时, 再返回
+	 *   -kInProgressErr 让响应发不出去 —— 串行处理的 httpd 表现为
+	 *   "刷新卡一下、数据同步慢"(实测卡在 stg=9, 每个请求 1~5s)。
+	 * - recv 返回 -1 表示 socket 错误(如收到 RST 后 mocIP 反复报错),
+	 *   原实现 -1 被当作"继续"会无超时死循环, 这里一并收口。
+	 * 残留未排空的字节由下一次请求解析兜底(解析失败走 500 并关连接, 有界)。 */
+	for (;;) {
+		FD_ZERO(&readfds);
+		FD_SET(sock, &readfds);
+		tv.tv_sec = 0;
+		tv.tv_usec = 50 * 1000;
+		if (select(sock + 1, &readfds, NULL, NULL, &tv) <= 0)
+			break;
+		r = httpd_recv(sock, &ch, 1, 0);
+		if (r <= 0)
+			break;
 		switch (ch) {
 		case '\r':
 			if (purge_state == ANY_OTHER_CHAR)
@@ -177,9 +193,9 @@ int httpd_purge_headers(int sock)
 
 		}
 		if (purge_state == SECOND_LF_FOUND)
-			return kNoErr;
+			break;
 	}
-	return -kInProgressErr;
+	return kNoErr;
 }
 
 int httpd_send_header(int sock, const char *name, const char *value)
