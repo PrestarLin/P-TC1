@@ -30,6 +30,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 
 #include "httpd.h"
 #include "http-strings.h"
@@ -106,6 +107,29 @@ bool httpd_is_https_active( )
 {
     return https_active;
 }
+
+/* ---- 诊断计数器(telnet `httpd` 命令使用): 区分"线程卡死"与"线程活着但不服务" ---- */
+typedef struct
+{
+    volatile uint32_t loops;        /* 主循环迭代 */
+    volatile uint32_t ticks;        /* select 超时(1s tick) */
+    volatile uint32_t sel;          /* select 调用次数 */
+    volatile uint32_t selerr;       /* select 返回错误 */
+    volatile uint32_t acc;          /* accept 成功 */
+    volatile uint32_t accfail;      /* accept 未成功(含非阻塞 EAGAIN) */
+    volatile uint32_t srv;          /* 请求处理完成(kNoErr) */
+    volatile uint32_t srvfail;      /* 请求处理失败/连接关闭 */
+    volatile uint32_t reap;         /* 空闲回收的连接数 */
+    volatile uint32_t evict;        /* 连接满时驱逐的次数 */
+    volatile uint32_t in_select;    /* 1=当前正阻塞在 select 内 */
+    volatile uint32_t in_accept;    /* 1=当前正阻塞在 accept 内 */
+    volatile uint32_t in_handle;    /* 1=当前正在处理请求 */
+    volatile uint32_t handle_ms;    /* 最近一次请求处理耗时(ms) */
+    volatile int32_t  last_status;  /* 最近一次 httpd_handle_message 返回值 */
+    volatile uint32_t suspend_site; /* 0=未挂起 1=select失败 2=stop请求 3=启动失败 */
+} httpd_dbg_t;
+
+static httpd_dbg_t httpd_dbg;
 
 static int net_get_sock_error( int sock )
 {
@@ -196,6 +220,17 @@ static int httpd_setup_new_socket( int port )
         return status;
     }
 
+    /* 监听 socket 必须非阻塞: select 报"可读"到 accept() 之间存在窗口期,
+     * 排队连接可能已被对端撤销, 此时阻塞的 accept 会永久等待 —— 整个 httpd
+     * 线程卡死不再服务, 只有看门狗 stop 的本地连接才能把它唤醒(实测 2 客户端
+     * 并发轮询时触发)。非阻塞后无连接时 accept 立即返回 EAGAIN */
+    if ( fcntl( sockfd, F_SETFL, O_NONBLOCK ) != 0 )
+    {
+        int nonblock = 1;
+        httpd_d("fcntl non-block failed, fall back to SO_BLOCKMODE");
+        setsockopt( sockfd, SOL_SOCKET, SO_BLOCKMODE, &nonblock, sizeof(nonblock) );
+    }
+
     httpd_d("Listening on port %d.", port);
     return sockfd;
 }
@@ -228,14 +263,20 @@ static int httpd_select( int max_sock, const fd_set *readfds,
     memcpy( &local_readfds, readfds, sizeof(fd_set) );
     httpd_d("WAITING for activity");
 
-  activefds_cnt = select(max_sock + 1, &local_readfds, NULL, NULL, timeout_secs >= 0 ? &timeout : NULL);
-  if (activefds_cnt < 0) {
+    httpd_dbg.in_select = 1;
+    activefds_cnt = select(max_sock + 1, &local_readfds, NULL, NULL, timeout_secs >= 0 ? &timeout : NULL);
+    httpd_dbg.in_select = 0;
+    httpd_dbg.sel++;
+    if (activefds_cnt < 0) {
+        httpd_dbg.selerr++;
+        httpd_dbg.suspend_site = 1;
         httpd_d("Select failed: %d", timeout_secs);
         httpd_suspend_thread( true );
     }
 
     if ( httpd_stop_req )
     {
+        httpd_dbg.suspend_site = 2;
         httpd_d("HTTPD stop request received");
         httpd_stop_req = FALSE;
         httpd_suspend_thread( false );
@@ -351,6 +392,7 @@ static void httpd_reap_idle_clients( void )
             if ( close( httpd_client_fds[i] ) != 0 )
                 httpd_d("Failed to close socket %d", net_get_sock_error(httpd_client_fds[i]));
             httpd_client_fds[i] = -1;
+            httpd_dbg.reap++;
         }
     }
 }
@@ -376,6 +418,7 @@ static void httpd_drop_oldest_client( void )
         if ( close( httpd_client_fds[oldest] ) != 0 )
             httpd_d("Failed to close socket %d", net_get_sock_error(httpd_client_fds[oldest]));
         httpd_client_fds[oldest] = -1;
+        httpd_dbg.evict++;
     }
 }
 
@@ -387,13 +430,17 @@ static void httpd_main( mico_thread_arg_t arg )
 
     status = httpd_setup_main_sockets( );
     if ( status != kNoErr )
+    {
+        httpd_dbg.suspend_site = 3;
         httpd_suspend_thread( true );
+    }
 
     for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
         httpd_client_fds[i] = -1;
 
     while ( 1 )
     {
+        httpd_dbg.loops++;
         FD_ZERO( &readfds );
         FD_SET( http_sockfd, &readfds );
         max_sockfd = http_sockfd;
@@ -410,6 +457,7 @@ static void httpd_main( mico_thread_arg_t arg )
         httpd_d("Waiting on main socket");
         if ( httpd_select( max_sockfd, &readfds, &active_readfds, HTTPD_MAIN_TICK_SECS ) == HTTPD_TIMEOUT_EVENT )
         {
+            httpd_dbg.ticks++;
             httpd_reap_idle_clients( );
             continue;
         }
@@ -419,7 +467,14 @@ static void httpd_main( mico_thread_arg_t arg )
         {
             int fd = -1;
 
+            httpd_dbg.in_accept = 1;
             status = httpd_accept_client_socket( &active_readfds, &fd );
+            httpd_dbg.in_accept = 0;
+            if ( status == kNoErr && fd >= 0 )
+                httpd_dbg.acc++;
+            else
+                httpd_dbg.accfail++;
+
             if ( status == kNoErr && fd >= 0 )
             {
                 int slot = httpd_free_client_slot( );
@@ -463,14 +518,23 @@ static void httpd_main( mico_thread_arg_t arg )
              * will return with status HTTPD_DONE
              * closing socket.
              */
-            status = httpd_handle_message( fd );
+            {
+                uint32_t t0 = mico_rtos_get_time( );
+                httpd_dbg.in_handle = 1;
+                status = httpd_handle_message( fd );
+                httpd_dbg.in_handle = 0;
+                httpd_dbg.handle_ms = mico_rtos_get_time( ) - t0;
+                httpd_dbg.last_status = status;
+            }
             if ( status == kNoErr )
             {
+                httpd_dbg.srv++;
                 /* keep-alive: 应答完成, 保持连接等待该客户端的下一个请求 */
                 httpd_client_lastact[i] = mico_rtos_get_time( );
             }
             else
             {
+                httpd_dbg.srvfail++;
                 httpd_d("Close socket %d.  %s: %d", fd, status == HTTPD_DONE ? "Handler done" : "Handler failed", status);
                 if ( close( fd ) != 0 )
                     httpd_d("Failed to close socket %d", net_get_sock_error(fd));
@@ -681,6 +745,46 @@ int httpd_init( )
     httpd_state = HTTPD_INIT_DONE;
 
     return kNoErr;
+}
+
+/* telnet `httpd` 命令的诊断输出: 观察一会儿内 loop 是否增长、哪个 in_*=1,
+ * 即可区分"线程卡死在某调用内"与"线程活着但不服务请求" */
+char *httpd_debug_info( void )
+{
+    static char info[512];
+    uint32_t now = mico_rtos_get_time( );
+    int i, n;
+
+    n = snprintf( info, sizeof(info),
+        "state=%d listen=%d up=%lus\r\n"
+        "loop=%lu tick=%lu sel=%lu selerr=%lu susp=%lu\r\n"
+        "acc=%lu afail=%lu srv=%lu sfail=%lu reap=%lu evict=%lu\r\n"
+        "in sel/acc/hnd=%lu/%lu/%lu hnd_ms=%lu lastst=%ld\r\n"
+        "slot:",
+        (int) httpd_state, http_sockfd, (unsigned long) ( now / 1000 ),
+        (unsigned long) httpd_dbg.loops, (unsigned long) httpd_dbg.ticks,
+        (unsigned long) httpd_dbg.sel, (unsigned long) httpd_dbg.selerr,
+        (unsigned long) httpd_dbg.suspend_site,
+        (unsigned long) httpd_dbg.acc, (unsigned long) httpd_dbg.accfail,
+        (unsigned long) httpd_dbg.srv, (unsigned long) httpd_dbg.srvfail,
+        (unsigned long) httpd_dbg.reap, (unsigned long) httpd_dbg.evict,
+        (unsigned long) httpd_dbg.in_select, (unsigned long) httpd_dbg.in_accept,
+        (unsigned long) httpd_dbg.in_handle, (unsigned long) httpd_dbg.handle_ms,
+        (long) httpd_dbg.last_status );
+
+    if ( n < 0 )
+        n = 0;
+    for ( i = 0; i < HTTPD_MAX_CLIENTS && n < (int) sizeof(info) - 1; i++ )
+    {
+        if ( httpd_client_fds[i] == -1 )
+            n += snprintf( info + n, sizeof(info) - n, " -" );
+        else
+            n += snprintf( info + n, sizeof(info) - n, " %d/%lums",
+                           httpd_client_fds[i],
+                           (unsigned long) ( now - httpd_client_lastact[i] ) );
+    }
+
+    return info;
 }
 
 int httpd_use_tls_certificates( const httpd_tls_certs_t *tls_certs )

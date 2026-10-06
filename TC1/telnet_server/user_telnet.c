@@ -12,6 +12,9 @@
 #include "ota_server/user_ota.h"
 #include "telnet_server/user_telnet.h"
 
+/* httpd 内部诊断输出 (mico-os/libraries/daemons/http_server/httpd.c) */
+extern char *httpd_debug_info(void);
+
 #define TELNET_PORT 23
 #define TELNET_LINE_MAX 256
 /* 每个终端最多空闲 5 分钟(可被下一位使用者连接), 不会再有单个掉线终端长期占满控制台 */
@@ -58,6 +61,7 @@ static const char telnet_help[] =
     "version                      firmware version\r\n"
     "status                       device status\r\n"
     "log                          recent logs\r\n"
+    "httpd                        web server internal state (diagnostics)\r\n"
     "set socket <0-5> <0|1>       single socket, 0=off 1=on\r\n"
     "set total_socket <0|1>       all sockets\r\n"
     "set led <0|1>                power LED\r\n"
@@ -93,6 +97,14 @@ static void telnet_process(int sock, char *line)
     } else if (!strcmp(line, "log")) {
         char *logs = GetLogRecord(0);
         telnet_send_all(sock, logs, strlen(logs));
+    } else if (!strcmp(line, "httpd")) {
+        /* 相隔 1 秒采两次样: loop 计数是否增长、哪个 in_*=1,
+         * 直接给出 httpd 线程卡死点或"活着但不服务"的证据 */
+        char *info = httpd_debug_info();
+        telnet_send_all(sock, info, strlen(info));
+        mico_rtos_thread_msleep(1000);
+        info = httpd_debug_info();
+        telnet_send_all(sock, info, strlen(info));
     } else if (!strcmp(line, "reboot")) {
         telnet_reply(sock, "rebooting...");
         mico_rtos_thread_msleep(200); /* let the reply go out before rebooting */
@@ -292,6 +304,10 @@ static void telnet_thread(mico_thread_arg_t arg)
         tc1_log("ERROR: telnet listen failed");
         goto exit;
     }
+
+    /* 与 httpd 同理: select 报可读后排队连接可能已被撤销, 阻塞的 accept
+     * 会永久卡死这个救援控制台线程; 非阻塞后 accept 无连接时立即返回 */
+    fcntl(listen_sock, F_SETFL, O_NONBLOCK);
 
     tc1_log("telnet console listening on port %d", TELNET_PORT);
 
