@@ -66,12 +66,14 @@ static const char telnet_help[] =
     "set total_socket <0|1>       all sockets\r\n"
     "set led <0|1>                power LED\r\n"
     "set childLock <0|1>          child lock\r\n"
+    "set wifi <ssid> [key]        connect wifi station (ssid/key no spaces, saved to flash)\r\n"
     "ota <url>                    firmware OTA update (device downloads, verifies, reboots)\r\n"
     "reboot                       reboot device\r\n";
 
 static void telnet_process(int sock, char *line)
 {
     int i = 0, on = 0;
+    char ssid[32], key[64];
 
     if (line[0] == '\0') return;
 
@@ -155,6 +157,16 @@ static void telnet_process(int sock, char *line)
         UserMqttSendChildLockState();
         AppContextUpdate(sys_config);
         telnet_reply(sock, "OK childLock -> %d", on);
+    } else if (!strncmp(line, "set wifi ", 9)) {
+        /* 与网页 /wifi 同路径: WifiConnect 内部含 micoWlanStart + 保存 ssid/key 到 Flash */
+        int n = sscanf(line, "set wifi %31s %63s", ssid, key);
+        if (n < 1) {
+            telnet_reply(sock, "ERR: usage: set wifi <ssid> [key]");
+            return;
+        }
+        if (n == 1) key[0] = '\0'; /* 开放网络 */
+        WifiConnect(ssid, key);
+        telnet_reply(sock, "OK wifi connecting: %s (saved), IP may change", ssid);
     } else if (strncmp(line, "ota ", 4) == 0) {
         char *url = line + 4;
         if (!strstr(url, "://")) {
