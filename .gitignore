@@ -3,3 +3,4 @@
 build
 zTC1.*
 *.rar
+__pycache__
