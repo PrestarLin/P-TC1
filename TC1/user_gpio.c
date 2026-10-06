@@ -111,21 +111,28 @@ char *GetSocketStatus() {
 
 char *GetButtonClickConfig() {
     char temp[32];
+    int max_len = sizeof(btn_click_config);
     int len = 0;
-    int max_len =sizeof(btn_click_config);
-    len += snprintf(btn_click_config + len, max_len - len, "[");
+
+    /* snprintf 返回"本应写入"的长度，直接 len += 可能超过 max_len，
+     * 之后 max_len - len 变负，作为 size_t 形参即上界爆炸。逐次钳制 len。 */
+    len = snprintf(btn_click_config, max_len, "[");
+    if (len < 0) len = 0;
+    if (len > max_len - 1) len = max_len - 1;
 
     for (int i = 1; i <= 30; i++) {
         char short_func = get_short_func(RESERVED_CFG->key_short[i]);
         char long_func  = get_long_func(RESERVED_CFG->key_long[i]);
 //    key_log("WARNING:KEY func %d %d %d", i,short_func,long_func);
 
-        snprintf(temp, sizeof(temp), "{'%d':[%d,%d]}%s", i, short_func, long_func, (i != 30) ? "," : "");
+        int n = snprintf(temp, sizeof(temp), "{'%d':[%d,%d]}%s", i, short_func, long_func, (i != 30) ? "," : "");
+        if (n < 0) n = 0;
+        if (n > max_len - 1 - len) break;
         len += snprintf(btn_click_config + len, max_len - len, "%s", temp);
-
-        if (len >= max_len - 1) break;
     }
-    snprintf(btn_click_config + len, max_len - len, "]");
+    if (len < max_len - 1) {
+        len += snprintf(btn_click_config + len, max_len - len, "]");
+    }
 
     return btn_click_config;
 }
@@ -145,9 +152,9 @@ void ButtonConfigInit(void) {
 }
 
 void SetSocketStatus(char *socket_status) {
-    int tmp[6];
-    sscanf(socket_status, "%d,%d,%d,%d,%d,%d,",
-           &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5]);
+    int tmp[6] = {0};
+    if (sscanf(socket_status, "%d,%d,%d,%d,%d,%d,",
+               &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5]) < SOCKET_NUM) return;
     for (int i = 0; i < SOCKET_NUM; i++) {
         user_config->socket_status[i] = (char)tmp[i];
     }
@@ -351,7 +358,6 @@ mico_timer_t user_key_timer;
 // 全局静态变量声明
 static uint8_t click_count = 0;
 static mico_timer_t click_end_timer;
-uint16_t key_time = 0;
 
 static mico_timer_t led_blink_timer;
 /* blink 状态由定时器线程(回调)与按键/主线程(StartLedBlink)同时读写 */
@@ -413,7 +419,8 @@ static void ClickEndTimeoutHandler(void *arg) {
 
 static void KeyTimeoutHandler(void *arg) {
     static char key_trigger, key_continue;
-    static uint8_t key_time = 0;
+    /* 100ms 一格: uint8_t 在 25.5s 就回绕成 0，松开时会被当成一次短按而非长按 */
+    static uint16_t key_time = 0;
 
     char tmp = ~(0xfe | MicoGpioInputGet(Button));
     key_trigger = tmp & (tmp ^ key_continue);

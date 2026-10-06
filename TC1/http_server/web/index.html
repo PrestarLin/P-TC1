@@ -954,7 +954,7 @@ function renderTasks(){
     var devMap={0:L('all_sockets'),7:L('act_led'),8:L('act_reboot'),11:L('child_lock'),12:L('act_restart_http')};
     var sockStr=devMap[t.operation];
     if(!sockStr){
-      if(t.operation>=1&&t.operation<=6&&S.socketNames[t.operation-1])sockStr=S.socketNames[t.operation-1];
+      if(t.operation>=1&&t.operation<=6&&S.socketNames[t.operation-1])sockStr=esc(S.socketNames[t.operation-1]);
       else sockStr=L('socket_n')+t.operation;
     }
     var act=t.on===-1?L('act_toggle'):(t.on?L('act_on'):L('act_off'));
@@ -1353,10 +1353,10 @@ function btnFuncName(f){
   var dict=i18nData[curLang]||i18nData.en;
   if(f>=20&&f<=31){ /* 单插座开/关 */
     var sock=Math.floor((f-20)/2)+1,isOn=(f%2===0);
-    return (S.socketNames[sock-1]||('Socket '+sock))+' '+(isOn?dict.act_on:dict.act_off);
+    return esc(S.socketNames[sock-1]||('Socket '+sock))+' '+(isOn?dict.act_on:dict.act_off);
   }
   if(f>=1&&f<=6){ /* 单插座切换 */
-    return (S.socketNames[f-1]||('Socket '+f))+' '+dict.act_toggle;
+    return esc(S.socketNames[f-1]||('Socket '+f))+' '+dict.act_toggle;
   }
   var n=btnFuncMap[f.toString()]||'Unknown';
   if(curLang==='zh'&&funcNamesZH[n])n=funcNamesZH[n];
@@ -1480,7 +1480,7 @@ function showAddButtonEvent(){
   html+='<div class="form-group"><label class="form-label" data-i18n="btn_dev_label">Device</label>';
   html+='<select class="form-select" id="btnEvtDevice">';
   html+='<option value="0">'+dict.all_sockets+'</option>';
-  for(var i=1;i<=6;i++)html+='<option value="'+i+'">'+(S.socketNames[i-1]||('Socket '+i))+'</option>';
+  for(var i=1;i<=6;i++)html+='<option value="'+i+'">'+esc(S.socketNames[i-1]||('Socket '+i))+'</option>';
   html+='<option value="7">'+dict.led+'</option>';
   html+='<option value="8">'+dict.child_lock+'</option>';
   html+='</select></div>';

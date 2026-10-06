@@ -1,6 +1,9 @@
 import http.server
 import os
+import urllib.parse
 
+# 遗留的极简手动分发脚本，正式方案是 ../ota-server/server.py（带 webhook、校验与版本目录）。
+# self.path 会直接拼成磁盘路径，必须限制在 DIR 内，否则 /../../etc/passwd 可读任意文件。
 PORT = 8080
 DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -8,10 +11,11 @@ os.chdir(DIR)
 
 class OTAHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        path = self.path.lstrip('/')
-        if not path or path == '/':
-            path = 'ota.bin'
-        if not os.path.exists(path):
+        name = urllib.parse.unquote(self.path).lstrip('/')
+        if not name or name == '/':
+            name = 'ota.bin'
+        path = os.path.realpath(os.path.join(DIR, name))
+        if not path.startswith(DIR + os.sep) or not os.path.isfile(path):
             self.send_error(404)
             return
         size = os.path.getsize(path)

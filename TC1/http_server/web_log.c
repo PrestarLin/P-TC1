@@ -61,6 +61,7 @@ char* GetLogRecord(int since)
 void WebLog(const char *M, ...)
 {
     char* buff = (char*)malloc(sizeof(char)*LOG_LEN);
+    if (!buff) return;
 
     time_t now = time(NULL) + 28800;
     struct tm tm_r;

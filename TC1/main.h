@@ -214,6 +214,9 @@ void CreateNightModeTask(int hour, int minute, int on);
 void SetFactoryUserDefaults(user_config_t *userConfigDefault);
 void AppContextUpdateInit(void);
 void AppContextUpdate(system_config_t *config);
+/* 原地清洗设备/插座名：status 与 power 负载是单引号伪 JSON，名字里出现 ' " \ ,
+ * 会让前端整个 JSON.parse 失败，页面拿不到任何状态。 */
+void UserNameSanitize(char *name);
 
 
 #endif

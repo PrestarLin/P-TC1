@@ -245,17 +245,21 @@ static int HttpSetSocketName(httpd_request_t *req) {
 
     int buf_size = 70;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
-    int index;
+    int index = -1;
     char name[64] = {0};
-    if (sscanf(buf, "%d %63s", &index, name) < 2 || name[0] == '\0') {
+    /* %63s 会在空格处截断，"Living Room" 存成 "Living"；名字允许空格，
+     * 故取首 token 之后的整行(遇到 CR/LF 收尾) */
+    if (sscanf(buf, "%d %63[^\r\n]", &index, name) < 2 || name[0] == '\0') {
         snprintf(name, sizeof(name), "Socket %d", index + 1);
     }
     if (index < 0 || index >= SOCKET_NUM) { free(buf); return kParamErr; }
     strncpy(user_config->socket_names[index], name, sizeof(user_config->socket_names[index]) - 1);
     user_config->socket_names[index][sizeof(user_config->socket_names[index]) - 1] = '\0';
+    UserNameSanitize(user_config->socket_names[index]);
     AppContextUpdate(sys_config);
     registerMqttEvents();
     send_http("OK", 2, exit, &err);
@@ -270,13 +274,14 @@ static int HttpSetButtonEvent(httpd_request_t *req) {
 
     int buf_size = 10;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
-    int index;
-    int func;
-    int longPress;
-    sscanf(buf, "%d %d %d", &index, &func, &longPress);
+    int index = -1;
+    int func = 0;
+    int longPress = 0;
+    if (sscanf(buf, "%d %d %d", &index, &func, &longPress) != 3) { err = kParamErr; goto exit; }
     if (index < 0 || index >= maxNameLen) { free(buf); return kParamErr; }
     
     // Safety底线：默认任务5秒配网、10秒恢复出厂，不允许修改
@@ -499,13 +504,16 @@ static int HttpSetDeviceName(httpd_request_t *req) {
 
     int buf_size = 70;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
-    char name[64];
-    sscanf(buf, "%63s", name);
+    char name[64] = {0};
+    /* 同 HttpSetSocketName: %63s 会把带空格的主机名截断 */
+    sscanf(buf, "%63[^\r\n]", name);
     strncpy(sys_config->micoSystemConfig.name, name, sizeof(sys_config->micoSystemConfig.name) - 1);
     sys_config->micoSystemConfig.name[sizeof(sys_config->micoSystemConfig.name) - 1] = '\0';
+    UserNameSanitize(sys_config->micoSystemConfig.name);
     AppContextUpdate(sys_config);
     registerMqttEvents();
     send_http("OK", 2, exit, &err);
@@ -520,11 +528,12 @@ static int HttpSetChildLock(httpd_request_t *req) {
 
     int buf_size = 32;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
-    int enableLock;
-    sscanf(buf, "%d", &enableLock);
+    int enableLock = 0;
+    if (sscanf(buf, "%d", &enableLock) != 1) { err = kParamErr; goto exit; }
     user_config->child_lock = enableLock;
     childLockEnabled = enableLock;
     AppContextUpdate(sys_config);
@@ -538,9 +547,12 @@ static int HttpSetChildLock(httpd_request_t *req) {
 
 static int HttpGetPowerInfo(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    char buf[16];
-    err = httpd_get_data(req, buf, 16);
-    require_noerr(err, exit);
+    char buf[16] = {0};
+    /* 无 body 的裸 GET 不能调 httpd_get_data，否则会在 select 上死等 5 秒超时 */
+    if (req->body_nbytes > 0) {
+        err = httpd_get_data(req, buf, sizeof(buf));
+        require_noerr(err, exit);
+    }
 
     int idx = 0;
     sscanf(buf, "%d", &idx);
@@ -809,8 +821,12 @@ static int HttpSetWifiOffline(httpd_request_t *req) {
 static int HttpSetMqttConfig(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    int buf_size = 97;
+    /* body 形如 "<ip> <port> <user> <pwd>"，三段字符串各可达 31 字节。
+     * 原来的 97 装不下满配(约 107)，httpd_get_data 会把超出部分当残留字节返回，
+     * 满配保存直接失败。 */
+    int buf_size = 3 * SETTING_MQTT_STRING_LENGTH_MAX + 16;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -859,14 +875,12 @@ static int HttpSetMqttReportFreq(httpd_request_t *req) {
 
 static int HttpGetMqttReportFreq(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    int buf_size = 97;
-    char *freq = malloc(buf_size);
+    char freq[16] = {0};
     sprintf(freq, "%d", MQTT_REPORT_FREQ);
 
     send_http(freq, strlen(freq), exit, &err);
 
     exit:
-    if (freq) free(freq);
     return err;
 }
 
@@ -1018,22 +1032,21 @@ static int HttpClearScheduledTasks(httpd_request_t *req) {
 
 static int LedStatus(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    int buf_size = 97;
-    char *led = malloc(buf_size);
+    char led[16] = {0};
     sprintf(led, "%d", MQTT_LED_ENABLED);
 
     send_http(led, strlen(led), exit, &err);
 
     exit:
-    if (led) free(led);
     return err;
 }
 
 static int LedSetEnabled(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    int buf_size = 97;
+    int buf_size = 16;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -1057,9 +1070,10 @@ static int LedSetEnabled(httpd_request_t *req) {
 static int TotalSocketSetEnabled(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    int buf_size = 97;
+    int buf_size = 16;
     int on;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
@@ -1114,11 +1128,20 @@ static int HttpSetNightMode(httpd_request_t *req) {
     require_noerr(err, exit);
 
     int enabled = 0, start_h = 0, start_m = 0, end_h = 0, end_m = 0;
-    sscanf(buf, "%d %d:%d %d:%d", &enabled, &start_h, &start_m, &end_h, &end_m);
+    if (sscanf(buf, "%d %d:%d %d:%d", &enabled, &start_h, &start_m, &end_h, &end_m) != 5) {
+        err = kParamErr;
+        goto exit;
+    }
+    /* 越界时分原本靠 %1440 静默折回成另一个时刻，且与下面 CreateNightModeTask
+     * 收到的原始时分不一致(存的多值、调的少值)；先钳制到合法区间再落库 */
+    if (start_h < 0) start_h = 0; else if (start_h > 23) start_h = 23;
+    if (start_m < 0) start_m = 0; else if (start_m > 59) start_m = 59;
+    if (end_h < 0) end_h = 0; else if (end_h > 23) end_h = 23;
+    if (end_m < 0) end_m = 0; else if (end_m > 59) end_m = 59;
 
     user_config->night_mode_enabled = enabled ? 1 : 0;
-    user_config->night_mode_start = (start_h * 60 + start_m) % 1440;
-    user_config->night_mode_end = (end_h * 60 + end_m) % 1440;
+    user_config->night_mode_start = start_h * 60 + start_m;
+    user_config->night_mode_end = end_h * 60 + end_m;
     AppContextUpdate(sys_config);
 
     RemoveNightModeTasks();

@@ -244,6 +244,12 @@ bool user_config_migrate(void) {
     return false;
 }
 
+void UserNameSanitize(char *name) {
+    for (char *p = name; *p; p++) {
+        if (*p == '\'' || *p == '"' || *p == '\\' || *p == ',') *p = '_';
+    }
+}
+
 static int GetMinutesSinceMidnight(void) {
     time_t now = time(NULL);
     struct tm tm_r;
@@ -398,11 +404,13 @@ int application_start(void) {
     if (sys_config->micoSystemConfig.name[0] == 1) {
         sprintf(sys_config->micoSystemConfig.name, ZTC1_NAME, str_mac + 8);
     }
+    UserNameSanitize(sys_config->micoSystemConfig.name);
 
     for (i = 0; i < SOCKET_NUM; i++) {
         if (user_config->socket_names[i][0] == '\0') {
             snprintf(user_config->socket_names[i], SOCKET_NAME_LENGTH, "Socket %d", i + 1);
         }
+        UserNameSanitize(user_config->socket_names[i]);
     }
 
     tc1_log("device name:%s",
