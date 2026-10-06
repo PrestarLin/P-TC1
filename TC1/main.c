@@ -251,7 +251,8 @@ void UserNameSanitize(char *name) {
 }
 
 static int GetMinutesSinceMidnight(void) {
-    time_t now = time(NULL);
+    /* 设备未设 TZ，localtime 即 UTC；与 CreateNightModeTask/user_rtc 一致按北京时间算 */
+    time_t now = time(NULL) + 28800;
     struct tm tm_r;
     struct tm *t = localtime_r(&now, &tm_r);
     if (!t) return -1;
@@ -307,6 +308,33 @@ void CreateNightModeTask(int hour, int minute, int on) {
     AddTask(task);
     TaskUnlock();
     AppContextUpdate(sys_config);
+}
+
+/* 按当前存储的时段重建夜间模式的两个每日任务；开启时若此刻已落在时段内，
+ * 说明起点事件已错过，先补执行一次，否则要等到明天这个点才生效。
+ * 未对时(rtc_init != 1)时不做即时判断：1970 基准算出的分钟会误判。 */
+void NightModeReapply(void) {
+    int start = user_config->night_mode_start;
+    int end = user_config->night_mode_end;
+
+    if (user_config->night_mode_enabled && rtc_init == 1) {
+        int now = GetMinutesSinceMidnight();
+        bool in_window = (now >= 0) && ((start <= end) ? (now >= start && now < end)
+                                                       : (now >= start || now < end));
+        if (in_window) {
+            /* 与 timed_task.c 的 SWITCH_LED_ENABLE(on=0) 分支一致；随后的
+             * Remove/Create 各自会 AppContextUpdate，把该状态一并落盘 */
+            MQTT_LED_ENABLED = 0;
+            UserLedSet(0);
+            UserMqttSendLedState();
+        }
+    }
+
+    RemoveNightModeTasks();
+    if (!user_config->night_mode_enabled) return;
+
+    CreateNightModeTask(start / 60, start % 60, 0);
+    CreateNightModeTask(end / 60, end % 60, 1);
 }
 
 int application_start(void) {

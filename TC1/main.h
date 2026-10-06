@@ -211,6 +211,7 @@ extern int childLockEnabled;
 
 void RemoveNightModeTasks(void);
 void CreateNightModeTask(int hour, int minute, int on);
+void NightModeReapply(void);
 void SetFactoryUserDefaults(user_config_t *userConfigDefault);
 void AppContextUpdateInit(void);
 void AppContextUpdate(system_config_t *config);

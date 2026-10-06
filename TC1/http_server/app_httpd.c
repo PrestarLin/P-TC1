@@ -1132,8 +1132,8 @@ static int HttpSetNightMode(httpd_request_t *req) {
         err = kParamErr;
         goto exit;
     }
-    /* 越界时分原本靠 %1440 静默折回成另一个时刻，且与下面 CreateNightModeTask
-     * 收到的原始时分不一致(存的多值、调的少值)；先钳制到合法区间再落库 */
+    /* 越界时分原本靠 %1440 静默折回成另一个时刻，且与下面 NightModeReapply
+     * 取用的分钟数不一致；先钳制到合法区间再落库 */
     if (start_h < 0) start_h = 0; else if (start_h > 23) start_h = 23;
     if (start_m < 0) start_m = 0; else if (start_m > 59) start_m = 59;
     if (end_h < 0) end_h = 0; else if (end_h > 23) end_h = 23;
@@ -1144,11 +1144,7 @@ static int HttpSetNightMode(httpd_request_t *req) {
     user_config->night_mode_end = end_h * 60 + end_m;
     AppContextUpdate(sys_config);
 
-    RemoveNightModeTasks();
-    if (enabled) {
-        CreateNightModeTask(start_h, start_m, 0);
-        CreateNightModeTask(end_h, end_m, 1);
-    }
+    NightModeReapply();
 
     send_http("OK", 2, exit, &err);
     exit:
