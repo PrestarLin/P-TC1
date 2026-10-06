@@ -14,7 +14,10 @@
 
 #define TELNET_PORT 23
 #define TELNET_LINE_MAX 256
-#define TELNET_IDLE_TIMEOUT_SEC (10 * 60) /* disconnect idle clients so the next one can connect */
+/* 每个终端最多空闲 5 分钟(可被下一位使用者连接), 不会再有单个掉线终端长期占满控制台 */
+#define TELNET_IDLE_TIMEOUT_SEC (5 * 60)
+/* 最多同时服务 3 个终端; 单线程 select 多路复用, 任一终端掉线不影响其他人 */
+#define TELNET_MAX_CLIENTS 3
 
 /* telnet negotiation (IAC) bytes */
 #define T_IAC  0xFF
@@ -157,90 +160,118 @@ static void telnet_process(int sock, char *line)
     }
 }
 
-static void telnet_serve(int sock)
+typedef struct {
+    int sock;
+    int len;
+    int iac;
+    unsigned char iac_cmd;
+    time_t last_active;
+    char line[TELNET_LINE_MAX];
+} telnet_client_t;
+
+static telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
+
+static int telnet_client_slot(void)
+{
+    int i;
+    for (i = 0; i < TELNET_MAX_CLIENTS; i++) {
+        if (telnet_clients[i].sock < 0) return i;
+    }
+    return -1;
+}
+
+static void telnet_client_close(telnet_client_t *c)
+{
+    if (c->sock >= 0) close(c->sock);
+    c->sock = -1;
+    c->len = 0;
+    c->iac = 0;
+    tc1_log("telnet: client disconnected");
+}
+
+/* 处理一个终端的一个输入字节(IAC 协商+行编辑); 会话状态全部在 c 内 */
+static void telnet_feed(telnet_client_t *c, unsigned char ch)
+{
+    if (c->iac == 1) {             /* IAC <cmd> */
+        c->iac_cmd = ch;
+        c->iac = 2;
+        return;
+    }
+    if (c->iac == 2) {             /* IAC <cmd> <opt> */
+        unsigned char r[3];
+        if (c->iac_cmd == T_DO && ch == T_ECHO) {
+            r[0] = T_IAC; r[1] = T_WILL; r[2] = T_ECHO; /* client asks us to echo: accept */
+            telnet_send_all(c->sock, (char *) r, 3);
+        } else if (c->iac_cmd == T_WILL && ch == T_ECHO) {
+            r[0] = T_IAC; r[1] = T_DONT; r[2] = T_ECHO; /* client offers to echo: refuse, server echoes */
+            telnet_send_all(c->sock, (char *) r, 3);
+        } else if (c->iac_cmd == T_WILL) {
+            r[0] = T_IAC; r[1] = T_DONT; r[2] = ch; /* refuse all other options */
+            telnet_send_all(c->sock, (char *) r, 3);
+        } else if (c->iac_cmd == T_DO) {
+            r[0] = T_IAC; r[1] = T_WONT; r[2] = ch;
+            telnet_send_all(c->sock, (char *) r, 3);
+        }
+        c->iac = 0;
+        return;
+    }
+    if (ch == T_IAC) { c->iac = 1; return; }
+
+    if (ch == '\r') return;
+    if (ch == '\n') {
+        telnet_send_all(c->sock, "\r\n", 2);
+        c->line[c->len] = '\0';
+        telnet_process(c->sock, c->line);
+        c->len = 0;
+        telnet_send_all(c->sock, "tc1> ", 5);
+        return;
+    }
+    if (ch == 0x08 || ch == 0x7F) { /* backspace */
+        if (c->len > 0) {
+            c->len--;
+            telnet_send_all(c->sock, "\b \b", 3);
+        }
+        return;
+    }
+    if (ch < 0x20) return;
+    if (c->len < TELNET_LINE_MAX - 1) {
+        c->line[c->len++] = (char) ch;
+        telnet_send_all(c->sock, (char *) &ch, 1); /* echo */
+    }
+}
+
+static void telnet_client_start(int sock)
 {
     static const char banner[] = "\r\nP-TC1 telnet console\r\nType 'help' for a list of commands\r\ntc1> ";
-    char buf[128];
-    char line[TELNET_LINE_MAX];
-    int len = 0, iac = 0, n, i;
-    unsigned char iac_cmd = 0;
-    fd_set readfds;
-    struct timeval tv;
-
+    int slot = telnet_client_slot();
+    if (slot < 0) {
+        /* 终端位已满: 明确拒绝并立即关闭, 不占 backlog 不放任挂起 */
+        static const char busy[] = "\r\nP-TC1 telnet console busy, try again later\r\n";
+        telnet_send_all(sock, busy, sizeof(busy) - 1);
+        close(sock);
+        return;
+    }
+    telnet_client_t *c = &telnet_clients[slot];
+    c->sock = sock;
+    c->len = 0;
+    c->iac = 0;
+    c->iac_cmd = 0;
+    c->last_active = time(NULL);
     telnet_send_all(sock, (const char *) telnet_will_echo, sizeof(telnet_will_echo));
     telnet_send_all(sock, banner, sizeof(banner) - 1);
-
-    while (1) {
-        FD_ZERO(&readfds);
-        FD_SET(sock, &readfds);
-        tv.tv_sec = TELNET_IDLE_TIMEOUT_SEC;
-        tv.tv_usec = 0;
-        if (select(sock + 1, &readfds, NULL, NULL, &tv) <= 0) break; /* timeout or error */
-
-        n = recv(sock, buf, sizeof(buf), 0);
-        if (n <= 0) break;
-
-        for (i = 0; i < n; i++) {
-            unsigned char c = (unsigned char) buf[i];
-
-            if (iac == 1) {            /* IAC <cmd> */
-                iac_cmd = c;
-                iac = 2;
-                continue;
-            }
-            if (iac == 2) {            /* IAC <cmd> <opt> */
-                unsigned char r[3];
-                if (iac_cmd == T_DO && c == T_ECHO) {
-                    r[0] = T_IAC; r[1] = T_WILL; r[2] = T_ECHO; /* client asks us to echo: accept */
-                    telnet_send_all(sock, (char *) r, 3);
-                } else if (iac_cmd == T_WILL && c == T_ECHO) {
-                    r[0] = T_IAC; r[1] = T_DONT; r[2] = T_ECHO; /* client offers to echo: refuse, server echoes */
-                    telnet_send_all(sock, (char *) r, 3);
-                } else if (iac_cmd == T_WILL) {
-                    r[0] = T_IAC; r[1] = T_DONT; r[2] = c; /* refuse all other options */
-                    telnet_send_all(sock, (char *) r, 3);
-                } else if (iac_cmd == T_DO) {
-                    r[0] = T_IAC; r[1] = T_WONT; r[2] = c;
-                    telnet_send_all(sock, (char *) r, 3);
-                }
-                iac = 0;
-                continue;
-            }
-            if (c == T_IAC) { iac = 1; continue; }
-
-            if (c == '\r') continue;
-            if (c == '\n') {
-                telnet_send_all(sock, "\r\n", 2);
-                line[len] = '\0';
-                telnet_process(sock, line);
-                len = 0;
-                telnet_send_all(sock, "tc1> ", 5);
-                continue;
-            }
-            if (c == 0x08 || c == 0x7F) { /* backspace */
-                if (len > 0) {
-                    len--;
-                    telnet_send_all(sock, "\b \b", 3);
-                }
-                continue;
-            }
-            if (c < 0x20) continue;
-            if (len < TELNET_LINE_MAX - 1) {
-                char ch = (char) c;
-                line[len++] = ch;
-                telnet_send_all(sock, &ch, 1); /* echo */
-            }
-        }
-    }
+    tc1_log("telnet: client connected");
 }
 
 static void telnet_thread(mico_thread_arg_t arg)
 {
-    int listen_sock = -1, client = -1;
+    int listen_sock = -1, i;
     int one = 1;
     struct sockaddr_in addr;
     struct sockaddr_in from;
     socklen_t from_len;
+    char buf[128];
+
+    for (i = 0; i < TELNET_MAX_CLIENTS; i++) telnet_clients[i].sock = -1;
 
     listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_sock < 0) {
@@ -257,7 +288,7 @@ static void telnet_thread(mico_thread_arg_t arg)
         tc1_log("ERROR: telnet bind port %d failed", TELNET_PORT);
         goto exit;
     }
-    if (listen(listen_sock, 1) < 0) {
+    if (listen(listen_sock, TELNET_MAX_CLIENTS + 1) < 0) {
         tc1_log("ERROR: telnet listen failed");
         goto exit;
     }
@@ -265,21 +296,58 @@ static void telnet_thread(mico_thread_arg_t arg)
     tc1_log("telnet console listening on port %d", TELNET_PORT);
 
     while (1) {
-        from_len = sizeof(from);
-        client = accept(listen_sock, (struct sockaddr *) &from, &from_len);
-        if (client < 0) {
-            mico_rtos_thread_sleep(1); /* avoid busy loop on error */
-            continue;
+        fd_set readfds;
+        struct timeval tv;
+        int maxfd = listen_sock;
+
+        FD_ZERO(&readfds);
+        FD_SET(listen_sock, &readfds);
+        for (i = 0; i < TELNET_MAX_CLIENTS; i++) {
+            if (telnet_clients[i].sock >= 0) {
+                FD_SET(telnet_clients[i].sock, &readfds);
+                if (telnet_clients[i].sock > maxfd) maxfd = telnet_clients[i].sock;
+            }
         }
-        tc1_log("telnet: client connected");
-        telnet_serve(client);
-        close(client);
-        client = -1;
-        tc1_log("telnet: client disconnected");
+
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        select(maxfd + 1, &readfds, NULL, NULL, &tv);
+
+        if (FD_ISSET(listen_sock, &readfds)) {
+            from_len = sizeof(from);
+            int client = accept(listen_sock, (struct sockaddr *) &from, &from_len);
+            if (client >= 0) telnet_client_start(client);
+        }
+
+        for (i = 0; i < TELNET_MAX_CLIENTS; i++) {
+            telnet_client_t *c = &telnet_clients[i];
+            if (c->sock < 0 || !FD_ISSET(c->sock, &readfds)) continue;
+            int n = recv(c->sock, buf, sizeof(buf), 0);
+            if (n <= 0) {
+                telnet_client_close(c);
+                continue;
+            }
+            c->last_active = time(NULL);
+            int j;
+            for (j = 0; j < n; j++) telnet_feed(c, (unsigned char) buf[j]);
+        }
+
+        /* 空闲终端自动断开, 释放终端位 */
+        time_t now = time(NULL);
+        for (i = 0; i < TELNET_MAX_CLIENTS; i++) {
+            telnet_client_t *c = &telnet_clients[i];
+            if (c->sock >= 0 && now > c->last_active && now - c->last_active > TELNET_IDLE_TIMEOUT_SEC) {
+                static const char bye[] = "\r\nidle timeout, bye\r\n";
+                telnet_send_all(c->sock, bye, sizeof(bye) - 1);
+                telnet_client_close(c);
+            }
+        }
     }
 
     exit:
-    if (client >= 0) close(client);
+    for (i = 0; i < TELNET_MAX_CLIENTS; i++) {
+        if (telnet_clients[i].sock >= 0) close(telnet_clients[i].sock);
+    }
     if (listen_sock >= 0) close(listen_sock);
     mico_rtos_delete_thread(NULL);
 }

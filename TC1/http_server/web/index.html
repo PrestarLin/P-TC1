@@ -553,21 +553,27 @@ menuBtn.addEventListener('click',function(){sidebar.classList.toggle('open')});
 window.addEventListener('pagehide',function(){_stopLogTimer();});
 
 /* ── HTTP helpers ── */
-function api(u,cb){
-  var x=new XMLHttpRequest();x.open('GET',u,true);x.timeout=8000;
-  x.onreadystatechange=function(){if(x.readyState===4){if(x.status===200)cb(null,x.responseText);else cb(new Error('HTTP '+x.status));}};
-  x.onerror=function(){cb(new Error('Network'))};x.ontimeout=function(){cb(new Error('Timeout'))};x.send();
+/* 设备 httpd 是单连接串行服务, 并发请求/中途被放弃的请求会把服务器卡死;
+ * 故页面所有常规请求走同一队列串行发出, 同一时刻最多一个在途。 */
+var _httpQ=[],_httpBusy=false;
+function _httpNext(){
+  if(!_httpQ.length){_httpBusy=false;return;}
+  _httpBusy=true;
+  _httpQ.shift()(function(){setTimeout(_httpNext,50);});
 }
-function post(u,body,cb){
-  var x=new XMLHttpRequest();x.open('POST',u,true);x.timeout=10000;
-  x.onreadystatechange=function(){if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);};
-  x.onerror=function(){cb(new Error('Network'))};x.send(body);
+function _httpDo(method,u,body,cb,timeout){
+  _httpQ.push(function(fin){
+    var x=new XMLHttpRequest();x.open(method,u,true);x.timeout=timeout;
+    var done=false,end=function(err,txt){if(done)return;done=true;fin();if(cb)cb(err,txt);};
+    x.onreadystatechange=function(){if(x.readyState===4)end(x.status===200?null:new Error('HTTP '+x.status),x.responseText);};
+    x.onerror=function(){end(new Error('Network'))};x.ontimeout=function(){end(new Error('Timeout'))};
+    x.send(body||null);
+  });
+  if(!_httpBusy)_httpNext();
 }
-function del(u,cb){
-  var x=new XMLHttpRequest();x.open('DELETE',u,true);x.timeout=10000;
-  x.onreadystatechange=function(){if(x.readyState===4)cb(x.status===200?null:new Error('HTTP '+x.status),x.responseText);};
-  x.onerror=function(){cb(new Error('Network'))};x.send();
-}
+function api(u,cb){_httpDo('GET',u,null,cb,8000);}
+function post(u,body,cb){_httpDo('POST',u,body,cb,10000);}
+function del(u,cb){_httpDo('DELETE',u,null,cb,10000);}
 function p(s){try{return JSON.parse(s.replace(/'/g,'"'));}catch(e){return null;}}
 
 /* ── Toggle helpers ── */

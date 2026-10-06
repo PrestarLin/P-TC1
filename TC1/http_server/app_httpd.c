@@ -1330,3 +1330,69 @@ int AppHttpdStop() {
     exit:
     return err;
 }
+
+/* ── httpd 看门狗 ──
+ * SDK httpd 是单线程串行服务: 阻塞 send 遇到停止读取的对端(手机浏览器休眠/
+ * 切后台、网络半死)会永久卡住, 个别错误路径还会让线程自我挂起——表现都是
+ * "网页永久失联, MQTT/按键照常"。这里每 30s 本地探活一次(127.0.0.1:80),
+ * 连续 2 次无响应即重启 httpd 线程(httpd_stop 内部会强制清理卡死的线程)。 */
+#define HTTPD_WD_INTERVAL_SEC 30
+#define HTTPD_WD_PROBE_TIMEOUT_SEC 8
+
+static bool HttpdProbe(void) {
+    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock < 0) return false;
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(0x7F000001); /* 127.0.0.1 */
+    addr.sin_port = htons(80);
+    bool ok = false;
+    if (connect(sock, (struct sockaddr *) &addr, sizeof(addr)) == 0) {
+        static const char probe[] = "GET /led HTTP/1.0\r\n\r\n";
+        if (send(sock, probe, sizeof(probe) - 1, 0) > 0) {
+            fd_set rf;
+            struct timeval tv;
+            tv.tv_sec = HTTPD_WD_PROBE_TIMEOUT_SEC;
+            tv.tv_usec = 0;
+            FD_ZERO(&rf);
+            FD_SET(sock, &rf);
+            if (select(sock + 1, &rf, NULL, NULL, &tv) > 0) {
+                char buf[32];
+                if (recv(sock, buf, sizeof(buf), 0) > 0) ok = true;
+            }
+        }
+    }
+    close(sock);
+    return ok;
+}
+
+static void HttpdWatchdogThread(mico_thread_arg_t arg) {
+    int fail = 0;
+    while (1) {
+        mico_rtos_thread_sleep(HTTPD_WD_INTERVAL_SEC);
+        /* OTA(网页上传/MQTT/telnet 触发)期间 httpd 忙于长请求, 不算故障 */
+        if (ota_progress >= 0 && ota_progress < 100) {
+            fail = 0;
+            continue;
+        }
+        if (HttpdProbe()) {
+            fail = 0;
+            continue;
+        }
+        if (++fail < 2) continue;
+        fail = 0;
+        tc1_log("WARNING: httpd not responding, restarting web server");
+        AppHttpdStop();
+        mico_rtos_thread_sleep(1);
+        AppHttpdStart();
+        tc1_log("httpd restarted");
+    }
+}
+
+void HttpdWatchdogStart(void) {
+    if (mico_rtos_create_thread(NULL, MICO_APPLICATION_PRIORITY, "httpd_wd",
+                                (mico_thread_function_t) HttpdWatchdogThread, 0x800, 0) != kNoErr) {
+        http_log("ERROR: httpd watchdog thread create failed");
+    }
+}

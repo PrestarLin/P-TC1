@@ -90,3 +90,6 @@ extern int AppHttpdStart(void);
 
 extern int AppHttpdStop();
 
+/* 启动 httpd 看门狗(开机调用一次): 检测网页服务器卡死并自动重启 */
+extern void HttpdWatchdogStart(void);
+
