@@ -33,7 +33,8 @@ $(NAME)_SOURCES := main.c\
 				   user_power.c\
 				   timed_task/timed_task.c\
 				   http_server/web_log.c\
-				   http_server/app_httpd.c
+				   http_server/app_httpd.c\
+				   telnet_server/user_telnet.c
 				   
 $(NAME)_COMPONENTS := protocols/SNTP\
 					protocols/mqtt\
