@@ -353,6 +353,7 @@ int application_start(void) {
 
     TaskModuleInit();
     LogMutexInit();
+    UserMqttMutexInit(); /* 需在首次可能到来的 wifi connected/http 事件前建好 mqtt 重建锁 */
     tc1_log("start version[%s]", VERSION);
 
     uint8_t mac[8];

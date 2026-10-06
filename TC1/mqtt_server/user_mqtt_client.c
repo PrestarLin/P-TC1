@@ -57,6 +57,11 @@ Network n;  // socket network for mqtt client
 volatile bool mqtt_thread_should_exit = false;
 volatile bool mqtt_thread_running = false; /* 线程存活标志：Init 据此判断是否需回收重建 */
 
+/* Init 会同时被 wifi 事件线程(连接成功)与 http 线程(保存配置后重建)调用，
+ * 回收重建(等旧线程退出→销毁队列→建新线程)必须串行，否则可能起两个 client 线程 */
+static mico_mutex_t mqtt_init_mutex;
+static bool mqtt_init_mutex_ready = false;
+
 static mico_worker_thread_t mqtt_client_worker_thread; /* Worker thread to manage send/recv events */
 //static mico_timed_event_t mqtt_client_send_event;
 
@@ -105,6 +110,10 @@ void UserMqttTimerFunc(void *arg) {
     }
 }
 
+void UserMqttMutexInit(void) {
+    mqtt_init_mutex_ready = ( mico_rtos_init_mutex( &mqtt_init_mutex ) == kNoErr );
+}
+
 OSStatus UserMqttDeInit(void) {
     OSStatus err = kNoErr;
 
@@ -129,16 +138,20 @@ return;
 /* Application entrance */
 OSStatus UserMqttInit(void) {
     OSStatus err = kNoErr;
+    bool locked = mqtt_init_mutex_ready;
+    if (locked) mico_rtos_lock_mutex(&mqtt_init_mutex);
     if (mqtt_msg_send_queue != NULL) {
         /* 已初始化：线程正常运行则直接返回；线程已退出(DeInit/异常退出)则回收重建 */
         if (mqtt_thread_running && !mqtt_thread_should_exit)
-            return kNoErr;
+            goto exit;
         /* 等待旧线程真正退出(其 select 最长阻塞 5s)，通常数秒内完成 */
         for (int i = 0; i < 70 && mqtt_thread_running; i++)
             mico_rtos_thread_msleep(100);
         if (mqtt_thread_running) {
             mqtt_log("ERROR: old mqtt thread still exiting, defer init");
-            return kGeneralErr;
+            mqtt_thread_should_exit = false; /* 撤销退出请求，旧连接继续按原配置工作 */
+            err = kGeneralErr;
+            goto exit;
         }
         clear_mqtt_msg_send_queue();
         mico_rtos_deinit_queue(&mqtt_msg_send_queue);
@@ -179,6 +192,7 @@ OSStatus UserMqttInit(void) {
     }
 
     exit:
+    if (locked) mico_rtos_unlock_mutex(&mqtt_init_mutex);
     if (kNoErr != err)mqtt_log("ERROR2, app thread exit err: %d kNoErr[%d]", err, kNoErr);
     return err;
 }

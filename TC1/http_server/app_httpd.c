@@ -834,8 +834,13 @@ static int HttpSetMqttConfig(httpd_request_t *req) {
     sscanf(buf, "%31s %d %31s %31s", MQTT_SERVER, &MQTT_SERVER_PORT, MQTT_SERVER_USR, MQTT_SERVER_PWD);
     AppContextUpdate(sys_config);
     if (!(MQTT_SERVER[0] < 0x20 || MQTT_SERVER[0] > 0x7f || MQTT_SERVER_PORT < 1)){
-    err = UserMqttInit();
-    require_noerr(err, exit);
+        /* 线程在跑时 UserMqttInit 会直接返回，新配的地址/端口/账号要等重启才生效。
+         * 先请求退出，Init 才会等旧线程结束并用新配置重建。重建失败不改 HTTP 结果：
+         * 配置已落盘，最差退回旧行为(重启后生效)。 */
+        UserMqttDeInit();
+        OSStatus mqtt_err = UserMqttInit();
+        if (mqtt_err != kNoErr)
+            http_log("WARN: mqtt rebuild err=%d, keep running with old config", mqtt_err);
     }
     send_http("OK", 2, exit, &err);
 

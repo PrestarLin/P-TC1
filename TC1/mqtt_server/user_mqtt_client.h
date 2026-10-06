@@ -21,6 +21,8 @@
 #define MQTT_REPORT_FREQ  user_config->mqtt_report_freq
 #define MQTT_LED_ENABLED  user_config->power_led_enabled
 
+extern void UserMqttMutexInit(void);
+
 extern OSStatus UserMqttInit(void);
 extern OSStatus UserMqttDeInit(void);
 
