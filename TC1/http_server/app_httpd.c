@@ -593,8 +593,11 @@ static int HttpGetPowerInfo(httpd_request_t *req) {
      * 原写法跳过声明语句到达 free()，用的是未初始化的栈槽(随机地址 free → httpd 线程挂掉)。 */
     char *socket_names = NULL;
     char buf[16] = {0};
-    /* 无 body 的裸 GET 不能调 httpd_get_data，否则会在 select 上死等 5 秒超时 */
-    if (req->body_nbytes > 0) {
+    /* 仅 POST 才读 body。不能用 body_nbytes 判断: 此刻请求头还没解析, body_nbytes 恒为 0,
+     * 会跳过读取把 body("0")留在 socket 里——keep-alive 下污染下一个请求行, 页面刷新后
+     * /status、/log 连续 500、数据不再更新。裸 GET 也不读: 无 body 时 httpd_get_data
+     * 会在 select 上白等 5 秒超时。 */
+    if (req->type == HTTPD_REQ_TYPE_POST) {
         err = httpd_get_data(req, buf, sizeof(buf));
         require_noerr(err, fail);
     }
