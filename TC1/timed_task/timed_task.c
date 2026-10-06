@@ -280,8 +280,9 @@ bool DelTask(int time)
 
 void ProcessTask()
 {
+    char fname[FUNC_NAME_BUF_SIZE];
     task_log("process task time[%ld] operation[%s] on[%d]",
-        user_config->task_top->prs_time, get_func_name(user_config->task_top->operation), user_config->task_top->on);
+        user_config->task_top->prs_time, get_func_name(user_config->task_top->operation, fname, sizeof(fname)), user_config->task_top->on);
 
     int op = user_config->task_top->operation;
     int on_val = user_config->task_top->on;

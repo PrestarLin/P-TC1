@@ -29,9 +29,9 @@ bool RelayOut(void) {
     return false;
 }
 
-char* get_func_name(char func_code) {
-    /* "Toggle Socket 6 "(16) + 插座名最长 SOCKET_NAME_LENGTH-1(63) + NUL = 80 */
-    static char buffer[80];
+/* 名称写入调用者缓冲：原静态缓冲会被按键线程与定时任务线程同时写，日志内容串台。
+ * 最长 "Toggle Socket 6 "(16) + 插座名 SOCKET_NAME_LENGTH-1(63) + NUL = FUNC_NAME_BUF_SIZE(80) */
+char* get_func_name(char func_code, char *buf, int buf_len) {
     switch (func_code) {
         case SWITCH_ALL_SOCKETS:
             return "Toggle All Sockets";
@@ -45,9 +45,9 @@ char* get_func_name(char func_code) {
         case SWITCH_SOCKET_4:
         case SWITCH_SOCKET_5:
         case SWITCH_SOCKET_6:
-            snprintf(buffer, sizeof(buffer), "Toggle Socket %d %s", func_code - 1,
+            snprintf(buf, buf_len, "Toggle Socket %d %s", func_code - 1,
                     user_config->socket_names[func_code - 1]);
-            return buffer;
+            return buf;
         case SWITCH_LED_ENABLE:
             return "Toggle LED";
         case SWITCH_LED_ON:
@@ -223,7 +223,8 @@ static void KeyEventHandler(int num, boolean longPress) {
         UserMqttSendSocketState(idx);
         UserMqttSendTotalSocketState();
         AppContextUpdate(sys_config);
-        key_log("WARNING:%s", get_func_name(function));
+        char fname[FUNC_NAME_BUF_SIZE];
+        key_log("WARNING:%s", get_func_name(function, fname, sizeof(fname)));
         return;
     }
 
@@ -351,7 +352,8 @@ static void KeyEventHandler(int num, boolean longPress) {
         default:
             break;
     }
-    key_log("WARNING:%s",showLog? get_func_name(function):"child lock enabled,ignore key event !");
+    char fname[FUNC_NAME_BUF_SIZE];
+    key_log("WARNING:%s",showLog? get_func_name(function, fname, sizeof(fname)):"child lock enabled,ignore key event !");
 }
 
 mico_timer_t user_key_timer;
