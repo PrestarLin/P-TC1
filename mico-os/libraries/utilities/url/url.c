@@ -98,6 +98,18 @@ url_field_t *url_parse (const char *str)
       else
          goto __fail;
       pch = strchr(str, '@');   /* parse user info */
+      /* '@' 只有落在 authority 段内才是 userinfo; 路径/查询里的 '@'
+       * (如 GitHub 资源名 TC1@MK3031@moc.ota.bin) 必须排除 */
+      if (pch)
+      {
+         const char *auth_end = strchr(str, '/');
+         const char *qmark = strchr(str, '?');
+         const char *hash  = strchr(str, '#');
+         if (qmark && (!auth_end || qmark < auth_end)) auth_end = qmark;
+         if (hash  && (!auth_end || hash  < auth_end)) auth_end = hash;
+         if (auth_end && pch > auth_end)
+            pch = NULL;
+      }
       if (pch)
       {
          pch = strchr(str, ':');

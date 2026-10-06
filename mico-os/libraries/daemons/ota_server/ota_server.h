@@ -32,10 +32,11 @@
 #define __ota_server_H
 
 #define OTA_DEBUG     (1)
-#define OTA_USE_HTTPS (0)
+#define OTA_USE_HTTPS (1)
 
 #define OTA_MD5_LENTH 32
-#define OTA_SEND_HEAD_SIZE 256
+/* GitHub 302 后签名 URL 的 path+query 约 1KB, 请求头需整体放得下 */
+#define OTA_SEND_HEAD_SIZE 1280
 #if OTA_USE_HTTPS
 #define OTA_SERVER_THREAD_STACK_SIZE  0x2000
 #else
@@ -63,8 +64,9 @@ typedef enum _OTA_CONTROL_E{
 
 typedef struct _download_url_t{
     char              *url;
+    char              *orig_url;      /* 起始 URL: 302 签名过期后重连回退用 */
     HTTP_SECURITY_E   HTTP_SECURITY;
-    char              host[30];
+    char              host[64];       /* GitHub 302 目标 host 有 37 字符 */
     char              ip[16];
     int               port;
     int               ota_fd;

@@ -1199,8 +1199,9 @@ static int Otastatus(httpd_request_t *req) {
 
 static int OtaStart(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    char buf[64] = {0};
-    err = httpd_get_data(req, buf, 64);
+    /* GitHub Release 链接约 82 字符, 64 会截断并把剩余字节留在 socket 造成串流 */
+    char buf[256] = {0};
+    err = httpd_get_data(req, buf, sizeof(buf));
     require_noerr(err, exit);
 
     if (ota_progress >= 0 && ota_progress < 100) {

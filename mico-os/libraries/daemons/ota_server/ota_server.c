@@ -38,8 +38,13 @@
 /* 应用层(TC1/ota_server/user_ota.c)校验 OTA_TEMP 镜像头(MRVL+magic_sig) */
 extern int OtaImageHeaderValid(void);
 
+/* SDK 只在 moc_api 函数表暴露, 公共头文件未声明: 带 SNI 的 SSL 握手(GitHub 必需) */
+extern void* ssl_connect_sni(int fd, int calen, char*ca, char *sni_servername, int *errno);
+
 /* 下载断点续传连续无进展的最大重试次数, 超过即放弃并释放 context */
 #define OTA_SERVER_MAX_RETRY 8
+/* GitHub Release 下载最多跟随的 302 跳数 */
+#define OTA_SERVER_MAX_REDIRECTS 3
 
 #if OTA_DEBUG
 #define ota_server_log(M, ...) custom_log("OTA", M, ##__VA_ARGS__)
@@ -59,6 +64,8 @@ static OSStatus onReceivedData( struct _HTTPHeader_t * httpHeader,
                                 uint8_t *data,
                                 size_t len,
                                 void * userContext );
+
+static OSStatus ota_server_set_url( char *url );
 
 static void hex2str(uint8_t *hex, int hex_len, char *str)
 {
@@ -105,7 +112,15 @@ static OSStatus ota_server_connect( struct sockaddr_in *addr, socklen_t addrlen 
 
 #if OTA_USE_HTTPS
     if( ota_server_context->download_url.HTTP_SECURITY == HTTP_SECURITY_HTTPS ){
-        ota_server_context->download_url.ota_ssl = ssl_connect( ota_server_context->download_url.ota_fd, 0, NULL, &ssl_errno );
+        /* SDK 默认 SSLv3.0 且默认不带 SNI; GitHub/其 CDN 要求 TLS1.2 + SNI, 不用则握手被拒 */
+        ssl_set_client_version( TLS_V1_2_MODE );
+        ota_server_context->download_url.ota_ssl = ssl_connect_sni(
+            ota_server_context->download_url.ota_fd, 0, NULL,
+            ota_server_context->download_url.host, &ssl_errno );
+        if( ota_server_context->download_url.ota_ssl == NULL ){
+            ota_server_log("ERROR: ssl connect failed, ssl_errno=%d, free heap=%d",
+                           ssl_errno, (int) MicoGetMemoryInfo()->free_memory);
+        }
         require_action_string( ota_server_context->download_url.ota_ssl != NULL, exit, err = kConnectionErr,"ERROR: ssl disconnect" );
     }
 #endif
@@ -189,7 +204,11 @@ static int ota_server_send_header( void )
 static void ota_server_socket_close( void )
 {
 #if OTA_USE_HTTPS
-    if ( ota_server_context->download_url.ota_ssl ) ssl_close( ota_server_context->download_url.ota_ssl );
+    if ( ota_server_context->download_url.ota_ssl ){
+        ssl_close( ota_server_context->download_url.ota_ssl );
+        /* RECONNECTED 与 DELETE 各调一次本函数: 指针不清零会对已释放会话二次 close */
+        ota_server_context->download_url.ota_ssl = NULL;
+    }
 #endif
     SocketClose( &(ota_server_context->download_url.ota_fd) );
     ota_server_context->download_url.ota_fd = -1;
@@ -228,6 +247,63 @@ static int ota_server_connect_server( struct in_addr in_addr )
     return 0;
 }
 
+static OSStatus ota_server_resolve( struct in_addr *in_addr )
+{
+    OSStatus err = kNoErr;
+    struct hostent *hostent_content = gethostbyname( ota_server_context->download_url.host );
+
+    require_action_quiet( hostent_content != NULL, exit, err = kGeneralErr );
+    in_addr->s_addr = *(uint32_t *)( *hostent_content->h_addr_list );
+    strcpy( ota_server_context->download_url.ip, inet_ntoa( *in_addr ) );
+    ota_server_log("OTA server address: %s, host ip: %s",
+                   ota_server_context->download_url.host, ota_server_context->download_url.ip);
+    exit:
+    return err;
+}
+
+/* 切换下载地址(跟随 302 / 回退原始 URL): 重新分配 url 缓冲并按新 URL 重解析 host/port/path */
+static OSStatus ota_server_switch_url( char *src )
+{
+    OSStatus err = kNoErr;
+    char *buf = malloc( strlen( src ) + 1 );
+
+    require_action( buf, exit, err = kNoMemoryErr );
+    strcpy( buf, src );
+    if ( ota_server_context->download_url.url != NULL )
+        free( ota_server_context->download_url.url );
+    ota_server_context->download_url.url = buf;
+    /* set_url 以 src(独立缓冲) 为源解析, 结果拷贝进上下文缓冲 */
+    err = ota_server_set_url( src );
+    exit:
+    return err;
+}
+
+/* 解析 3xx 响应的 Location 头, 切换下载地址并重新解析 DNS */
+static OSStatus ota_server_handle_redirect( struct in_addr *in_addr )
+{
+    OSStatus err = kNoErr;
+    const char *location = NULL;
+    size_t location_len = 0;
+    char *location_copy = NULL;
+
+    err = HTTPGetHeaderField( httpHeader->buf, httpHeader->len, "Location",
+                              NULL, NULL, &location, &location_len, NULL );
+    require_action_string( err == kNoErr, exit, err = kNotFoundErr, "ERROR: no Location header" );
+    require_action( location_len > 0 && location_len < 2048, exit, err = kMalformedErr );
+
+    location_copy = malloc( location_len + 1 );
+    require_action( location_copy, exit, err = kNoMemoryErr );
+    memcpy( location_copy, location, location_len );
+    location_copy[ location_len ] = '\0';
+
+    err = ota_server_switch_url( location_copy );
+    require_noerr( err, exit );
+    err = ota_server_resolve( in_addr );
+    exit:
+    if ( location_copy != NULL ) free( location_copy );
+    return err;
+}
+
 static void ota_server_progress_set( OTA_STATE_E state )
 {
     float progress = 0.00;
@@ -248,20 +324,14 @@ static void ota_server_thread( mico_thread_arg_t arg )
     fd_set readfds;
     int stall_retry = 0;
     int last_progress_pos = 0;
-    struct hostent* hostent_content = NULL;
-    char **pptr = NULL;
+    int redirect_count = 0;
     struct in_addr in_addr;
 
     mico_logic_partition_t* ota_partition = MicoFlashGetInfo( MICO_PARTITION_OTA_TEMP );
 
     ota_server_context->ota_control = OTA_CONTROL_START;
 
-    hostent_content = gethostbyname( ota_server_context->download_url.host );
-    require_action_quiet( hostent_content != NULL, DELETE, ota_server_progress_set(OTA_FAIL));
-    pptr=hostent_content->h_addr_list;
-    in_addr.s_addr = *(uint32_t *)(*pptr);
-    strcpy( ota_server_context->download_url.ip, inet_ntoa(in_addr));
-    ota_server_log("OTA server address: %s, host ip: %s", ota_server_context->download_url.host, ota_server_context->download_url.ip);
+    require_action_quiet( ota_server_resolve( &in_addr ) == kNoErr, DELETE, ota_server_progress_set(OTA_FAIL));
 
     offset = 0;
     MicoFlashErase( MICO_PARTITION_OTA_TEMP, 0x0, ota_partition->partition_length );
@@ -271,7 +341,8 @@ static void ota_server_thread( mico_thread_arg_t arg )
         InitMd5( &md5 );
     }
 
-    httpHeader = HTTPHeaderCreateWithCallback( 1024, onReceivedData, NULL, NULL );
+    /* GitHub 302 响应头约 5.2KB(含 CSP), 1024 装不下 */
+    httpHeader = HTTPHeaderCreateWithCallback( 6144, onReceivedData, NULL, NULL );
     require_action( httpHeader, DELETE, ota_server_progress_set(OTA_FAIL) );
 
     while ( 1 )
@@ -301,8 +372,36 @@ static void ota_server_thread( mico_thread_arg_t arg )
         if ( FD_ISSET( ota_server_context->download_url.ota_fd, &readfds ) )
         {
             /*parse header*/
+            /* 先清掉上次缓冲里的旧头: 否则残留字节会被拼进新响应, 旧头也可能被重复解析 */
+            httpHeader->len = 0;
             err = ota_server_read_header( httpHeader );
-            if ( ota_server_context->ota_control == OTA_CONTROL_START )
+
+            if ( err == kNoErr
+              && ( httpHeader->statusCode == 301 || httpHeader->statusCode == 302
+                || httpHeader->statusCode == 303 || httpHeader->statusCode == 307
+                || httpHeader->statusCode == 308 ) )
+            {
+                /* GitHub Release 下载先 302 跳到签名 CDN 地址, 需要跟随 */
+                if ( ++redirect_count > OTA_SERVER_MAX_REDIRECTS )
+                {
+                    ota_server_log("ERROR: too many redirects(%d)", redirect_count);
+                    ota_server_progress_set(OTA_FAIL);
+                    goto DELETE;
+                }
+                err = ota_server_handle_redirect( &in_addr );
+                if ( err != kNoErr )
+                {
+                    ota_server_log("ERROR: follow redirect failed: %d", err);
+                    ota_server_progress_set(OTA_FAIL);
+                    goto DELETE;
+                }
+                /* 跳转不算下载失败: 关连接后重新发起, 不计入断点续传重试 */
+                ota_server_socket_close( );
+                mico_thread_sleep( 1 );
+                continue;
+            }
+
+            if ( ota_server_context->ota_control == OTA_CONTROL_START && err == kNoErr )
             {
                 ota_server_context->download_state.download_len = httpHeader->contentLength;
                 ota_server_context->ota_control = OTA_CONTROL_CONTINUE;
@@ -360,6 +459,13 @@ static void ota_server_thread( mico_thread_arg_t arg )
 
         RECONNECTED:
         ota_server_socket_close( );
+        /* 302 签名地址中途失效: 回退原始 URL, 下一轮重新跳转拿新签名 */
+        if ( redirect_count > 0 && ota_server_context->download_url.orig_url != NULL )
+        {
+            if ( ota_server_switch_url( ota_server_context->download_url.orig_url ) == kNoErr )
+                ota_server_resolve( &in_addr );
+            redirect_count = 0;
+        }
         /* 断点续传有进展则重置计数; 连续无进展(服务器不可达/挂死)达到上限即放弃,
          * 上报 OTA_FAIL 并释放 context, 避免线程永久空转占死 OTA 入口 */
         if ( ota_server_context->download_state.download_begin_pos > last_progress_pos ){
@@ -381,6 +487,10 @@ static void ota_server_thread( mico_thread_arg_t arg )
         if( ota_server_context->download_url.url != NULL ){
             free(ota_server_context->download_url.url);
             ota_server_context->download_url.url = NULL;
+        }
+        if( ota_server_context->download_url.orig_url != NULL ){
+            free(ota_server_context->download_url.orig_url);
+            ota_server_context->download_url.orig_url = NULL;
         }
         free(ota_server_context);
         ota_server_context = NULL;
@@ -492,6 +602,10 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
     require_action(ota_server_context->download_url.url, exit, err = kNoMemoryErr);
     memset(ota_server_context->download_url.url, 0x00, strlen(url) + 1);
 
+    ota_server_context->download_url.orig_url = malloc(strlen(url) + 1);
+    require_action(ota_server_context->download_url.orig_url, exit, err = kNoMemoryErr);
+    strcpy(ota_server_context->download_url.orig_url, url);
+
     err = ota_server_set_url(url);
     require_noerr(err, exit);
 
@@ -510,6 +624,10 @@ OSStatus ota_server_start( char *url, char *md5, ota_server_cb_fn call_back )
         if ( ota_server_context->download_url.url != NULL ){
             free( ota_server_context->download_url.url );
             ota_server_context->download_url.url = NULL;
+        }
+        if ( ota_server_context->download_url.orig_url != NULL ){
+            free( ota_server_context->download_url.orig_url );
+            ota_server_context->download_url.orig_url = NULL;
         }
         free( ota_server_context );
         ota_server_context = NULL;

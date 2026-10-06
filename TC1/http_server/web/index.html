@@ -1119,7 +1119,9 @@ function startOta(){
 document.getElementById('otaFile').addEventListener('change',function(){document.getElementById('otaBtn').disabled=!this.files.length;});
 
 /* ── Auto Update Check ── */
-var OTA_SERVER='http://'+location.hostname+':8081';
+/* 版本直接从 GitHub 对应分支的 .version 文件读取, 设备端原生支持 https 下载 */
+var GH_REPO='https://github.com/PrestarLin/P-TC1';
+var GH_RAW='https://raw.githubusercontent.com/PrestarLin/P-TC1';
 var latestVersion='';
 var preOtaVer='';
 function checkForUpdate(){
@@ -1132,7 +1134,9 @@ function checkForUpdate(){
   api('/status',function(e,d){
     if(e){btn.disabled=false;btn.textContent='Check for Updates';document.getElementById('otaServerVer').textContent='Device offline';return;}
     var j=p(d);var curVer=j?(j.version||''):'';
-    var x=new XMLHttpRequest();x.open('GET',OTA_SERVER+'/version?branch='+branch,true);x.timeout=10000;
+    curVer=curVer.split('-')[0]; /* 设备版本形如 v4.1.64-3b5475f, 去掉 commit 后缀再比较 */
+    /* ?t= 绕开 raw.githubusercontent 的 5 分钟缓存 */
+    var x=new XMLHttpRequest();x.open('GET',GH_RAW+'/'+branch+'/.version?t='+Date.now(),true);x.timeout=10000;
     x.onload=function(){
       btn.disabled=false;btn.textContent='Check for Updates';
       if(x.status!==200){document.getElementById('otaServerVer').textContent='Server error';return;}
@@ -1147,6 +1151,7 @@ function checkForUpdate(){
       }
     };
     x.onerror=function(){btn.disabled=false;btn.textContent='Check for Updates';document.getElementById('otaServerVer').textContent='Connection failed';};
+    x.ontimeout=x.onerror;
     x.send();
   });
 }
@@ -1158,7 +1163,8 @@ function startAutoUpdate(){
   document.getElementById('otaStatus').textContent='Starting auto update...';
   document.getElementById('otaProgress').style.display='none';
   preOtaVer=document.getElementById('otaCurVer').textContent;
-  post('/ota',OTA_SERVER+'/firmware?branch='+branch,function(e,r){
+  var url=GH_REPO+'/releases/download/'+latestVersion+'/TC1@MK3031@moc.ota.bin';
+  post('/ota',url,function(e,r){
     document.getElementById('startUpdateBtn').disabled=false;
     if(e){document.getElementById('otaStatus').textContent='OTA start failed';return;}
     document.getElementById('otaStatus').textContent='Downloading '+latestVersion+' ('+branch+')...';
