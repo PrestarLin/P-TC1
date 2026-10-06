@@ -9,6 +9,7 @@
 > - 报告"未修5"（首连失败即报 OTA_FAIL）实际也已修：瞬时失败走 RECONNECTED 不上报
 >
 > **仍保留不修（有意为之）**：SDK 内部 `mico_system_context_update` 调用点（框架代码）；`get_func_name` 静态缓冲多线程竞态（仅日志内容串扰，无内存风险）。
+> **2026-10-06 更正**：上一条两项也都已修——`get_func_name` 改为写入调用者缓冲（`d690e5f`）；SDK 各处无锁 `mico_system_context_update` 由下沉进 `internal_update_config` 的 `para_update_mutex` 统一串行化（`aaadb32`）。
 
 经过全面代码审计，按优先级分级列出。每条均已核实。
 

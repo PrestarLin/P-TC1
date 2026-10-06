@@ -96,6 +96,8 @@
 ## 三、未修项（超出认可范围，仅记录）
 
 > **v4.1.49 复查**（修复批次后远程又合入 33 个提交，2026-10-05 逐条核对）：
+>
+> **2026-10-06 更新**：下列 2/3/4/6 与 §3.1/§3.2 的全部条目均已在本地 dev 分支修复（提交对应关系见 `todolist.md`）。本文件的 ❌/未修 标记保留为 2026-10-05 当时的核查快照。
 
 1. ~~**`GET_LOOP_DURATION` 与循环标志 bit7 重叠**~~ → ✅ **已解决**：`453a50c`（偏置编解码）+ `f85deeb`（循环标志 **bit7→bit31**，duration 恢复完整 10 位 1~1023 分钟，`RebuildTaskList` 开机迁移旧编码）；`24797f3` 使 `interval` 在 `ProcessTask` 实际生效。
 2. **SDK 内部 `mico_system_context_update` 调用点**（easylink/config_server/para_storage 等）未纳入 `AppContextUpdate` 锁 → ❌ **仍未解决**（框架代码未动；TC1 内残留 0 处）。
