@@ -60,10 +60,20 @@ static mico_thread_t httpd_main_thread;
  */
 static bool httpd_stop_req;
 
-/* keep-alive 空闲等待: 浏览器轮询间隔 3s, 5s 内可复用连接; 超时回收,
- * 保证看门狗探针(8s 超时)不会因前一个连接被长期占用而误判 httpd 卡死 */
+/* keep-alive 空闲回收: 浏览器轮询间隔 3s, 5s 内连接可复用; 超时回收连接,
+ * 保证看门狗探针(8s 超时)不会因连接被长期占用而误判 httpd 卡死 */
 #define HTTPD_CLIENT_SOCK_TIMEOUT 5
 #define HTTPD_TIMEOUT_EVENT 0
+
+/* 主循环 tick: 每秒醒一次做空闲连接回收 */
+#define HTTPD_MAIN_TICK_SECS 1
+
+/* 并发持有的客户端连接上限: 页面轮询 1~2 条 + 看门狗探针 1 条足够。
+ * 请求处理仍串行(共享 httpd_req 等全局态), 这里只是同时持有多个已建立连接,
+ * 避免为了服务排队的新客户端(探针)而强行断开活跃连接 —— 断开重连的 churn
+ * 会耗光 mocIP(lwIP) TCP PCB 池(约 40 个, 关闭后约 2min 才回收),
+ * 约 40 个新连接后 httpd 就无法 accept, 网页失联 */
+#define HTTPD_MAX_CLIENTS 4
 
 /** Maximum number of backlogged http connections
  *
@@ -88,7 +98,8 @@ static bool httpd_stop_req;
 
 static int http_sockfd;
 
-int client_sockfd;
+static int httpd_client_fds[HTTPD_MAX_CLIENTS];
+static uint32_t httpd_client_lastact[HTTPD_MAX_CLIENTS]; /* mico_rtos_get_time() 毫秒时刻 */
 static bool https_active;
 
 bool httpd_is_https_active( )
@@ -103,7 +114,7 @@ static int net_get_sock_error( int sock )
 
 static int httpd_close_sockets( )
 {
-    int ret, status = kNoErr;
+    int ret, status = kNoErr, i;
 
     if ( http_sockfd != -1 )
     {
@@ -116,15 +127,18 @@ static int httpd_close_sockets( )
         http_sockfd = -1;
     }
 
-    if ( client_sockfd != -1 )
+    for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
     {
-        ret = close( client_sockfd );
-        if ( ret != 0 )
+        if ( httpd_client_fds[i] != -1 )
         {
-            httpd_d("Failed to close client socket: %d", net_get_sock_error(client_sockfd));
-            status = -kInProgressErr;
+            ret = close( httpd_client_fds[i] );
+            if ( ret != 0 )
+            {
+                httpd_d("Failed to close client socket: %d", net_get_sock_error(httpd_client_fds[i]));
+                status = -kInProgressErr;
+            }
+            httpd_client_fds[i] = -1;
         }
-        client_sockfd = -1;
     }
 
     return status;
@@ -240,9 +254,10 @@ static int httpd_select( int max_sock, const fd_set *readfds,
     return HTTPD_TIMEOUT_EVENT;
 }
 
-static int httpd_accept_client_socket( const fd_set *active_readfds )
+static int httpd_accept_client_socket( const fd_set *active_readfds, int *client_fd )
 {
     int main_sockfd = -1;
+    int client_sockfd;
     struct sockaddr addr_from;
     socklen_t addr_from_len;
 
@@ -304,137 +319,165 @@ static int httpd_accept_client_socket( const fd_set *active_readfds )
     }
 
     httpd_d("connecting %d to %d.", client_sockfd, addr_from.s_port);
-    
+
+    *client_fd = client_sockfd;
     return kNoErr;
 }
 
-static void httpd_handle_client_connection( const fd_set *active_readfds )
+static int httpd_free_client_slot( void )
 {
-    int activefds_cnt, status;
-    fd_set readfds;
+    int i;
 
-    if ( httpd_stop_req )
+    for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
     {
-        httpd_d("HTTPD stop request received");
-        httpd_stop_req = FALSE;
-        httpd_suspend_thread( false );
+        if ( httpd_client_fds[i] == -1 )
+            return i;
+    }
+    return -1;
+}
+
+/* 回收空闲超时的 keep-alive 连接(5s ≥ 浏览器 3s 轮询间隔) */
+static void httpd_reap_idle_clients( void )
+{
+    uint32_t now = mico_rtos_get_time( );
+    int i;
+
+    for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
+    {
+        if ( httpd_client_fds[i] != -1 &&
+             (uint32_t)( now - httpd_client_lastact[i] ) >= HTTPD_CLIENT_SOCK_TIMEOUT * 1000 )
+        {
+            httpd_d("Client socket %d timeout occurred. Force closing socket", httpd_client_fds[i]);
+            if ( close( httpd_client_fds[i] ) != 0 )
+                httpd_d("Failed to close socket %d", net_get_sock_error(httpd_client_fds[i]));
+            httpd_client_fds[i] = -1;
+        }
+    }
+}
+
+/* 连接数达上限时让位: 关闭最久未活动的连接, 优先接纳排队的新客户端(看门狗探针),
+ * 避免其等满 8s 超时误判 httpd 卡死 */
+static void httpd_drop_oldest_client( void )
+{
+    int i, oldest = -1;
+
+    for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
+    {
+        if ( httpd_client_fds[i] == -1 )
+            continue;
+        if ( oldest == -1 ||
+             (int32_t)( httpd_client_lastact[i] - httpd_client_lastact[oldest] ) < 0 )
+            oldest = i;
     }
 
-    status = httpd_accept_client_socket( active_readfds );
-    if ( status != kNoErr )
-        return;
-
-    httpd_d("Client socket accepted: %d", client_sockfd);
-    FD_ZERO( &readfds );
-    FD_SET( client_sockfd, &readfds );
-
-    while ( 1 )
+    if ( oldest >= 0 )
     {
-        if ( httpd_stop_req )
-        {
-            httpd_d("HTTPD stop request received");
-            httpd_stop_req = FALSE;
-            httpd_suspend_thread( false );
-        }
-
-        httpd_d("Waiting on client socket");
-        activefds_cnt = httpd_select( client_sockfd, &readfds, NULL, HTTPD_CLIENT_SOCK_TIMEOUT );
-
-        if ( httpd_stop_req )
-        {
-            httpd_d("HTTPD stop request received");
-            httpd_stop_req = FALSE;
-            httpd_suspend_thread( false );
-        }
-
-        if ( activefds_cnt == HTTPD_TIMEOUT_EVENT )
-        {
-            /* Timeout has occured */
-            httpd_d("Client socket timeout occurred. " "Force closing socket");
-
-            status = close( client_sockfd );
-            if ( status != kNoErr )
-            {
-                status = net_get_sock_error( client_sockfd );
-                httpd_d("Failed to close socket %d", status);
-                httpd_suspend_thread( true );
-            }
-
-            client_sockfd = -1;
-            break;
-        }
-
-        httpd_d("Handling %d", client_sockfd);
-        /* Note:
-         * Connection will be handled with call to
-         * httpd_handle_message twice, first for
-         * handling request (kNoErr) and second
-         * time as there is no more data to receive
-         * (client closed connection) and hence
-         * will return with status HTTPD_DONE
-         * closing socket.
-         */
-        /* FIXME: remove this memset if all is working well */
-        /* memset(&httpd_message_in[0], 0, sizeof(httpd_message_in)); */
-        status = httpd_handle_message( client_sockfd );
-        if ( status == kNoErr )
-        {
-            /* keep-alive: 请求已应答。若此刻已有新客户端在 backlog 排队, 立即关闭
-             * 当前连接回到 accept —— 否则一个持续轮询的浏览器会长期独占串行
-             * httpd, 让其它客户端与看门狗探针饿死(探针 8s 超时后误判卡死并重启)。 */
-            fd_set pendingfds;
-            struct timeval nowait;
-            FD_ZERO( &pendingfds );
-            FD_SET( http_sockfd, &pendingfds );
-            nowait.tv_sec = 0;
-            nowait.tv_usec = 0;
-            if ( select( http_sockfd + 1, &pendingfds, NULL, NULL, &nowait ) > 0 )
-            {
-                if ( close( client_sockfd ) != 0 )
-                    httpd_d("Failed to close socket %d", net_get_sock_error(client_sockfd));
-                client_sockfd = -1;
-                break;
-            }
-            /* The handlers are expected more data on the
-             socket */
-            continue;
-        }
-
-        /* Either there was some error or everything went well */
-        httpd_d("Close socket %d.  %s: %d", client_sockfd, status == HTTPD_DONE ? "Handler done" : "Handler failed", status);
-
-        status = close( client_sockfd );
-        if ( status != kNoErr )
-        {
-            status = net_get_sock_error( client_sockfd );
-            httpd_d("Failed to close socket %d", status);
-            httpd_suspend_thread( true );
-        }
-        client_sockfd = -1;
-
-        break;
+        httpd_d("Client limit reached, closing oldest socket %d", httpd_client_fds[oldest]);
+        if ( close( httpd_client_fds[oldest] ) != 0 )
+            httpd_d("Failed to close socket %d", net_get_sock_error(httpd_client_fds[oldest]));
+        httpd_client_fds[oldest] = -1;
     }
 }
 
 static void httpd_main( mico_thread_arg_t arg )
 {
     UNUSED_PARAMETER( arg );
-    int status, max_sockfd = -1;
+    int status, i, max_sockfd;
     fd_set readfds, active_readfds;
 
     status = httpd_setup_main_sockets( );
     if ( status != kNoErr )
         httpd_suspend_thread( true );
 
-    FD_ZERO( &readfds );
-    FD_SET( http_sockfd, &readfds );
-    max_sockfd = http_sockfd;
+    for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
+        httpd_client_fds[i] = -1;
 
     while ( 1 )
     {
+        FD_ZERO( &readfds );
+        FD_SET( http_sockfd, &readfds );
+        max_sockfd = http_sockfd;
+        for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
+        {
+            if ( httpd_client_fds[i] != -1 )
+            {
+                FD_SET( httpd_client_fds[i], &readfds );
+                if ( httpd_client_fds[i] > max_sockfd )
+                    max_sockfd = httpd_client_fds[i];
+            }
+        }
+
         httpd_d("Waiting on main socket");
-        httpd_select( max_sockfd, &readfds, &active_readfds, -1 );
-        httpd_handle_client_connection( &active_readfds );
+        if ( httpd_select( max_sockfd, &readfds, &active_readfds, HTTPD_MAIN_TICK_SECS ) == HTTPD_TIMEOUT_EVENT )
+        {
+            httpd_reap_idle_clients( );
+            continue;
+        }
+
+        /* 新连接排队: 有闲置槽位则接纳, 否则让位给最久未活动的连接 */
+        if ( FD_ISSET( http_sockfd, &active_readfds ) )
+        {
+            int fd = -1;
+
+            status = httpd_accept_client_socket( &active_readfds, &fd );
+            if ( status == kNoErr && fd >= 0 )
+            {
+                int slot = httpd_free_client_slot( );
+                if ( slot < 0 )
+                {
+                    httpd_drop_oldest_client( );
+                    slot = httpd_free_client_slot( );
+                }
+
+                if ( slot >= 0 )
+                {
+                    httpd_client_fds[slot] = fd;
+                    httpd_client_lastact[slot] = mico_rtos_get_time( );
+                    httpd_d("Client socket accepted: %d", fd);
+                }
+                else
+                {
+                    httpd_d("No free client slot, closing %d", fd);
+                    close( fd );
+                }
+            }
+            /* 每轮只处理一个事件, 保证公平且状态简单 */
+            continue;
+        }
+
+        /* 已建立连接有数据: 处理一个请求。处理保持串行(共享全局 httpd_req),
+         * keep-alive 连接在两次请求之间可以共存, 不再为了排队者互相断开重连 */
+        for ( i = 0; i < HTTPD_MAX_CLIENTS; i++ )
+        {
+            int fd = httpd_client_fds[i];
+            if ( fd == -1 || !FD_ISSET( fd, &active_readfds ) )
+                continue;
+
+            httpd_d("Handling %d", fd);
+            /* Note:
+             * Connection will be handled with call to
+             * httpd_handle_message twice, first for
+             * handling request (kNoErr) and second
+             * time as there is no more data to receive
+             * (client closed connection) and hence
+             * will return with status HTTPD_DONE
+             * closing socket.
+             */
+            status = httpd_handle_message( fd );
+            if ( status == kNoErr )
+            {
+                /* keep-alive: 应答完成, 保持连接等待该客户端的下一个请求 */
+                httpd_client_lastact[i] = mico_rtos_get_time( );
+            }
+            else
+            {
+                httpd_d("Close socket %d.  %s: %d", fd, status == HTTPD_DONE ? "Handler done" : "Handler failed", status);
+                if ( close( fd ) != 0 )
+                    httpd_d("Failed to close socket %d", net_get_sock_error(fd));
+                httpd_client_fds[i] = -1;
+            }
+            break;
+        }
     }
 
     /*
@@ -617,7 +660,8 @@ int httpd_init( )
 
     httpd_d("Initializing");
 
-    client_sockfd = -1;
+    for ( int i = 0; i < HTTPD_MAX_CLIENTS; i++ )
+        httpd_client_fds[i] = -1;
     http_sockfd = -1;
 
     status = httpd_wsgi_init( );
