@@ -113,12 +113,12 @@ int RssiGet(void)
     return 0;
 }
 
-/* WiFi 扫描结果由 WiFi 线程写、HTTP 线程读并释放, 两者无先后顺序保证,
- * 必须用锁保护这对指针/标志, 否则会 UAF 或 double-free。 */
-static bool scaned = false;
-static char* wifi_ret = NULL;
-static mico_mutex_t wifi_ret_mutex;
-static bool wifi_ret_mutex_ready = false;
+/* WiFi 扫描结果由扫描回调(内核上下文)写、HTTP 线程取走。
+ * 不能用互斥锁: 回调所在的内核上下文里阻塞型同步原语不可靠, 锁方案会让
+ * 结果被整体丢弃(网页扫描永远返回 NO)。改用 RTOS 队列交接指针所有权:
+ * 谁取到谁 free, 无 UAF/double-free; 队列未就绪或入队失败时就地释放, 不泄漏。 */
+static mico_queue_t wifi_scan_queue;
+static bool wifi_scan_queue_ready = false;
 
 // WiFi扫描结果回调
 void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
@@ -158,34 +158,32 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
     free(ssids);
     free(secs);
 
-    if (wifi_ret_mutex_ready && mico_rtos_lock_mutex(&wifi_ret_mutex) == kNoErr)
+    if (wifi_scan_queue_ready)
     {
-        // 释放旧的 wifi_ret，替换为新的
-        if (wifi_ret) free(wifi_ret);
-        wifi_ret = new_wifi_ret;
-        scaned = true;
-        mico_rtos_unlock_mutex(&wifi_ret_mutex);
+        char* stale = NULL;
+        /* 丢弃尚未取走的过期结果, 保证 HTTP 线程拿到的是最近一次扫描 */
+        while (mico_rtos_pop_from_queue(&wifi_scan_queue, &stale, MICO_NO_WAIT) == kNoErr)
+        {
+            free(stale);
+        }
+        if (mico_rtos_push_to_queue(&wifi_scan_queue, &new_wifi_ret, MICO_NO_WAIT) == kNoErr)
+        {
+            return; /* 已入队: 由 WifiScanResultTake() 取走后释放 */
+        }
     }
-    else
-    {
-        free(new_wifi_ret);
-    }
+    /* 队列未就绪或入队失败: 就地释放, 不泄漏 */
+    free(new_wifi_ret);
 }
 
 char* WifiScanResultTake(void)
 {
     char* ret = NULL;
-    if (wifi_ret_mutex_ready && mico_rtos_lock_mutex(&wifi_ret_mutex) == kNoErr)
+    if (wifi_scan_queue_ready &&
+        mico_rtos_pop_from_queue(&wifi_scan_queue, &ret, MICO_NO_WAIT) == kNoErr)
     {
-        if (scaned && wifi_ret)
-        {
-            ret = wifi_ret;
-            wifi_ret = NULL;
-            scaned = false;
-        }
-        mico_rtos_unlock_mutex(&wifi_ret_mutex);
+        return ret;
     }
-    return ret;
+    return NULL;
 }
 
 // 100ms定时器回调
@@ -256,8 +254,8 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
 void WifiInit(void)
 {
-    // WiFi扫描结果读写互斥
-    wifi_ret_mutex_ready = (mico_rtos_init_mutex(&wifi_ret_mutex) == kNoErr);
+    // WiFi扫描结果交接队列(深度1, 配合回调内清旧结果, 取到的总是最近一次扫描)
+    wifi_scan_queue_ready = (mico_rtos_init_queue(&wifi_scan_queue, "wifi_scan", sizeof(char*), 1) == kNoErr);
     // WiFi状态下led闪烁定时器初始化
     mico_rtos_init_timer(&wifi_led_timer, 100, (void*)WifiLedTimerCallback, NULL);
     // WiFi断开延迟动作定时器 1秒周期

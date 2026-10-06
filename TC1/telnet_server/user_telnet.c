@@ -1,7 +1,7 @@
-/* 极简 telnet 控制台: 独立线程监听 23 端口, 不依赖 httpd 与 MQTT。
- * 作用: 网页后台卡死(甚至 MQTT 不可用)时, 局域网内仍可用命令行控制设备、
- * 查看日志、在线升级救砖, 是比 curl 更直观的一道保底通道。
- * 无鉴权(与 web 后台同级别), 不要把设备暴露到公网。 */
+/* Minimal telnet console: a dedicated thread listens on port 23 and does not
+ * depend on httpd or MQTT. When the web UI is stuck (or MQTT is down) it still
+ * allows command-line control, log inspection and rescue OTA over the LAN.
+ * No authentication (same level as the web UI): never expose it to the Internet. */
 #include <stdarg.h>
 #include "http_server/web_log.h"
 #include "mico.h"
@@ -14,21 +14,27 @@
 
 #define TELNET_PORT 23
 #define TELNET_LINE_MAX 256
-#define TELNET_IDLE_TIMEOUT_SEC (10 * 60) /* 无输入则断开, 让位给下一个客户端 */
+#define TELNET_IDLE_TIMEOUT_SEC (10 * 60) /* disconnect idle clients so the next one can connect */
 
-/* telnet 协商(IAC)字节: 所有选项一律拒绝, 避免客户端反复协商 */
+/* telnet negotiation (IAC) bytes */
 #define T_IAC  0xFF
 #define T_WILL 0xFB
 #define T_DONT 0xFE
 #define T_DO   0xFD
 #define T_WONT 0xFC
+#define T_ECHO 1
+
+/* The server echoes every keystroke, so offer "I WILL ECHO" at session start:
+ * well-behaved clients then stop their local echo and characters show up once.
+ * All other options are refused so clients do not keep re-negotiating. */
+static const unsigned char telnet_will_echo[3] = { T_IAC, T_WILL, T_ECHO };
 
 static void telnet_send_all(int sock, const char *data, int len)
 {
     int sent = 0;
     while (sent < len) {
         int n = send(sock, data + sent, len - sent, 0);
-        if (n <= 0) break; /* 对端已断开: 由 recv 循环统一收尾 */
+        if (n <= 0) break; /* peer closed: the recv loop will finish the session */
         sent += n;
     }
 }
@@ -45,16 +51,16 @@ static void telnet_reply(int sock, const char *fmt, ...)
 }
 
 static const char telnet_help[] =
-    "help / ?                     显示本帮助\r\n"
-    "version                      固件版本\r\n"
-    "status                       设备状态\r\n"
-    "log                          最近运行日志\r\n"
-    "set socket <0-5> <0|1>       单路插座 0关1开\r\n"
-    "set total_socket <0|1>       全部插座\r\n"
-    "set led <0|1>                电源指示灯\r\n"
-    "set childLock <0|1>          童锁\r\n"
-    "ota <url>                    在线升级固件(设备自行下载校验后重启)\r\n"
-    "reboot                       重启设备\r\n";
+    "help / ?                     show this help\r\n"
+    "version                      firmware version\r\n"
+    "status                       device status\r\n"
+    "log                          recent logs\r\n"
+    "set socket <0-5> <0|1>       single socket, 0=off 1=on\r\n"
+    "set total_socket <0|1>       all sockets\r\n"
+    "set led <0|1>                power LED\r\n"
+    "set childLock <0|1>          child lock\r\n"
+    "ota <url>                    firmware OTA update (device downloads, verifies, reboots)\r\n"
+    "reboot                       reboot device\r\n";
 
 static void telnet_process(int sock, char *line)
 {
@@ -86,11 +92,11 @@ static void telnet_process(int sock, char *line)
         telnet_send_all(sock, logs, strlen(logs));
     } else if (!strcmp(line, "reboot")) {
         telnet_reply(sock, "rebooting...");
-        mico_rtos_thread_msleep(200); /* 等回复发出再重启 */
+        mico_rtos_thread_msleep(200); /* let the reply go out before rebooting */
         MicoSystemReboot();
     } else if (sscanf(line, "set socket %d %d", &i, &on) == 2) {
         if (i < 0 || i >= SOCKET_NUM || (on != 0 && on != 1)) {
-            telnet_reply(sock, "ERR: 参数范围 socket 0-%d, on 0|1", SOCKET_NUM - 1);
+            telnet_reply(sock, "ERR: usage: set socket <0-%d> <0|1>", SOCKET_NUM - 1);
             return;
         }
         UserRelaySet((unsigned char) i, (char) on);
@@ -100,7 +106,7 @@ static void telnet_process(int sock, char *line)
         telnet_reply(sock, "OK socket %d -> %d", i, on);
     } else if (sscanf(line, "set total_socket %d", &on) == 1) {
         if (on != 0 && on != 1) {
-            telnet_reply(sock, "ERR: 参数范围 on 0|1");
+            telnet_reply(sock, "ERR: value must be 0 or 1");
             return;
         }
         UserRelaySetAll((char) on);
@@ -112,7 +118,7 @@ static void telnet_process(int sock, char *line)
         telnet_reply(sock, "OK all sockets -> %d", on);
     } else if (sscanf(line, "set led %d", &on) == 1) {
         if (on != 0 && on != 1) {
-            telnet_reply(sock, "ERR: 参数范围 on 0|1");
+            telnet_reply(sock, "ERR: value must be 0 or 1");
             return;
         }
         user_config->power_led_enabled = (char) on;
@@ -126,7 +132,7 @@ static void telnet_process(int sock, char *line)
         telnet_reply(sock, "OK led -> %d", on);
     } else if (sscanf(line, "set childLock %d", &on) == 1) {
         if (on != 0 && on != 1) {
-            telnet_reply(sock, "ERR: 参数范围 on 0|1");
+            telnet_reply(sock, "ERR: value must be 0 or 1");
             return;
         }
         user_config->child_lock = (char) on;
@@ -137,23 +143,23 @@ static void telnet_process(int sock, char *line)
     } else if (strncmp(line, "ota ", 4) == 0) {
         char *url = line + 4;
         if (!strstr(url, "://")) {
-            telnet_reply(sock, "ERR: url 需以 http:// 或 https:// 开头");
+            telnet_reply(sock, "ERR: url must start with http:// or https://");
             return;
         }
         if (ota_progress >= 0 && ota_progress < 100) {
-            telnet_reply(sock, "ERR: OTA 正在进行中(%d)", ota_progress);
+            telnet_reply(sock, "ERR: OTA already in progress (%d)", ota_progress);
             return;
         }
         telnet_reply(sock, "OTA start: %s", url);
         UserOtaStart(url, NULL);
     } else {
-        telnet_reply(sock, "未知命令, 输入 help 查看");
+        telnet_reply(sock, "Unknown command, type 'help' for a list of commands");
     }
 }
 
 static void telnet_serve(int sock)
 {
-    static const char banner[] = "\r\nP-TC1 telnet console\r\n输入 help 查看命令\r\ntc1> ";
+    static const char banner[] = "\r\nP-TC1 telnet console\r\nType 'help' for a list of commands\r\ntc1> ";
     char buf[128];
     char line[TELNET_LINE_MAX];
     int len = 0, iac = 0, n, i;
@@ -161,6 +167,7 @@ static void telnet_serve(int sock)
     fd_set readfds;
     struct timeval tv;
 
+    telnet_send_all(sock, (const char *) telnet_will_echo, sizeof(telnet_will_echo));
     telnet_send_all(sock, banner, sizeof(banner) - 1);
 
     while (1) {
@@ -168,7 +175,7 @@ static void telnet_serve(int sock)
         FD_SET(sock, &readfds);
         tv.tv_sec = TELNET_IDLE_TIMEOUT_SEC;
         tv.tv_usec = 0;
-        if (select(sock + 1, &readfds, NULL, NULL, &tv) <= 0) break; /* 超时/错误 */
+        if (select(sock + 1, &readfds, NULL, NULL, &tv) <= 0) break; /* timeout or error */
 
         n = recv(sock, buf, sizeof(buf), 0);
         if (n <= 0) break;
@@ -181,12 +188,19 @@ static void telnet_serve(int sock)
                 iac = 2;
                 continue;
             }
-            if (iac == 2) {            /* IAC <cmd> <opt>: 一律拒绝(WILL->DONT, DO->WONT) */
-                if (iac_cmd == T_WILL) {
-                    unsigned char r[3] = { T_IAC, T_DONT, c };
+            if (iac == 2) {            /* IAC <cmd> <opt> */
+                unsigned char r[3];
+                if (iac_cmd == T_DO && c == T_ECHO) {
+                    r[0] = T_IAC; r[1] = T_WILL; r[2] = T_ECHO; /* client asks us to echo: accept */
+                    telnet_send_all(sock, (char *) r, 3);
+                } else if (iac_cmd == T_WILL && c == T_ECHO) {
+                    r[0] = T_IAC; r[1] = T_DONT; r[2] = T_ECHO; /* client offers to echo: refuse, server echoes */
+                    telnet_send_all(sock, (char *) r, 3);
+                } else if (iac_cmd == T_WILL) {
+                    r[0] = T_IAC; r[1] = T_DONT; r[2] = c; /* refuse all other options */
                     telnet_send_all(sock, (char *) r, 3);
                 } else if (iac_cmd == T_DO) {
-                    unsigned char r[3] = { T_IAC, T_WONT, c };
+                    r[0] = T_IAC; r[1] = T_WONT; r[2] = c;
                     telnet_send_all(sock, (char *) r, 3);
                 }
                 iac = 0;
@@ -203,7 +217,7 @@ static void telnet_serve(int sock)
                 telnet_send_all(sock, "tc1> ", 5);
                 continue;
             }
-            if (c == 0x08 || c == 0x7F) { /* 退格 */
+            if (c == 0x08 || c == 0x7F) { /* backspace */
                 if (len > 0) {
                     len--;
                     telnet_send_all(sock, "\b \b", 3);
@@ -214,7 +228,7 @@ static void telnet_serve(int sock)
             if (len < TELNET_LINE_MAX - 1) {
                 char ch = (char) c;
                 line[len++] = ch;
-                telnet_send_all(sock, &ch, 1); /* 回显 */
+                telnet_send_all(sock, &ch, 1); /* echo */
             }
         }
     }
@@ -254,7 +268,7 @@ static void telnet_thread(mico_thread_arg_t arg)
         from_len = sizeof(from);
         client = accept(listen_sock, (struct sockaddr *) &from, &from_len);
         if (client < 0) {
-            mico_rtos_thread_sleep(1); /* 异常时避免忙等 */
+            mico_rtos_thread_sleep(1); /* avoid busy loop on error */
             continue;
         }
         tc1_log("telnet: client connected");
