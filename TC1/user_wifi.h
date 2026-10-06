@@ -20,8 +20,6 @@ enum
 #define ZZ_AP_NET_MASK   "255.255.255.0"
 
 #define WIFI_SCAN_RESULT_JSON "{'success':%d,'ssids':[%s],'secs':[%s]}"
-extern bool scaned;
-extern char* wifi_ret;
 extern char wifi_status;
 
 typedef struct {
@@ -46,5 +44,7 @@ extern void ApInit(bool use_defaul);
 extern void ApConfig(char* name, char* key);
 extern void WifiConnect(char* wifi_ssid, char* wifi_key);
 extern int RssiGet(void);
+/* 取走当前扫描结果的所有权(取后需自行 free), 无结果返回 NULL */
+extern char* WifiScanResultTake(void);
 
 #endif

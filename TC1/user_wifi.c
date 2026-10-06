@@ -113,8 +113,12 @@ int RssiGet(void)
     return 0;
 }
 
-bool scaned = false;
-char* wifi_ret = NULL;
+/* WiFi 扫描结果由 WiFi 线程写、HTTP 线程读并释放, 两者无先后顺序保证,
+ * 必须用锁保护这对指针/标志, 否则会 UAF 或 double-free。 */
+static bool scaned = false;
+static char* wifi_ret = NULL;
+static mico_mutex_t wifi_ret_mutex;
+static bool wifi_ret_mutex_ready = false;
 
 // WiFi扫描结果回调
 void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
@@ -154,10 +158,34 @@ void WifiScanCallback(ScanResult_adv* scan_ret, void* arg)
     free(ssids);
     free(secs);
 
-    // 释放旧的 wifi_ret，替换为新的
-    if (wifi_ret) free(wifi_ret);
-    wifi_ret = new_wifi_ret;
-    scaned = true;
+    if (wifi_ret_mutex_ready && mico_rtos_lock_mutex(&wifi_ret_mutex) == kNoErr)
+    {
+        // 释放旧的 wifi_ret，替换为新的
+        if (wifi_ret) free(wifi_ret);
+        wifi_ret = new_wifi_ret;
+        scaned = true;
+        mico_rtos_unlock_mutex(&wifi_ret_mutex);
+    }
+    else
+    {
+        free(new_wifi_ret);
+    }
+}
+
+char* WifiScanResultTake(void)
+{
+    char* ret = NULL;
+    if (wifi_ret_mutex_ready && mico_rtos_lock_mutex(&wifi_ret_mutex) == kNoErr)
+    {
+        if (scaned && wifi_ret)
+        {
+            ret = wifi_ret;
+            wifi_ret = NULL;
+            scaned = false;
+        }
+        mico_rtos_unlock_mutex(&wifi_ret_mutex);
+    }
+    return ret;
 }
 
 // 100ms定时器回调
@@ -228,6 +256,8 @@ void WifiConnect(char* wifi_ssid, char* wifi_key)
 
 void WifiInit(void)
 {
+    // WiFi扫描结果读写互斥
+    wifi_ret_mutex_ready = (mico_rtos_init_mutex(&wifi_ret_mutex) == kNoErr);
     // WiFi状态下led闪烁定时器初始化
     mico_rtos_init_timer(&wifi_led_timer, 100, (void*)WifiLedTimerCallback, NULL);
     // WiFi断开延迟动作定时器 1秒周期

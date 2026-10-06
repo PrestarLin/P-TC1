@@ -663,15 +663,15 @@ static int HttpSetWifiConfig(httpd_request_t *req) {
 
 static int HttpGetWifiScan(httpd_request_t *req) {
     OSStatus err = kNoErr;
-    if (scaned && wifi_ret) {
-        scaned = false;
-        send_http(wifi_ret, strlen(wifi_ret), exit, &err);
+    char *result = WifiScanResultTake();
+    if (result) {
+        send_http(result, strlen(result), exit, &err);
     } else {
         send_http("NO", 2, exit, &err);
     }
 
     exit:
-    if (wifi_ret) { free(wifi_ret); wifi_ret = NULL; }
+    if (result) free(result);
     return err;
 }
 
@@ -829,16 +829,25 @@ static int HttpSetMqttConfig(httpd_request_t *req) {
 }
 
 
+/* 上报周期(秒)合法区间: 0/负值会让 1000*freq 在 uint32 形参上回绕成约 49.7 天, 上报停摆 */
+#define MQTT_REPORT_FREQ_MIN 1
+#define MQTT_REPORT_FREQ_MAX 3600
+
 static int HttpSetMqttReportFreq(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    int buf_size = 97;
+    int buf_size = 128;
     char *buf = malloc(buf_size);
+    if (!buf) return kNoMemoryErr;
 
     err = httpd_get_data(req, buf, buf_size);
     require_noerr(err, exit);
 
-    sscanf(buf, "%d", &MQTT_REPORT_FREQ);
+    int freq = 0;
+    if (sscanf(buf, "%d", &freq) != 1) { err = kParamErr; goto exit; }
+    if (freq < MQTT_REPORT_FREQ_MIN) freq = MQTT_REPORT_FREQ_MIN;
+    if (freq > MQTT_REPORT_FREQ_MAX) freq = MQTT_REPORT_FREQ_MAX;
+    MQTT_REPORT_FREQ = freq;
     AppContextUpdate(sys_config);
 
     send_http("OK", 2, exit, &err);

@@ -421,7 +421,9 @@ void ProcessTask()
 
 char* GetTaskStr()
 {
-    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*192+2));
+    /* +3 = '[' + 每条目尾 NUL 余量 + 收尾 ']' 与 '\0'; 只留 +2 时下面空列表分支
+     * 会写到 tmp_str[2], 越界 1 字节 */
+    char* str = (char*)malloc(sizeof(char)*(user_config->task_count*192+3));
     if (!str) return NULL;
     pTimedTask tmp_tsk = user_config->task_top;
     char* tmp_str = str;

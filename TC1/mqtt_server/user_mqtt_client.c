@@ -65,6 +65,9 @@ char topic_set[MAX_MQTT_TOPIC_SIZE];
 
 mico_timer_t timer_handle;
 static char timer_status = 0;
+/* timer_handle 只在 MqttClientThread 内 init, 线程退出后即失效;
+ * 配网(AP)模式下从未建过线程时句柄是未初始化的, 此时 start 属于 UB */
+static volatile bool mqtt_timer_ready = false;
 
 void UserMqttTimerFunc(void *arg) {
     LinkStatusTypeDef LinkStatus;
@@ -243,7 +246,8 @@ static OSStatus MqttMsgPublish(Client *c, const char *topic, char qos, char reta
 }
 
 void registerMqttEvents(void) {
-if(timer_status !=0){
+    if (!mqtt_timer_ready) return;
+    if(timer_status !=0){
     mico_stop_timer(&timer_handle);
     }
     timer_status = 0;
@@ -271,7 +275,7 @@ void MqttClientThread(mico_thread_arg_t arg) {
 
     /* create msg send queue event fd */
     msg_send_event_fd = mico_create_event_fd(mqtt_msg_send_queue);
-    mico_init_timer(&timer_handle, 150, UserMqttTimerFunc, &arg);
+    mqtt_timer_ready = (mico_init_timer(&timer_handle, 150, UserMqttTimerFunc, &arg) == kNoErr);
 
     require_action(msg_send_event_fd >= 0, exit,
                    mqtt_log("ERROR: create msg send queue event fd failed!!!"));
@@ -404,6 +408,7 @@ exit:
     isconnect = false;
     mqtt_log("EXIT: MQTT client exit with err = %d.", err);
     UserMqttClientRelease(&c, &n);
+    mqtt_timer_ready = false;                    /* 先失效再停, 避免并发 registerMqttEvents 重新起用 */
     mico_stop_timer(&timer_handle);            /* 防止定时器回调访问已回收的队列 */
     if (msg_send_event_fd >= 0) {
         mico_delete_event_fd(msg_send_event_fd); /* event fd 关联队列，须在队列销毁前删除 */

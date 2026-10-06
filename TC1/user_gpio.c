@@ -354,7 +354,10 @@ static mico_timer_t click_end_timer;
 uint16_t key_time = 0;
 
 static mico_timer_t led_blink_timer;
-static bool timer_initialized = false;
+/* blink 状态由定时器线程(回调)与按键/主线程(StartLedBlink)同时读写 */
+static mico_mutex_t led_blink_mutex;
+static bool led_blink_mutex_ready = false;
+static bool led_blink_timer_ready = false;
 
 static uint8_t total_blinks = 0;
 static uint8_t blink_counter = 0;
@@ -366,8 +369,6 @@ static void _led_blink_timer_handler(void *arg)
     if (blink_counter >= total_blinks) {
         UserLedSet(0);  // 闪烁完成，灭灯
         mico_stop_timer(&led_blink_timer);
-        mico_deinit_timer(&led_blink_timer);
-        timer_initialized = false;
         return;
     }
 
@@ -380,21 +381,26 @@ static void _led_blink_timer_handler(void *arg)
 void StartLedBlink(uint8_t times)
 {
     if (times == 0) return;
+    if (!led_blink_mutex_ready) return;
 
-    // 如果之前已启动，先停止并清理
-    if (timer_initialized) {
-        mico_stop_timer(&led_blink_timer);
-        mico_deinit_timer(&led_blink_timer);
-        timer_initialized = false;
+    mico_rtos_lock_mutex(&led_blink_mutex);
+    /* 定时器只初始化一次并保持复用: 在自身回调里 deinit 会销毁正在被
+     * 定时器线程引用的对象, 是 UAF; 重复 init 同样会泄漏旧句柄 */
+    if (!led_blink_timer_ready) {
+        if (mico_init_timer(&led_blink_timer, 100, _led_blink_timer_handler, NULL) != kNoErr) {
+            mico_rtos_unlock_mutex(&led_blink_mutex);
+            return;
+        }
+        led_blink_timer_ready = true;
     }
 
     total_blinks = times * 2;
     blink_counter = 0;
     led_state = false;
 
-    mico_init_timer(&led_blink_timer, 100, _led_blink_timer_handler, NULL);
+    mico_stop_timer(&led_blink_timer);
     mico_start_timer(&led_blink_timer);
-    timer_initialized = true;
+    mico_rtos_unlock_mutex(&led_blink_mutex);
 }
 static void ClickEndTimeoutHandler(void *arg) {
     if (click_count <= 0) {
@@ -474,6 +480,7 @@ static void KeyFallingIrqHandler(void *arg) {
 }
 
 void KeyInit(void) {
+    led_blink_mutex_ready = (mico_rtos_init_mutex(&led_blink_mutex) == kNoErr);
     MicoGpioInitialize(Button, INPUT_PULL_UP);
     mico_rtos_init_timer(&user_key_timer, 100, KeyTimeoutHandler, NULL);
     mico_rtos_init_timer(&click_end_timer, 800, ClickEndTimeoutHandler, NULL);

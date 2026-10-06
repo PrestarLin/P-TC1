@@ -1,17 +1,30 @@
 import http.server
 import json
 import os
+import re
 import hashlib
 import hmac
 import urllib.request
+import urllib.parse
 import zipfile
 import io
 
 PORT = int(os.environ.get('OTA_PORT', 8081))
 DATA_DIR = '/data' if os.path.exists('/data') else os.path.dirname(os.path.abspath(__file__))
 WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')
+# 固件约 700KB，留足余量；同时阻止异常大的响应耗尽内存
+MAX_FIRMWARE_SIZE = 8 * 1024 * 1024
+# branch 会拼进磁盘路径，只允许安全字符，阻止 /version?branch=../../.. 这类穿越
+BRANCH_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')
 
 os.makedirs(DATA_DIR, exist_ok=True)
+
+def check_branch(branch):
+    return branch if BRANCH_RE.match(branch or '') else None
+
+def check_url(url):
+    scheme = urllib.parse.urlparse(url or '').scheme
+    return scheme in ('http', 'https')
 
 def get_version(branch='dev'):
     version_file = os.path.join(DATA_DIR, branch, 'version.txt')
@@ -30,8 +43,9 @@ def get_firmware_path(branch='dev'):
     return os.path.join(DATA_DIR, branch, 'firmware.bin')
 
 def verify_webhook(payload, signature):
+    # 未配置密钥时拒绝而非放行：webhook 会把下载的固件推给全部设备
     if not WEBHOOK_SECRET:
-        return True
+        return False
     if not signature:
         return False
     expected = 'sha256=' + hmac.new(WEBHOOK_SECRET.encode(), payload, hashlib.sha256).hexdigest()
@@ -39,10 +53,16 @@ def verify_webhook(payload, signature):
 
 def download_firmware(url, branch):
     print(f"[OTA] Downloading firmware from: {url} (branch: {branch})")
+    if not check_url(url) or not check_branch(branch):
+        print("[OTA] Rejected: invalid url scheme or branch")
+        return False
     try:
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req) as response:
-            data = response.read()
+            data = response.read(MAX_FIRMWARE_SIZE + 1)
+            if not data or len(data) > MAX_FIRMWARE_SIZE:
+                print(f"[OTA] Bad firmware size: {len(data)} bytes")
+                return False
             firmware_path = get_firmware_path(branch)
             with open(firmware_path, 'wb') as f:
                 f.write(data)
@@ -54,13 +74,20 @@ def download_firmware(url, branch):
 
 def extract_firmware_from_zip(url, branch):
     print(f"[OTA] Downloading ZIP from: {url} (branch: {branch})")
+    if not check_url(url) or not check_branch(branch):
+        print("[OTA] Rejected: invalid url scheme or branch")
+        return False
     try:
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req) as response:
-            zip_data = response.read()
+            zip_data = response.read(MAX_FIRMWARE_SIZE + 1)
             with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
                 for name in zf.namelist():
                     if name.endswith('.ota.bin') or name.endswith('.bin'):
+                        info = zf.getinfo(name)
+                        if info.file_size == 0 or info.file_size > MAX_FIRMWARE_SIZE:
+                            print(f"[OTA] Bad entry size: {name} ({info.file_size} bytes)")
+                            return False
                         firmware_path = get_firmware_path(branch)
                         with zf.open(name) as src, open(firmware_path, 'wb') as dst:
                             dst.write(src.read())
@@ -90,6 +117,9 @@ class OTAHandler(http.server.BaseHTTPRequestHandler):
                 params[k] = v
 
         branch = params.get('branch', 'dev')
+        if check_branch(branch) is None:
+            self.send_error(400, 'Invalid branch')
+            return
 
         if path == '/version':
             version = get_version(branch)
@@ -142,7 +172,8 @@ class OTAHandler(http.server.BaseHTTPRequestHandler):
             signature = self.headers.get('X-Hub-Signature-256', '')
 
             if not verify_webhook(payload, signature):
-                self.send_error(403, 'Invalid signature')
+                reason = 'Webhook secret not configured' if not WEBHOOK_SECRET else 'Invalid signature'
+                self.send_error(403, reason)
                 return
 
             try:
@@ -220,5 +251,8 @@ if __name__ == '__main__':
     print(f'  GET  /branches             - List branches')
     print(f'  POST /webhook              - GitHub release webhook')
     print(f'Press Ctrl+C to stop')
+    if not WEBHOOK_SECRET:
+        print('WARNING: WEBHOOK_SECRET 未设置, /webhook 将拒绝所有请求 (POST 返回 403)')
 
-    http.server.HTTPServer(('0.0.0.0', PORT), OTAHandler).serve_forever()
+    # 单线程 HTTPServer 下一个慢客户端会阻塞全部请求(固件下载尤其明显)
+    http.server.ThreadingHTTPServer(('0.0.0.0', PORT), OTAHandler).serve_forever()
