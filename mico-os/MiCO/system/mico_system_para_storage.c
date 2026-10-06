@@ -30,6 +30,12 @@ static int32_t seedNum = 0;
 
 system_context_t* sys_context = NULL;
 
+/* 串行化配置写: 覆盖 P1+P2 两次擦写窗口(约 1-2s)。
+ * 不能复用 flashContentInRam_mutex —— config_server.c 会长时间持有它，且 MiCO
+ * 互斥量不可重入，system_misc.c 在持锁期间就会调用 context_update。 */
+static mico_mutex_t para_update_mutex;
+static bool para_update_mutex_ready = false;
+
 //#define para_log(M, ...) custom_log("MiCO Settting", M, ##__VA_ARGS__)
 
 #define para_log(M, ...)
@@ -79,6 +85,7 @@ void* mico_system_context_init( uint32_t user_config_data_size )
   para_log( "Init context: len=%d", sizeof(system_context_t));
 
   mico_rtos_init_mutex( &sys_context->flashContentInRam_mutex );
+  para_update_mutex_ready = ( mico_rtos_init_mutex( &para_update_mutex ) == kNoErr );
   MICOReadConfiguration( sys_context );
 
 exit:
@@ -116,16 +123,48 @@ static OSStatus internal_update_config( system_context_t * const inContext )
   CRC16_Context crc_context;
   uint16_t crc_result;
   
-  uint16_t crc_readback;;
+  uint16_t crc_readback;
+
+  system_config_t *src_sys_config;
+  uint8_t *src_user_data;
+  uint8_t *snapshot = NULL;
+  bool locked = false;
 
   require_action(inContext, exit, err = kNotPreparedErr);
 
   para_log("Flash write!");
 
+  /* 并发写配置(含 SDK 内部未加锁的 mico_system_context_update)会让两个分区在
+   * 约 1-2s 的擦写窗口里被不同时刻的 RAM 内容写脏，先互斥再取快照。 */
+  if ( para_update_mutex_ready )
+  {
+    mico_rtos_lock_mutex( &para_update_mutex );
+    locked = true;
+  }
+
+  /* CRC 与两次分区写必须来自同一份快照: 原先先用活动 RAM 算 CRC(t0)，再分两次
+   * (t1/t2)从活动 RAM 写 P1/P2。窗口内任何无锁 RAM 改动都会让两个分区同时
+   * data != CRC，开机时 MICOReadConfiguration 判双双损坏并直接恢复出厂。 */
+  snapshot = malloc( sizeof( system_config_t ) + inContext->user_config_data_size );
+
+  if ( snapshot )
+  {
+    memcpy( snapshot, &inContext->flashContentInRam, sizeof( system_config_t ) );
+    memcpy( snapshot + sizeof( system_config_t ), inContext->user_config_data, inContext->user_config_data_size );
+    src_sys_config  = ( system_config_t * )snapshot;
+    src_user_data   = snapshot + sizeof( system_config_t );
+  }
+  else
+  {
+    /* 内存不足时退回旧行为(仍有竞态)，但不能因此丢掉这次配置写入 */
+    src_sys_config  = &inContext->flashContentInRam;
+    src_user_data   = ( uint8_t * )inContext->user_config_data;
+  }
+
   /* Calculate CRC value */
   CRC16_Init( &crc_context );
-  CRC16_Update( &crc_context, &inContext->flashContentInRam.micoSystemConfig, SYS_CONFIG_SIZE );
-  CRC16_Update( &crc_context, inContext->user_config_data, inContext->user_config_data_size );
+  CRC16_Update( &crc_context, &src_sys_config->micoSystemConfig, SYS_CONFIG_SIZE );
+  CRC16_Update( &crc_context, src_user_data, inContext->user_config_data_size );
 
   CRC16_Final( &crc_context, &crc_result );
 
@@ -133,11 +172,11 @@ static OSStatus internal_update_config( system_context_t * const inContext )
   require_noerr(err, exit);
 
   para_offset = 0x0;
-  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_1, &para_offset, (uint8_t *)&inContext->flashContentInRam, sizeof(system_config_t));
+  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_1, &para_offset, (uint8_t *)src_sys_config, sizeof(system_config_t));
   require_noerr(err, exit);
 
   para_offset = mico_context_section_offsets[ PARA_APP_DATA_SECTION ];
-  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_1, &para_offset, inContext->user_config_data, inContext->user_config_data_size );
+  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_1, &para_offset, src_user_data, inContext->user_config_data_size );
   require_noerr(err, exit);
 
   para_offset = mico_context_section_offsets[ PARA_APP_DATA_SECTION ] + inContext->user_config_data_size;
@@ -149,7 +188,10 @@ static OSStatus internal_update_config( system_context_t * const inContext )
   err = MicoFlashRead( MICO_PARTITION_PARAMETER_1, &para_offset, (uint8_t *)&crc_readback, CRC_SIZE );
   para_log( "crc_readback = %d", crc_readback);
   if( crc_readback == 0x0)
-    return kWriteErr;
+  {
+    err = kWriteErr;
+    goto exit;
+  }
   
 
   /* Write backup data*/
@@ -157,11 +199,11 @@ static OSStatus internal_update_config( system_context_t * const inContext )
   require_noerr(err, exit);
 
   para_offset = 0x0;
-  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_2, &para_offset, (uint8_t *)&inContext->flashContentInRam, sizeof(system_config_t));
+  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_2, &para_offset, (uint8_t *)src_sys_config, sizeof(system_config_t));
   require_noerr(err, exit);
 
   para_offset = mico_context_section_offsets[ PARA_APP_DATA_SECTION ];
-  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_2, &para_offset, inContext->user_config_data, inContext->user_config_data_size );
+  err = MicoFlashWrite( MICO_PARTITION_PARAMETER_2, &para_offset, src_user_data, inContext->user_config_data_size );
   require_noerr(err, exit);
 
   para_offset = mico_context_section_offsets[ PARA_APP_DATA_SECTION ] + inContext->user_config_data_size;;
@@ -169,6 +211,8 @@ static OSStatus internal_update_config( system_context_t * const inContext )
   require_noerr(err, exit);
 
 exit:
+  if ( snapshot ) free( snapshot );
+  if ( locked ) mico_rtos_unlock_mutex( &para_update_mutex );
   return err;
 }
 
