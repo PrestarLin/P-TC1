@@ -36,13 +36,6 @@ system_context_t* sys_context = NULL;
 static mico_mutex_t para_update_mutex;
 static bool para_update_mutex_ready = false;
 
-/* 常驻配置快照缓冲(≈4.4KB): internal_update_config 的 CRC 与 P1/P2 两次分区写
- * 全部取自这里。在 init 一次性分配代替每次落盘 malloc/free:
- * - 消除任务保存热路径上反复借还 4.4KB 堆块的堆压力/碎片;
- * - 消除"每次 malloc 可能失败"这一分支, 分配失败只可能发生在 init, 此时
- *   落盘直接跳过(见 internal_update_config), 绝不退回活动 RAM 直写(撕裂竞态)。 */
-static uint8_t *para_snapshot = NULL;
-
 //#define para_log(M, ...) custom_log("MiCO Settting", M, ##__VA_ARGS__)
 
 #define para_log(M, ...)
@@ -76,8 +69,6 @@ void* mico_system_context_init( uint32_t user_config_data_size )
       free( sys_context->user_config_data );
     free( sys_context );
     sys_context = NULL;
-    /* 重入 init 时按新尺寸重建快照缓冲 */
-    if ( para_snapshot ) { free( para_snapshot ); para_snapshot = NULL; }
   }
 
   if( user_config_data_size ){
@@ -95,9 +86,6 @@ void* mico_system_context_init( uint32_t user_config_data_size )
 
   mico_rtos_init_mutex( &sys_context->flashContentInRam_mutex );
   para_update_mutex_ready = ( mico_rtos_init_mutex( &para_update_mutex ) == kNoErr );
-  /* 一次性分配常驻快照, 尺寸恒等于本次 user_config_data_size(此后不再变),
-   * 分配失败只可能发生在启动早期内存极充裕时; 失败不致命, 落盘会被跳过 */
-  para_snapshot = malloc( sizeof( system_config_t ) + user_config_data_size );
   MICOReadConfiguration( sys_context );
 
 exit:
@@ -139,15 +127,12 @@ static OSStatus internal_update_config( system_context_t * const inContext )
 
   system_config_t *src_sys_config;
   uint8_t *src_user_data;
+  uint8_t *snapshot = NULL;
   bool locked = false;
 
   require_action(inContext, exit, err = kNotPreparedErr);
 
   para_log("Flash write!");
-
-  /* 常驻快照在 init 分配失败(近乎不可能): 跳过本次落盘。flash 里旧配置完好,
-   * 重启只是丢这次改动; 不允许退回"活动 RAM 直写"的撕裂竞态路径。 */
-  require_action(para_snapshot != NULL, exit, err = kNoMemoryErr);
 
   /* 并发写配置(含 SDK 内部未加锁的 mico_system_context_update)会让两个分区在
    * 约 1-2s 的擦写窗口里被不同时刻的 RAM 内容写脏，先互斥再取快照。 */
@@ -159,12 +144,22 @@ static OSStatus internal_update_config( system_context_t * const inContext )
 
   /* CRC 与两次分区写必须来自同一份快照: 原先先用活动 RAM 算 CRC(t0)，再分两次
    * (t1/t2)从活动 RAM 写 P1/P2。窗口内任何无锁 RAM 改动都会让两个分区同时
-   * data != CRC，开机时 MICOReadConfiguration 判双双损坏并直接恢复出厂。
-   * 快照拷贝是微秒级窗口, 不依赖调用方持有任何业务锁(TaskLock 等)。 */
-  memcpy( para_snapshot, &inContext->flashContentInRam, sizeof( system_config_t ) );
-  memcpy( para_snapshot + sizeof( system_config_t ), inContext->user_config_data, inContext->user_config_data_size );
-  src_sys_config  = ( system_config_t * )para_snapshot;
-  src_user_data   = para_snapshot + sizeof( system_config_t );
+   * data != CRC，开机时 MICOReadConfiguration 判双双损坏并直接恢复出厂。 */
+  snapshot = malloc( sizeof( system_config_t ) + inContext->user_config_data_size );
+
+  if ( snapshot )
+  {
+    memcpy( snapshot, &inContext->flashContentInRam, sizeof( system_config_t ) );
+    memcpy( snapshot + sizeof( system_config_t ), inContext->user_config_data, inContext->user_config_data_size );
+    src_sys_config  = ( system_config_t * )snapshot;
+    src_user_data   = snapshot + sizeof( system_config_t );
+  }
+  else
+  {
+    /* 内存不足时退回旧行为(仍有竞态)，但不能因此丢掉这次配置写入 */
+    src_sys_config  = &inContext->flashContentInRam;
+    src_user_data   = ( uint8_t * )inContext->user_config_data;
+  }
 
   /* Calculate CRC value */
   CRC16_Init( &crc_context );
@@ -216,7 +211,7 @@ static OSStatus internal_update_config( system_context_t * const inContext )
   require_noerr(err, exit);
 
 exit:
-  /* 快照是常驻缓冲, 不释放 */
+  if ( snapshot ) free( snapshot );
   if ( locked ) mico_rtos_unlock_mutex( &para_update_mutex );
   return err;
 }
