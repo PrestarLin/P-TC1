@@ -320,9 +320,12 @@ int httpd_send_response_301(httpd_request_t *req, char *location, const char
 {
 	int ret;
 
-	/* Parse the header tags. This is valid only for GET or HEAD request */
-	if (req->type == HTTPD_REQ_TYPE_GET ||
-		req->type == HTTPD_REQ_TYPE_HEAD) {
+	/* 请求头未被解析消费时(hdr_parsed=0, 如 GET/HEAD/DELETE/PUT 直接应答)
+	 * 必须排空到头部结束空行, 否则残留字节成为下一个 keep-alive 请求的
+	 * "请求行" → 串流。原条件只排 GET/HEAD, DELETE 的头被整个留下,
+	 * 正是"连续删除后随机 500/加载失败"的直接原因。
+	 * POST 由 httpd_get_data 解析请求头并读取 body(hdr_parsed=1), 跳过。 */
+	if (!req->hdr_parsed) {
 		ret = httpd_purge_headers(req->sock);
 
 		if (ret != kNoErr) {
@@ -404,9 +407,8 @@ int httpd_send_all_header(httpd_request_t *req, const char *first_line, int body
 {
   int ret;
 
-  /* Parse the header tags. This is valid only for GET or HEAD request */
-  if (req->type == HTTPD_REQ_TYPE_GET ||
-    req->type == HTTPD_REQ_TYPE_HEAD) {
+  /* 见 httpd_send_response 注释: hdr_parsed=0 时一律排空请求头 (DELETE 等) */
+  if (!req->hdr_parsed) {
     ret = httpd_purge_headers(req->sock);
 
     if (ret != kNoErr) {
@@ -466,9 +468,12 @@ int httpd_send_response(httpd_request_t *req, const char *first_line,
 {
 	int ret;
 
-	/* Parse the header tags. This is valid only for GET or HEAD request */
-	if (req->type == HTTPD_REQ_TYPE_GET ||
-		req->type == HTTPD_REQ_TYPE_HEAD) {
+	/* 请求头未被解析消费时(hdr_parsed=0, 如 GET/HEAD/DELETE/PUT 直接应答)
+	 * 必须排空到头部结束空行, 否则残留字节成为下一个 keep-alive 请求的
+	 * "请求行" → 串流。原条件只排 GET/HEAD, DELETE 的头被整个留下,
+	 * 正是"连续删除后随机 500/加载失败"的直接原因。
+	 * POST 由 httpd_get_data 解析请求头并读取 body(hdr_parsed=1), 跳过。 */
+	if (!req->hdr_parsed) {
 		ret = httpd_purge_headers(req->sock);
 
 		if (ret != kNoErr) {
