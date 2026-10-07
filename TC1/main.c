@@ -311,23 +311,32 @@ void CreateNightModeTask(int hour, int minute, int on) {
     AppContextUpdate(sys_config);
 }
 
-/* 按当前存储的时段重建夜间模式的两个每日任务；开启时若此刻已落在时段内，
- * 说明起点事件已错过，先补执行一次，否则要等到明天这个点才生效。
+/* 按当前存储的时段重建夜间模式的两个每日任务；开关变更时若此刻已落在时段内，
+ * 对应的到点事件已错过，先补执行一次，否则要等到明天这个点才生效：
+ *  - 开启且在窗口内: start(关灯)事件错过 → 补关灯;
+ *  - 关闭且在窗口内: 灯是夜间模式强制关的, 删掉每日任务后 end(恢复)事件不复存在,
+ *    灯会一直灭到明天 → 删除前先补执行 end 恢复动作。
  * 未对时(rtc_init != 1)时不做即时判断：1970 基准算出的分钟会误判。 */
 void NightModeReapply(void) {
     int start = user_config->night_mode_start;
     int end = user_config->night_mode_end;
 
-    if (user_config->night_mode_enabled && rtc_init == 1) {
+    if (rtc_init == 1) {
         int now = GetMinutesSinceMidnight();
         bool in_window = (now >= 0) && ((start <= end) ? (now >= start && now < end)
                                                        : (now >= start || now < end));
         if (in_window) {
-            /* 与 timed_task.c 的 SWITCH_LED_ENABLE(on=0) 分支一致；随后的
+            /* 与 timed_task.c 的 SWITCH_LED_ENABLE 分支一致；随后的
              * Remove/Create 各自会 AppContextUpdate，把该状态一并落盘 */
-            MQTT_LED_ENABLED = 0;
-            UserLedSet(0);
-            UserMqttSendLedState();
+            if (user_config->night_mode_enabled) {
+                MQTT_LED_ENABLED = 0;
+                UserLedSet(0);
+                UserMqttSendLedState();
+            } else {
+                MQTT_LED_ENABLED = 1;
+                if (RelayOut()) { UserLedSet(1); } else { UserLedSet(0); }
+                UserMqttSendLedState();
+            }
         }
     }
 
