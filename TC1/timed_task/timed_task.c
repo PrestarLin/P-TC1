@@ -284,7 +284,8 @@ bool DelTask(int idx)
     t->next = NULL;
     t->on_use = false;
     user_config->task_count--;
-    AppContextUpdate(sys_config);
+    /* 不在持锁路径落盘: flash 擦写约 1-2s, 由调用方 TaskUnlock 后调 AppContextUpdate,
+     * 期间调度线程可正常取锁触发任务(快照一致性不依赖 TaskLock, 见 para_storage) */
     return true;
 }
 

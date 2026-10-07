@@ -1081,8 +1081,12 @@ static int HttpDelTask(httpd_request_t *req) {
     int ret = sscanf(idx_str + 6, "%d", &idx);
 
     TaskLock();
-    char *mess = (ret == 1 && DelTask(idx)) ? "OK" : "NO";
+    bool ok = (ret == 1 && DelTask(idx));
     TaskUnlock();
+    /* 落盘放到解锁后: 擦写约 1-2s, 持 TaskLock 会把调度线程的任务触发一起卡住 */
+    if (ok) AppContextUpdate(sys_config);
+
+    char *mess = ok ? "OK" : "NO";
 
     send_http(mess, strlen(mess), exit, &err);
     exit:
