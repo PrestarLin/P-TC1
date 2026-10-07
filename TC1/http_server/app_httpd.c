@@ -1071,16 +1071,17 @@ static int HttpAddTask(httpd_request_t *req) {
 static int HttpDelTask(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    char *time_str = strstr(req->filename, "/task/");
-    if (!time_str) { http_log("HttpDelTask url[%s] err", req->filename);
+    /* URL 中 /task/ 后为 timed_tasks 槽位索引(新页面), 兼容旧页面时间戳: 超出范围自然删除失败 */
+    char *idx_str = strstr(req->filename, "/task/");
+    if (!idx_str) { http_log("HttpDelTask url[%s] err", req->filename);
         return err;
-    }http_log("HttpDelTask url[%s] time_str[%s][%s]", req->filename, time_str, time_str + 6);
+    }http_log("HttpDelTask url[%s] idx_str[%s][%s]", req->filename, idx_str, idx_str + 6);
 
-    int time1 = 0;
-    int ret = sscanf(time_str + 6, "%d", &time1);
+    int idx = 0;
+    int ret = sscanf(idx_str + 6, "%d", &idx);
 
     TaskLock();
-    char *mess = (ret == 1 && DelTask(time1)) ? "OK" : "NO";
+    char *mess = (ret == 1 && DelTask(idx)) ? "OK" : "NO";
     TaskUnlock();
 
     send_http(mess, strlen(mess), exit, &err);

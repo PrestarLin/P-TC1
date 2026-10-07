@@ -47,7 +47,7 @@ struct TimedTask
 
 pTimedTask NewTask();
 bool AddTask(pTimedTask task);
-bool DelTask(int time);
+bool DelTask(int idx); /* 按 timed_tasks 槽位索引删除 */
 bool DelFirstTask();
 void ProcessTask();
 char* GetTaskStr();

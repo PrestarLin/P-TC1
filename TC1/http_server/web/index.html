@@ -968,7 +968,7 @@ function renderTasks(){
     if(t.timestamp){var dd=new Date(t.timestamp*1000);ts=(dd.getHours()<10?'0':'')+dd.getHours()+':'+(dd.getMinutes()<10?'0':'')+dd.getMinutes();}
     return '<tr><td>'+(isLoopTable&&winStr?winStr:ts)+'</td><td>'+sockStr+'</td><td>'+act+'</td>'
       +'<td>'+(t.is_loop?rStr:'')+'</td><td>'+(t.is_loop?repStr:rStr)+'</td>'
-      +'<td><span class="tbl-del" onclick="delTask('+t.timestamp+')">'+L('btn_del')+'</span></td></tr>';
+      +'<td><span class="tbl-del" onclick="delTask('+t.idx+')">'+L('btn_del')+'</span></td></tr>';
   }
   if(scheduled.length){
     var h='<table class="tbl"><thead><tr><th>'+L('col_time')+'</th><th>'+L('task_device')+'</th><th>'+L('task_action')+'</th><th></th><th>'+L('task_repeat')+'</th><th></th></tr></thead><tbody>';
@@ -1569,7 +1569,7 @@ function doFactoryReset(){
     toast(T('toast_resetting'));setTimeout(function(){location.reload();},15000);
   });
 }
-function delTask(ts){if(confirm('Delete task?'))del('/task/'+ts,function(){fetchTasks();});}
+function delTask(idx){if(confirm('Delete task?'))del('/task/'+idx,function(e,r){if(e||r!=='OK')toast('Delete failed: '+(r||'error'));fetchTasks();});}
 function clearAllTasks(){if(confirm('Clear ALL tasks?'))post('/task/clear','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('All tasks cleared');fetchTasks();});}
 function clearScheduledTasks(){if(confirm('Clear all scheduled tasks?'))post('/task/clear/scheduled','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('Scheduled tasks cleared');fetchTasks();});}
 function clearLoopTasks(){if(confirm('Clear all loop tasks?'))post('/task/clear/loop','',function(e,r){if(e||r!=='OK'){toast('Failed');return;}toast('Loop tasks cleared');fetchTasks();});}

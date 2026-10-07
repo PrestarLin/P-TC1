@@ -88,6 +88,21 @@ pTimedTask NewTask()
     return NULL;
 }
 
+/* 循环任务原地改期重挂: 保留槽位与 on_use。
+ * 旧实现 DelFirstTask+NewTask 会让任务换槽位, NewTask 拿不到空位时任务还会静默丢失;
+ * 删除改按槽位索引后, 必须保证重排不动槽位 */
+static void RequeueFirstTask(time_t next, int on_val)
+{
+    pTimedTask t = user_config->task_top;
+    if (!t) return;
+    user_config->task_top = t->next;
+    user_config->task_count--;
+    t->next = NULL;
+    t->prs_time = next;
+    t->on = on_val;
+    AddTask(t);
+}
+
 bool AddTaskSingle(pTimedTask task)
 {
     user_config->task_count++;
@@ -239,43 +254,38 @@ void ClearScheduledTasks()
     AppContextUpdate(sys_config);
 }
 
-bool DelTask(int time)
+/* 按 timed_tasks 槽位索引删除(循环任务每次重排都会改 prs_time, 时间戳不能作删除键) */
+bool DelTask(int idx)
 {
-    if (user_config->task_top == NULL)
+    if (idx < 0 || idx >= MAX_TASK_NUM)
+    {
+        return false;
+    }
+    pTimedTask t = &user_config->timed_tasks[idx];
+    if (!t->on_use)
     {
         return false;
     }
 
-    if (time == user_config->task_top->prs_time)
+    if (user_config->task_top == t)
     {
-        pTimedTask tmp = user_config->task_top;
-        user_config->task_top = user_config->task_top->next;
-        tmp->on_use = false;
-        user_config->task_count--;
-        AppContextUpdate(sys_config);
-        return true;
+        user_config->task_top = t->next;
     }
-    else if (user_config->task_top->next == NULL)
+    else
     {
-        return false;
-    }
-
-    pTimedTask pre_tsk = user_config->task_top;
-    pTimedTask tmp_tsk = user_config->task_top->next;
-    while (tmp_tsk)
-    {
-        if (time == tmp_tsk->prs_time)
+        pTimedTask p = user_config->task_top;
+        while (p && p->next != t)
         {
-            pre_tsk->next = tmp_tsk->next;
-            tmp_tsk->on_use = false;
-            user_config->task_count--;
-            AppContextUpdate(sys_config);
-            return true;
+            p = p->next;
         }
-        pre_tsk = tmp_tsk;
-        tmp_tsk = tmp_tsk->next;
+        if (!p) return false;
+        p->next = t->next;
     }
-    return false;
+    t->next = NULL;
+    t->on_use = false;
+    user_config->task_count--;
+    AppContextUpdate(sys_config);
+    return true;
 }
 
 void ProcessTask()
@@ -334,10 +344,8 @@ void ProcessTask()
         int loop_end = raw_end & 0xFFFF;
         int loop_daily = (raw_end >> 16) & 1;
         int loop_start_on = (raw_end >> 17) & 1;
-        int saved_op = user_config->task_top->operation;
         int saved_on = user_config->task_top->on;
         int saved_wd = user_config->task_top->weekday;
-        int saved_loop_end = user_config->task_top->loop_end;
 
         /* 检查当前时间是否在时间段内 (loop_end=0 表示不限制)。
          * 全部按北京时间比较: 设备 localtime=UTC, 直接用会与 loop_end(北京) 差 8 小时。
@@ -369,26 +377,16 @@ void ProcessTask()
                         UserMqttSendTotalSocketState();
                     }
                     if (loop_daily) {
-                        /* 每天重复: 不删除, 重挂到下一个窗口起点, 动作恢复为初始方向 */
+                        /* 每天重复: 不删除, 原地重挂到下一个窗口起点, 动作恢复为初始方向 */
                         int bj_now = (int)((now + 28800) % day_sec);
                         time_t next = now - bj_now + (time_t)start_min * 60;
                         if (next <= now) next += day_sec;
                         task_log("loop daily re-arm: next=%ld", next);
-                        DelFirstTask();
-                        pTimedTask newTask = NewTask();
-                        if (newTask) {
-                            newTask->prs_time = next;
-                            newTask->operation = saved_op;
-                            newTask->on = (saved_on == -1) ? -1 : (loop_start_on ? 1 : 0);
-                            newTask->weekday = saved_wd;
-                            newTask->loop_end = saved_loop_end;
-                            AddTask(newTask);
-                        }
+                        RequeueFirstTask(next, (saved_on == -1) ? -1 : (loop_start_on ? 1 : 0));
                         AppContextUpdate(sys_config);
                         return;
                     }
-                    DelFirstTask();
-                    AppContextUpdate(sys_config);
+                    DelFirstTask(); /* 内部已 AppContextUpdate */
                     return;
                 }
             }
@@ -403,16 +401,7 @@ void ProcessTask()
             saved_on = (saved_on == 0) ? 1 : 0;
         }
         task_log("loop reschedule: next=%ld on=%d delay=%d", next, saved_on, delay_sec);
-        DelFirstTask();
-        pTimedTask newTask = NewTask();
-        if (newTask) {
-            newTask->prs_time = next;
-            newTask->operation = saved_op;
-            newTask->on = saved_on;
-            newTask->weekday = saved_wd;
-            newTask->loop_end = saved_loop_end;
-            AddTask(newTask);
-        }
+        RequeueFirstTask(next, saved_on);
         AppContextUpdate(sys_config);
         return;
     }
@@ -457,8 +446,9 @@ char* GetTaskStr()
         int loop_start = GET_LOOP_START(tmp_tsk->weekday) ? GET_LOOP_START(tmp_tsk->weekday) - 1 : -1;
 
         sprintf(tmp_str,
-            "{'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
+            "{'idx':%d,'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
             "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_start':%d,'loop_end':%d,'loop_repeat':%d},",
+            (int)(tmp_tsk - &user_config->timed_tasks[0]),
             tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday,
             is_loop, loop_dur, loop_int, loop_start, tmp_tsk->loop_end & 0xFFFF, (tmp_tsk->loop_end >> 16) & 1);
         tmp_str += strlen(tmp_str);
