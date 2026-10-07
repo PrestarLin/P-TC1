@@ -200,10 +200,15 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" data-i18n="task_repeat">Repeat</label>
-              <select class="form-select" id="loopRepeat">
-                <option value="0" data-i18n="tbl_once">Once</option>
-                <option value="1" data-i18n="tbl_daily">Daily</option>
-              </select>
+              <div class="btn-group" id="loopRepeat">
+                <button type="button" class="btn btn-sm" data-day="1">Sun</button>
+                <button type="button" class="btn btn-sm" data-day="2">Mon</button>
+                <button type="button" class="btn btn-sm" data-day="4">Tue</button>
+                <button type="button" class="btn btn-sm" data-day="8">Wed</button>
+                <button type="button" class="btn btn-sm" data-day="16">Thu</button>
+                <button type="button" class="btn btn-sm" data-day="32">Fri</button>
+                <button type="button" class="btn btn-sm" data-day="64">Sat</button>
+              </div>
             </div>
           </div>
         </div>
@@ -854,6 +859,7 @@ function renderSockets(){
 
 /* ── Tasks ── */
 var taskRepeatDays=0;
+var loopRepeatDays=0;
 function updateTaskSocketOptions(){
   var sel=document.getElementById('taskSocket');
   if(!sel)return;
@@ -868,8 +874,21 @@ document.getElementById('taskRepeat').addEventListener('click',function(e){
   taskRepeatDays^=d;
   btn.classList.toggle('on');
 });
-function setTaskDaily(){taskRepeatDays=127;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.add('on');});}
-function setTaskOnce(){taskRepeatDays=0;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.remove('on');});}
+/* 循环任务星期选择: 与定时任务同一套按钮/掩码(Sun=bit0..Sat=bit6), 全不选=单次 */
+document.getElementById('loopRepeat').addEventListener('click',function(e){
+  var btn=e.target.closest('[data-day]');if(!btn)return;
+  var d=parseInt(btn.dataset.day);
+  loopRepeatDays^=d;
+  btn.classList.toggle('on');
+});
+function setTaskDaily(){
+  if(document.getElementById('taskType').value==='loop'){loopRepeatDays=127;document.querySelectorAll('#loopRepeat .btn').forEach(function(b){b.classList.add('on');});}
+  else{taskRepeatDays=127;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.add('on');});}
+}
+function setTaskOnce(){
+  if(document.getElementById('taskType').value==='loop'){loopRepeatDays=0;document.querySelectorAll('#loopRepeat .btn').forEach(function(b){b.classList.remove('on');});}
+  else{taskRepeatDays=0;document.querySelectorAll('#taskRepeat .btn').forEach(function(b){b.classList.remove('on');});}
+}
 function toggleLoopFields(){
   var isLoop=document.getElementById('taskType').value==='loop';
   document.getElementById('scheduleTimeGroup').style.display=isLoop?'none':'';
@@ -896,21 +915,24 @@ function addTask(){
     var sp=st.split(':'),ep=et.split(':');
     var startMin=parseInt(sp[0])*60+parseInt(sp[1]);
     var endMin=parseInt(ep[0])*60+parseInt(ep[1]);
+    var dow=loopRepeatDays;
     var now=new Date();
     var nowMin=now.getHours()*60+now.getMinutes();
     var inWin=startMin<=endMin?(nowMin>=startMin&&nowMin<endMin):(nowMin>=startMin||nowMin<endMin);
     var startTs;
-    if(inWin){
+    /* 今天已在窗口内且星期匹配(或单次未选星期)→ 立即触发;
+     * 否则逐日前推到"下一个匹配星期的窗口起点"(星期掩码与定时任务同: Sun=bit0..Sat=bit6) */
+    if(inWin&&(!dow||(dow&(1<<now.getDay())))){
       startTs=new Date(now.getTime()+3000);
     }else{
       startTs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),parseInt(sp[0]),parseInt(sp[1]),0);
-      if(startTs<=now)startTs.setDate(startTs.getDate()+1);
+      var guard=0;
+      while((startTs<=now||(dow&&!(dow&(1<<startTs.getDay()))))&&guard++<8)startTs.setDate(startTs.getDate()+1);
     }
     var ts=Math.floor(startTs.getTime()/1000);
     var dur=parseInt(document.getElementById('loopDuration').value)||5;
     var interval=parseInt(document.getElementById('loopInterval').value)||10;
-    var rep=parseInt(document.getElementById('loopRepeat').value)||0;
-    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin+' '+startMin+' '+rep;
+    body=ts+' '+socket+' '+on+' 0 '+dur+' '+interval+' '+endMin+' '+startMin+' 0 '+dow;
   }else{
     var timeVal=document.getElementById('taskTime').value;
     if(!timeVal){toast('Set time');return;}
@@ -962,7 +984,11 @@ function renderTasks(){
       var endStr=t.loop_end!=null?_p2(t.loop_end):'--:--';
       var startStr=(t.loop_start!=null&&t.loop_start>=0)?_p2(t.loop_start):'--:--';
       winStr=startStr+' - '+endStr;
-      repStr=t.loop_repeat?L('tbl_daily'):L('tbl_once');
+      /* 星期掩码优先(127=每天); 旧任务无掩码时回退 每日/单次 显示 */
+      var lwd=t.loop_weekday||0;
+      if(lwd===127)repStr=L('tbl_daily');
+      else if(lwd){var lds=[];for(var ld=0;ld<7;ld++){if(lwd&(1<<ld))lds.push(days[ld]);}repStr=lds.join(', ');}
+      else repStr=t.loop_repeat?L('tbl_daily'):L('tbl_once');
       rStr=(t.on===-1)?(t.loop_duration+'m'):(t.loop_duration+'m / '+t.loop_interval+'m');
     }else if(wk===127||wk===383)rStr=L('tbl_daily');
     else if(wk===0)rStr=L('tbl_once');

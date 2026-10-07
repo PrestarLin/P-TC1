@@ -29,6 +29,13 @@
 #define GET_LOOP_START(w)       (((w) >> LOOP_START_SHIFT) & LOOP_START_MASK)
 #define MAKE_LOOP_START(min)    (((((min) + 1) & LOOP_START_MASK)) << LOOP_START_SHIFT)
 
+/* 循环任务星期掩码: 存 loop_end bit18-24 (Sun=bit0..Sat=bit6, 与定时任务 weekday 同编码)。
+ * 0=未选择(新建单次/旧任务), 由 ProcessTask 回退 bit16 loop_daily 旧语义 */
+#define LOOP_DOW_SHIFT      18
+#define LOOP_DOW_MASK       0x7F
+#define GET_LOOP_DOW(le)    (((le) >> LOOP_DOW_SHIFT) & LOOP_DOW_MASK)
+#define MAKE_LOOP_DOW(dow)  ((((dow) & LOOP_DOW_MASK) << LOOP_DOW_SHIFT))
+
 /* 夜间模式每日 LED 任务标记: 全周掩码 + bit8(避开周三=8 冲突, bit7=循环标志不可用) */
 #define NIGHT_DAILY_WEEKDAY     (127 | (1 << 8))
 
@@ -41,7 +48,7 @@ struct TimedTask
     int operation;  //要进行的操作
     int on;          //开或者关，-1=切换
     int weekday;     //星期重复 或 循环编码
-    int loop_end;    //循环任务结束时间（分钟 since midnight），非循环任务=0
+    int loop_end;    //循环任务: bit0-15=结束分钟(北京 since midnight), bit16=每日, bit17=初始方向, bit18-24=星期掩码; 非循环=0
     pTimedTask next; //下一个任务(按之间排序)
 };
 

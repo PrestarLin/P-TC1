@@ -1012,7 +1012,7 @@ static int HttpGetButtonEvents(httpd_request_t *req) {
 static int HttpAddTask(httpd_request_t *req) {
     OSStatus err = kNoErr;
 
-    char buf[64] = {0};
+    char buf[96] = {0};
     err = httpd_get_data(req, buf, sizeof(buf));
     require_noerr(err, exit);
 
@@ -1029,9 +1029,9 @@ static int HttpAddTask(httpd_request_t *req) {
     memset(task, 0, sizeof(struct TimedTask));
     task->on_use = saved_on_use;
 
-    int loop_dur = 0, loop_int = 0, loop_end = 0, loop_start_min = -1, loop_rep = 0;
-    int re = sscanf(buf, "%ld %d %d %d %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
-                    &task->weekday, &loop_dur, &loop_int, &loop_end, &loop_start_min, &loop_rep);
+    int loop_dur = 0, loop_int = 0, loop_end = 0, loop_start_min = -1, loop_rep = 0, loop_dow = 0;
+    int re = sscanf(buf, "%ld %d %d %d %d %d %d %d %d %d", &task->prs_time, &task->operation, &task->on,
+                    &task->weekday, &loop_dur, &loop_int, &loop_end, &loop_start_min, &loop_rep, &loop_dow);
     http_log("AddTask buf[%s] re[%d]", buf, re);
 
     /* 如果传了循环参数，编码到 weekday */
@@ -1043,8 +1043,11 @@ static int HttpAddTask(httpd_request_t *req) {
         int start_min = (loop_start_min >= 0 && loop_start_min < 1440) ? loop_start_min
                         : (int)(((task->prs_time + 28800) % 86400) / 60);
         task->weekday = MAKE_LOOP_WEEKDAY(loop_dur, loop_int) | MAKE_LOOP_START(start_min);
-        task->loop_end = (loop_end & 0xFFFF) | (loop_rep ? 0x10000 : 0) | (task->on == 1 ? 0x20000 : 0);
-        http_log("Loop task: dur=%d int=%d end=%d start=%d weekday=0x%X", loop_dur, loop_int, loop_end, start_min, task->weekday);
+        /* 星期掩码(Sun=bit0..Sat=bit6, 页面新增第10段)编码进 loop_end bit18-24;
+         * 旧页面不传时 loop_dow=0, 超窗重排回退 bit16 loop_daily 旧语义 */
+        task->loop_end = (loop_end & 0xFFFF) | (loop_rep ? 0x10000 : 0) | (task->on == 1 ? 0x20000 : 0)
+                       | MAKE_LOOP_DOW(loop_dow & 0x7F);
+        http_log("Loop task: dur=%d int=%d end=%d start=%d dow=0x%X weekday=0x%X", loop_dur, loop_int, loop_end, start_min, loop_dow & 0x7F, task->weekday);
     }
 
     if (task->prs_time < 1577428136 || task->prs_time > 9577428136
