@@ -36,6 +36,15 @@ system_context_t* sys_context = NULL;
 static mico_mutex_t para_update_mutex;
 static bool para_update_mutex_ready = false;
 
+/* 因快照 malloc 失败而被跳过的落盘累计次数。堆紧张时宁可丢这一次改动
+ * (flash 旧配置完好, 重启只丢本次), 也不允许退回活动 RAM 直写的撕裂竞态。
+ * telnet status 以 para_skip 行展示。 */
+static volatile uint32_t para_update_skip_count = 0;
+uint32_t mico_para_update_skip_count( void )
+{
+  return para_update_skip_count;
+}
+
 //#define para_log(M, ...) custom_log("MiCO Settting", M, ##__VA_ARGS__)
 
 #define para_log(M, ...)
@@ -144,22 +153,17 @@ static OSStatus internal_update_config( system_context_t * const inContext )
 
   /* CRC 与两次分区写必须来自同一份快照: 原先先用活动 RAM 算 CRC(t0)，再分两次
    * (t1/t2)从活动 RAM 写 P1/P2。窗口内任何无锁 RAM 改动都会让两个分区同时
-   * data != CRC，开机时 MICOReadConfiguration 判双双损坏并直接恢复出厂。 */
+   * data != CRC，开机时 MICOReadConfiguration 判双双损坏并直接恢复出厂。
+   * malloc 失败(4.4KB 是最大单笔分配, 堆紧张时最先失效)则跳过本次落盘并计数:
+   * 直写活动 RAM 恰好在最危险的时刻重新引入上面修掉的撕裂竞态, 且无声失败,
+   * 损坏延迟到下次开机才暴露。跳过只丢本次改动, para_skip 计数经 telnet 可见。 */
   snapshot = malloc( sizeof( system_config_t ) + inContext->user_config_data_size );
+  require_action( snapshot != NULL, exit, para_update_skip_count++; err = kNoMemoryErr );
 
-  if ( snapshot )
-  {
-    memcpy( snapshot, &inContext->flashContentInRam, sizeof( system_config_t ) );
-    memcpy( snapshot + sizeof( system_config_t ), inContext->user_config_data, inContext->user_config_data_size );
-    src_sys_config  = ( system_config_t * )snapshot;
-    src_user_data   = snapshot + sizeof( system_config_t );
-  }
-  else
-  {
-    /* 内存不足时退回旧行为(仍有竞态)，但不能因此丢掉这次配置写入 */
-    src_sys_config  = &inContext->flashContentInRam;
-    src_user_data   = ( uint8_t * )inContext->user_config_data;
-  }
+  memcpy( snapshot, &inContext->flashContentInRam, sizeof( system_config_t ) );
+  memcpy( snapshot + sizeof( system_config_t ), inContext->user_config_data, inContext->user_config_data_size );
+  src_sys_config  = ( system_config_t * )snapshot;
+  src_user_data   = snapshot + sizeof( system_config_t );
 
   /* Calculate CRC value */
   CRC16_Init( &crc_context );
