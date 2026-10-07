@@ -14,6 +14,8 @@
 
 /* httpd 内部诊断输出 (mico-os/libraries/daemons/http_server/httpd.c) */
 extern char *httpd_debug_info(void);
+/* 配置落盘因 malloc 失败被跳过的累计次数 (mico_system_para_storage.c) */
+extern uint32_t mico_para_update_skip_count(void);
 
 #define TELNET_PORT 23
 #define TELNET_LINE_MAX 256
@@ -90,11 +92,13 @@ static void telnet_process(int sock, char *line)
             "childLock=%d led=%d\r\n"
             "ota     : %d (-2 idle, 0-99 running, 100 ok)\r\n"
             "free    : %d bytes\r\n"
+            "para_skip: %u (落盘因内存不足被跳过, 应为 0)\r\n"
             "device  : %s",
             ip_status.mode == 0 ? "AP" : "Station", ip_status.ip, RssiGet(),
             UserMqttIsConnect() ? "connected" : "disconnected",
             GetSocketStatus(), childLockEnabled, user_config->power_led_enabled,
             ota_progress, (int) MicoGetMemoryInfo()->free_memory,
+            (unsigned) mico_para_update_skip_count(),
             sys_config->micoSystemConfig.name);
     } else if (!strcmp(line, "log")) {
         char *logs = GetLogRecord(0);
