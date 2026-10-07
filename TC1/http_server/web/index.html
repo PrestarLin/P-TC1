@@ -941,6 +941,8 @@ function renderTasks(){
   S.tasks.forEach(function(t){
     if(t.is_loop)loop.push(t);else scheduled.push(t);
   });
+  /* 循环任务按槽位固定排序: 触发重排后行位置不跳动, 连点删除不会误认行 */
+  loop.sort(function(a,b){return (a.idx||0)-(b.idx||0);});
   var days=(i18nData[curLang]||i18nData.en).weekdays;
   function renderRow(t,isLoopTable){
     var wk=t.weekday||0;
@@ -963,7 +965,8 @@ function renderTasks(){
       if(t.operation>=1&&t.operation<=6&&S.socketNames[t.operation-1])sockStr=esc(S.socketNames[t.operation-1]);
       else sockStr=L('socket_n')+t.operation;
     }
-    var act=t.on===-1?L('act_toggle'):(t.on?L('act_on'):L('act_off'));
+    /* 循环任务每次触发后 on 字段翻转为"下一次动作", 列表显示用户设定的初始方向(loop_start_on), 避免"开"添加后秒变"关" */
+    var act=t.on===-1?L('act_toggle'):(t.is_loop?(t.loop_start_on?L('act_on'):L('act_off')):(t.on?L('act_on'):L('act_off')));
     var ts='--:--';
     if(t.timestamp){var dd=new Date(t.timestamp*1000);ts=(dd.getHours()<10?'0':'')+dd.getHours()+':'+(dd.getMinutes()<10?'0':'')+dd.getMinutes();}
     return '<tr><td>'+(isLoopTable&&winStr?winStr:ts)+'</td><td>'+sockStr+'</td><td>'+act+'</td>'

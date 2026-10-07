@@ -413,7 +413,8 @@ char* GetTaskStr()
 {
     /* 每条目 256 字节: 条目录入格式最坏约 210(时间戳 10 + 负 weekday(循环编码 bit31) 11 +
      * 各数字字段)，f23fbe5 起 JSON 增加 loop_repeat 字段后循环任务实测 197~204 字节，
-     * 原 192/条 会被 sprintf 逐条写穿堆块(web 失联的根因)。+3 = '[' + 条目尾 NUL 余量
+     * 原 192/条 会被 sprintf 逐条写穿堆块(web 失联的根因)。其后又增加 idx/loop_start_on
+     * 两字段(约 +30)，最坏仍在 256 内。+3 = '[' + 条目尾 NUL 余量
      * + 收尾 ']' 与 '\0'; 只留 +2 时空列表分支会写到 tmp_str[2], 越界 1 字节 */
     char* str = (char*)malloc(sizeof(char)*(user_config->task_count*256+3));
     if (!str) return NULL;
@@ -447,10 +448,11 @@ char* GetTaskStr()
 
         sprintf(tmp_str,
             "{'idx':%d,'timestamp':%ld,'prs_time':'%s','operation':%d,'on':%d,'weekday':%d,"
-            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_start':%d,'loop_end':%d,'loop_repeat':%d},",
+            "'is_loop':%d,'loop_duration':%d,'loop_interval':%d,'loop_start':%d,'loop_end':%d,'loop_repeat':%d,'loop_start_on':%d},",
             (int)(tmp_tsk - &user_config->timed_tasks[0]),
             tmp_tsk->prs_time, buffer, tmp_tsk->operation, tmp_tsk->on, tmp_tsk->weekday,
-            is_loop, loop_dur, loop_int, loop_start, tmp_tsk->loop_end & 0xFFFF, (tmp_tsk->loop_end >> 16) & 1);
+            is_loop, loop_dur, loop_int, loop_start, tmp_tsk->loop_end & 0xFFFF, (tmp_tsk->loop_end >> 16) & 1,
+            (tmp_tsk->loop_end >> 17) & 1);
         tmp_str += strlen(tmp_str);
         tmp_tsk = tmp_tsk->next;
     }
