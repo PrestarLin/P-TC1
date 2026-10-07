@@ -38,6 +38,7 @@
 #include "httpd.h"
 #include "http_parse.h"
 #include "http-strings.h"
+#include "mico.h"
 
 #include "httpd_priv.h"
 
@@ -152,26 +153,38 @@ int httpd_purge_headers(int sock)
 {
 	unsigned char ch;
 	int r;
+	int saw_byte = 0;
+	uint32_t start = 0;
 	struct timeval tv;
 	fd_set readfds;
 	httpd_purge_state_t purge_state = ANY_OTHER_CHAR;
 
 	httpd_dbg_set_stage( 9, sock, NULL );
-	/* 只排空"已到达"的请求头字节, 等不到就直接收工:
+	/* 只排空"已到达"的请求头字节, 等不到就收工:
 	 * - 原实现用 httpd_recv(内含 5s select)读字节, 一旦请求头不在缓冲区
 	 *   (已被解析消费或本就没有), 每次白等 5s 超时, 再返回
 	 *   -kInProgressErr 让响应发不出去 —— 串行处理的 httpd 表现为
 	 *   "刷新卡一下、数据同步慢"(实测卡在 stg=9, 每个请求 1~5s)。
 	 * - recv 返回 -1 表示 socket 错误(如收到 RST 后 mocIP 反复报错),
 	 *   原实现 -1 被当作"继续"会无超时死循环, 这里一并收口。
-	 * 残留未排空的字节由下一次请求解析兜底(解析失败走 500 并关连接, 有界)。 */
+	 * - 一个头字节都没读到时立即收工(上述卡顿场景); 已读到部分头但没找齐
+	 *   结束空行时再等到 500ms 预算耗尽: WiFi 分片在途时提前收工会把残留
+	 *   字节留给下一个请求当请求行, keep-alive 串流后该连接上所有请求
+	 *   随机 500(表现为"删不掉/加载失败, 刷新页面才好")。 */
 	for (;;) {
 		FD_ZERO(&readfds);
 		FD_SET(sock, &readfds);
 		tv.tv_sec = 0;
 		tv.tv_usec = 50 * 1000;
-		if (select(sock + 1, &readfds, NULL, NULL, &tv) <= 0)
-			break;
+		if (select(sock + 1, &readfds, NULL, NULL, &tv) <= 0) {
+			if (!saw_byte || (mico_rtos_get_time() - start) >= 500)
+				break;
+			continue;
+		}
+		if (!saw_byte) {
+			saw_byte = 1;
+			start = mico_rtos_get_time();
+		}
 		r = httpd_recv(sock, &ch, 1, 0);
 		if (r <= 0)
 			break;

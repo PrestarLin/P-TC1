@@ -398,12 +398,17 @@ int httpd_handle_message(int conn)
     /* Parse the first line of the header */
     httpd_dbg_set_stage( 2, conn, NULL );
     err = httpd_parse_hdr_main(msg_in, &httpd_req);
-    if (err == -WM_E_HTTPD_NOTSUPP)
-        /* Send 505 HTTP Version not supported */
-        return httpd_send_error(conn, HTTP_505);
-    else if (err != kNoErr) {
-        /* Send 500 Internal Server Error */
-        return httpd_send_error(conn, HTTP_500);
+    if (err == -WM_E_HTTPD_NOTSUPP) {
+        /* Send 505 HTTP Version not supported; HTTP/1.0 不保持连接 */
+        httpd_send_error(conn, HTTP_505);
+        return -kInProgressErr;
+    } else if (err != kNoErr) {
+        /* 请求行解析失败: 多半是上一个响应没把请求头排空干净, 本连接已串流。
+         * 发 500 后必须返回错误让主循环关闭该 fd: 若像原来那样返回 kNoErr
+         * 保持 keep-alive, 残留字节会持续污染此连接上的后续所有请求,
+         * 表现为"随机 500/加载失败/删不掉, 直到刷新页面重连" */
+        httpd_send_error(conn, HTTP_500);
+        return -kInProgressErr;
     }
 
     /* set a generic error that can be overridden by the wsgi handling. */
@@ -444,9 +449,11 @@ int httpd_handle_message(int conn)
         return kNoErr;
     } else {
         httpd_d("WSGI handler failed.");
-        /* Send 500 Internal Server Error */
+        /* Send 500 Internal Server Error.
+         * 半途失败的响应会在流上留下残包, 同样必须关连接自愈 */
         httpd_dbg_set_stage( 8, conn, httpd_req.filename );
-        return httpd_send_error(conn, HTTP_500);
+        httpd_send_error(conn, HTTP_500);
+        return -kInProgressErr;
     }
 
 }

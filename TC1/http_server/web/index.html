@@ -927,10 +927,18 @@ function addTask(){
     toast('Task added');fetchTasks();
   });
 }
+var _taskRetry=0;
 function fetchTasks(){
   updateTaskSocketOptions();
   api('/task',function(e,d){
-    if(e){document.getElementById('taskListScheduled').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">'+L('fail_load')+'</div>';return;}
+    if(e){
+      /* 服务端串流自愈会关闭 keep-alive 连接, 单次请求可能随机失败:
+       * 静默重试至多2次, 避免"加载失败"卡在页面上要手动刷新 */
+      if(_taskRetry<2){_taskRetry++;setTimeout(fetchTasks,1200);return;}
+      _taskRetry=0;
+      document.getElementById('taskListScheduled').innerHTML='<div class="text-center" style="padding:24px;color:var(--fg-dim)">'+L('fail_load')+'</div>';return;
+    }
+    _taskRetry=0;
     var arr=p(d);S.tasks=Array.isArray(arr)?arr:[];renderTasks();
   });
 }
